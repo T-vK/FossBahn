@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -16,17 +17,27 @@ import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -36,6 +47,11 @@ import de.openbahn.navigator.R
 import de.openbahn.navigator.ui.components.ErrorBanner
 import de.openbahn.navigator.ui.components.JourneyCard
 import de.openbahn.navigator.ui.components.LoadingIndicator
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,6 +62,15 @@ fun SearchScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    val whenLabel = DateTimeFormatter.ofPattern("EEE d MMM, HH:mm", Locale.getDefault())
+        .format(state.departureTime)
+    val whenCaption = if (state.options.arrivalSearch) {
+        stringResource(R.string.search_arrival_at, whenLabel)
+    } else {
+        stringResource(R.string.search_departure_at, whenLabel)
+    }
 
     Scaffold(
         topBar = {
@@ -90,6 +115,89 @@ fun SearchScreen(
                 singleLine = true,
             )
             SuggestionList(state.toSuggestions, onSelect = viewModel::selectTo)
+
+            Text(stringResource(R.string.search_when), style = MaterialTheme.typography.titleSmall)
+            Text(whenCaption, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("search_when_label"))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = { showDatePicker = true },
+                    modifier = Modifier.weight(1f).testTag("search_pick_date"),
+                ) {
+                    Text(stringResource(R.string.search_pick_date))
+                }
+                OutlinedButton(
+                    onClick = { showTimePicker = true },
+                    modifier = Modifier.weight(1f).testTag("search_pick_time"),
+                ) {
+                    Text(stringResource(R.string.search_pick_time))
+                }
+            }
+
+            if (showDatePicker) {
+                val zone = ZoneId.systemDefault()
+                val dateState = rememberDatePickerState(
+                    initialSelectedDateMillis = state.departureTime.atZone(zone).toInstant().toEpochMilli(),
+                )
+                DatePickerDialog(
+                    onDismissRequest = { showDatePicker = false },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                val millis = dateState.selectedDateMillis
+                                if (millis != null) {
+                                    val picked = Instant.ofEpochMilli(millis).atZone(zone).toLocalDate()
+                                    val current = state.departureTime
+                                    viewModel.setDepartureTime(
+                                        LocalDateTime.of(
+                                            picked,
+                                            current.toLocalTime(),
+                                        ),
+                                    )
+                                }
+                                showDatePicker = false
+                            },
+                        ) { Text(stringResource(android.R.string.ok)) }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDatePicker = false }) {
+                            Text(stringResource(android.R.string.cancel))
+                        }
+                    },
+                ) {
+                    DatePicker(state = dateState)
+                }
+            }
+
+            if (showTimePicker) {
+                val timeState = rememberTimePickerState(
+                    initialHour = state.departureTime.hour,
+                    initialMinute = state.departureTime.minute,
+                    is24Hour = true,
+                )
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { showTimePicker = false },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                val current = state.departureTime
+                                viewModel.setDepartureTime(
+                                    LocalDateTime.of(
+                                        current.toLocalDate(),
+                                        java.time.LocalTime.of(timeState.hour, timeState.minute),
+                                    ),
+                                )
+                                showTimePicker = false
+                            },
+                        ) { Text(stringResource(android.R.string.ok)) }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showTimePicker = false }) {
+                            Text(stringResource(android.R.string.cancel))
+                        }
+                    },
+                    text = { TimePicker(state = timeState) },
+                )
+            }
 
             Button(
                 onClick = { viewModel.search() },

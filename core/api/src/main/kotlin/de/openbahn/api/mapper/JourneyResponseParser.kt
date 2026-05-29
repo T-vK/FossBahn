@@ -12,6 +12,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
@@ -71,20 +72,34 @@ internal object JourneyResponseParser {
     }
 
     private fun extractVerbindungElements(root: JsonObject): List<JsonElement> {
-        root["verbindungen"]?.jsonArray?.let { return it.toList() }
-        root["journeys"]?.jsonArray?.let { return it.toList() }
-
-        val fromIntervalle = root["intervalle"]?.jsonArray.orEmpty().flatMap { interval ->
-            interval.jsonObject["verbindungen"]?.jsonArray.orEmpty()
+        root["verbindungen"]?.jsonArray?.let { top ->
+            if (top.isNotEmpty()) return top.map(::flattenVerbindungElement)
         }
-        if (fromIntervalle.isNotEmpty()) return fromIntervalle
-
-        val fromTagesbestpreis = root["tagesbestPreisIntervalle"]?.jsonArray.orEmpty().flatMap { interval ->
-            interval.jsonObject["verbindungen"]?.jsonArray.orEmpty()
+        root["journeys"]?.jsonArray?.let { journeys ->
+            if (journeys.isNotEmpty()) return journeys.map(::flattenVerbindungElement)
         }
-        if (fromTagesbestpreis.isNotEmpty()) return fromTagesbestpreis
 
-        return emptyList()
+        val intervalKeys = listOf("intervalle", "tagesbestPreisIntervalle")
+        for (key in intervalKeys) {
+            val fromIntervals = root[key]?.jsonArray.orEmpty().flatMap { interval ->
+                interval.jsonObject["verbindungen"]?.jsonArray.orEmpty()
+            }.map(::flattenVerbindungElement)
+            if (fromIntervals.isNotEmpty()) return fromIntervals
+        }
+
+        return root["verbindungen"]?.jsonArray?.map(::flattenVerbindungElement).orEmpty()
+    }
+
+    /** Matches db-vendo-client: spread `verbindung` wrapper into the connection object. */
+    private fun flattenVerbindungElement(element: JsonElement): JsonElement {
+        val obj = element.jsonObject
+        val inner = obj["verbindung"]?.jsonObject ?: return element
+        return buildJsonObject {
+            inner.forEach { (key, value) -> put(key, value) }
+            obj.forEach { (key, value) ->
+                if (key != "verbindung") put(key, value)
+            }
+        }
     }
 
     private fun mapVerbindung(element: JsonElement): Journey? {

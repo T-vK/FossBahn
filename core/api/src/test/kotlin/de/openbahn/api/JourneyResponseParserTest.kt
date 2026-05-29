@@ -35,4 +35,12 @@ class JourneyResponseParserTest {
         val journeys = JourneyResponseParser.parse(text)
         assertTrue(journeys.isNotEmpty())
     }
+
+    @Test
+    fun parsesConnectionsFromIntervalleWhenTopLevelEmpty() {
+        val text = javaClass.getResource("/dbweb-journey-intervalle-only.json")!!.readText()
+        val journeys = JourneyResponseParser.parse(text)
+        assertEquals(1, journeys.size)
+        assertEquals("Hamburg Hbf", journeys.first().legs.first().origin.name)
+    }
 }
