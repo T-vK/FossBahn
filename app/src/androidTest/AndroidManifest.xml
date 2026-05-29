@@ -3,6 +3,6 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <application
-        android:name=".OpenBahnTestApplication"
+        android:name="de.openbahn.navigator.OpenBahnTestApplication"
         tools:replace="android:name" />
 </manifest>
