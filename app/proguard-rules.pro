@@ -1,0 +1,3 @@
+-keepattributes *Annotation*
+-keepclassmembers class kotlinx.serialization.json.** { *; }
+-dontwarn org.osmdroid.**
