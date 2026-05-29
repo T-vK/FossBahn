@@ -24,10 +24,23 @@ jobs:
         run: chmod +x .github/scripts/test-next-semver.sh && .github/scripts/test-next-semver.sh
 
       - name: Unit tests and assemble debug APK
-        env:
-          # Live bahn.de tests run on main pushes only (skipped on PR / when OPS_BLOCKED)
-          RUN_LIVE_API_TESTS: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         run: ./gradlew :core:api:testDebugUnitTest :app:assembleDebug --stacktrace
+
+  live-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/android-build-setup
+
+      - run: chmod +x gradlew .github/scripts/run-live-api-tests.sh .github/scripts/summarize-live-api-tests.sh
+
+      - name: Live bahn.de integration tests (JVM, no emulator)
+        run: .github/scripts/run-live-api-tests.sh --stacktrace
+
+      - name: Summarize live API results
+        if: always()
+        run: .github/scripts/summarize-live-api-tests.sh
 
       - uses: actions/upload-artifact@v4
         with:

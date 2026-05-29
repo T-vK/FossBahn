@@ -32,11 +32,12 @@ Requirements: JDK 17, Android SDK 35.
 ## Testing
 
 ```bash
-# Unit tests (incl. journey JSON fixture)
+# Unit tests (fixtures only; live bahn.de tests excluded)
 ./gradlew :core:api:testDebugUnitTest
 
-# Live API tests (optional; skipped if DB blocks your IP)
-RUN_LIVE_API_TESTS=true ./gradlew :core:api:testDebugUnitTest --tests "de.openbahn.api.DbVendoLiveApiTest"
+# Live API integration tests (JVM — no emulator; real int.bahn.de)
+# Skips individual tests if Deutsche Bahn returns OPS_BLOCKED (common on CI/datacenter IPs).
+.github/scripts/run-live-api-tests.sh
 
 # UI / E2E (Android emulator or device required; uses fake API, no bahn.de)
 ./gradlew :app:connectedDebugAndroidTest \
