@@ -25,7 +25,7 @@ android {
         targetSdk = 35
         versionCode = appVersionCode
         versionName = appVersionName
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "de.openbahn.navigator.OpenBahnTestRunner"
         vectorDrawables { useSupportLibrary = true }
     }
 

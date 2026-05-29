@@ -23,4 +23,17 @@ class JourneyMapperTest {
         assertEquals("München Hbf", j.legs.first().destination.name)
         assertEquals("ICE 123", j.legs.first().lineName)
     }
+
+    @Test
+    fun mapsRealDbWebJourneyFixtureWithMultipleLegs() {
+        val text = javaClass.getResource("/dbweb-journey-full.json")!!.readText()
+        val response = json.decodeFromString<DbJourneyResponse>(text)
+        val journeys = JourneyMapper.mapJourneys(response)
+        assertTrue(journeys.isNotEmpty(), "Expected at least one journey from full fixture")
+        val j = journeys.first()
+        assertTrue(j.legs.size >= 2, "Expected multiple legs, got ${j.legs.size}")
+        assertEquals("Köln Hbf", j.legs.first().origin.name)
+        assertEquals("Nürnberg Hbf", j.legs.last().destination.name)
+        assertTrue(j.priceHint != null || j.durationMinutes > 0)
+    }
 }

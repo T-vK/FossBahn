@@ -6,6 +6,7 @@ import de.openbahn.api.DbVendoClient
 import de.openbahn.navigator.data.OpenBahnDatabase
 import de.openbahn.navigator.data.TicketRepository
 import de.openbahn.navigator.data.TrackedJourneyRepository
+import de.openbahn.navigator.domain.JourneySearchRepository
 import de.openbahn.navigator.domain.JourneySearchUseCase
 import de.openbahn.navigator.domain.PredictionUseCase
 import de.openbahn.navigator.ui.board.StationBoardViewModel
@@ -28,7 +29,7 @@ val appModule = module {
     single { get<OpenBahnDatabase>().trackedJourneyDao() }
     single { TicketRepository(get(), androidContext()) }
     single { TrackedJourneyRepository(get()) }
-    single { JourneySearchUseCase(get(), get()) }
+    single<JourneySearchRepository> { JourneySearchUseCase(get(), get()) }
     single { PredictionUseCase(get()) }
     viewModel { SearchViewModel(get(), get()) }
     viewModel { StationBoardViewModel(get()) }

@@ -121,7 +121,7 @@ fun SearchScreen(
             if (state.isLoading) LoadingIndicator()
 
             LazyColumn(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).testTag("search_results"),
                 contentPadding = PaddingValues(bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -157,6 +157,7 @@ private fun SuggestionList(
             loc.name,
             Modifier
                 .fillMaxWidth()
+                .testTag("location_suggestion_${loc.evaNumber ?: loc.id}")
                 .clickable { onSelect(loc) }
                 .padding(vertical = 6.dp, horizontal = 4.dp),
             style = MaterialTheme.typography.bodyMedium,

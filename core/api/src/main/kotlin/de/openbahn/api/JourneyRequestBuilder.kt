@@ -12,6 +12,14 @@ import kotlinx.serialization.json.add
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
+/** bahn.de / db-vendo halt identifier for journey requests (abfahrtsHalt / ankunftsHalt). */
+internal fun Location.haltIdForJourney(): String {
+    val eva = evaNumber?.takeIf { it.isNotEmpty() && it.all(Char::isDigit) }
+        ?: id.takeIf { it.length >= 6 && it.all(Char::isDigit) }
+    if (eva != null) return "A=1@L=$eva@"
+    return id
+}
+
 internal object JourneyRequestBuilder {
     private val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
 
@@ -21,8 +29,8 @@ internal object JourneyRequestBuilder {
         options: JourneySearchOptions,
         whenTime: LocalDateTime,
     ): JsonObject = buildJsonObject {
-        put("abfahrtsHalt", from.id)
-        put("ankunftsHalt", to.id)
+        put("abfahrtsHalt", from.haltIdForJourney())
+        put("ankunftsHalt", to.haltIdForJourney())
         put("anfrageZeitpunkt", whenTime.format(timeFormatter))
         put("ankunftSuche", if (options.arrivalSearch) "ANKUNFT" else "ABFAHRT")
         options.maxTransfers?.let { put("maxUmstiege", it) }
