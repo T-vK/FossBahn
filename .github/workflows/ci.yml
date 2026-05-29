@@ -56,7 +56,4 @@ jobs:
           disable-animations: true
           script: |
             chmod +x gradlew
-            ./gradlew :app:connectedDebugAndroidTest \
-              -Pandroid.testInstrumentationRunnerArguments.clearPackageData=true \
-              -Pandroid.testInstrumentationRunnerArguments.notClass=de.openbahn.navigator.SearchLiveE2ETest \
-              --stacktrace
+            ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.clearPackageData=true -Pandroid.testInstrumentationRunnerArguments.notClass=de.openbahn.navigator.SearchLiveE2ETest --stacktrace
