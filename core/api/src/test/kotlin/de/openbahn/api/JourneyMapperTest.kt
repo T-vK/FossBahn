@@ -25,6 +25,17 @@ class JourneyMapperTest {
     }
 
     @Test
+    fun mapsHamburgBerlinFixtureWithNumericPlatform() {
+        val text = javaClass.getResource("/dbweb-journey-hamburg-berlin.json")!!.readText()
+        val response = json.decodeFromString<de.openbahn.api.dto.DbJourneyResponse>(text)
+        val journeys = JourneyMapper.mapJourneys(response)
+        assertEquals(1, journeys.size)
+        assertEquals("Hamburg Hbf", journeys.first().legs.first().origin.name)
+        assertEquals("Berlin Hbf", journeys.first().legs.first().destination.name)
+        assertEquals("7", journeys.first().legs.first().origin.platform)
+    }
+
+    @Test
     fun mapsRealDbWebJourneyFixtureWithMultipleLegs() {
         val text = javaClass.getResource("/dbweb-journey-full.json")!!.readText()
         val response = json.decodeFromString<DbJourneyResponse>(text)

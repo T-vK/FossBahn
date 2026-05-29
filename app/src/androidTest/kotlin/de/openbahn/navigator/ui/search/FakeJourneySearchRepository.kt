@@ -11,10 +11,12 @@ import java.time.LocalDateTime
 
 /** Deterministic journey search for instrumented UI tests. */
 class FakeJourneySearchRepository : JourneySearchRepository {
+    val hamburg = Location(id = "8002549", name = "Hamburg Hbf", evaNumber = "8002549")
     val berlin = Location(id = "8011160", name = "Berlin Hbf", evaNumber = "8011160")
     val munich = Location(id = "8000261", name = "München Hbf", evaNumber = "8000261")
 
     override suspend fun searchLocations(query: String, locale: String): List<Location> = when {
+        query.contains("Hamburg", ignoreCase = true) -> listOf(hamburg)
         query.contains("Berlin", ignoreCase = true) -> listOf(berlin)
         query.contains("München", ignoreCase = true) || query.contains("Munich", ignoreCase = true) ->
             listOf(munich)
@@ -39,9 +41,9 @@ class FakeJourneySearchRepository : JourneySearchRepository {
         id = "test-journey-1",
         legs = listOf(
             Leg(
-                origin = StopEvent("Berlin Hbf", scheduledTime = "2026-05-30T10:00:00"),
-                destination = StopEvent("München Hbf", scheduledTime = "2026-05-30T16:00:00"),
-                lineName = "ICE 123",
+                origin = StopEvent("Hamburg Hbf", scheduledTime = "2026-05-30T08:00:00"),
+                destination = StopEvent("Berlin Hbf", scheduledTime = "2026-05-30T10:00:00"),
+                lineName = "ICE 701",
             ),
         ),
         durationMinutes = 360,

@@ -1,7 +1,9 @@
 package de.openbahn.api.dto
 
+import de.openbahn.api.StringOrNumberSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 @Serializable
 data class DbLocationResponse(
@@ -51,7 +53,7 @@ data class DbVerbindung(
     val kontext: String? = null,
     @SerialName("verbindungsAbschnitte") val verbindungsAbschnitte: List<DbVerbindungsAbschnitt>? = null,
     val segmente: List<DbVerbindungsAbschnitt>? = null,
-    val hinweise: List<String>? = null,
+    val hinweise: List<JsonElement>? = null,
     val preis: DbPreis? = null,
     @SerialName("angebotsPreis") val angebotsPreis: DbPreis? = null,
     val dticketGueltig: Boolean? = null,
@@ -74,6 +76,7 @@ data class DbVerbindungsAbschnitt(
     val ankunftsOrt: String? = null,
     @SerialName("ankunftsOrtExtId") val ankunftsOrtExtId: String? = null,
     @SerialName("ankunftsZeitpunkt") val ankunftsZeitpunkt: String? = null,
+    @Serializable(with = StringOrNumberSerializer::class)
     val gleis: String? = null,
     @SerialName("abschnittsDauer") val abschnittsDauer: Int? = null,
     val verkehrsmittel: DbVerkehrsmittel? = null,
@@ -104,6 +107,7 @@ data class DbVerkehrsmittel(
     val richtung: String? = null,
     val betreiber: String? = null,
     val fahrradErlaubt: Boolean? = null,
+    @Serializable(with = StringOrNumberSerializer::class)
     val auslastung: String? = null,
 )
 
@@ -118,6 +122,7 @@ data class DbStationBoardResponse(
 data class DbBoardEntry(
     val zeit: String? = null,
     @SerialName("ezZeit") val ezZeit: String? = null,
+    @Serializable(with = StringOrNumberSerializer::class)
     val gleis: String? = null,
     val ueber: List<String>? = null,
     val richtung: String? = null,

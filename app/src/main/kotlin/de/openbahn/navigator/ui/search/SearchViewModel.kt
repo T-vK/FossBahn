@@ -3,6 +3,9 @@ package de.openbahn.navigator.ui.search
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.openbahn.api.DbApiBlockedException
+import de.openbahn.api.DbApiException
+import de.openbahn.api.DbParseException
+import java.io.IOException
 import de.openbahn.model.Journey
 import de.openbahn.model.JourneySearchOptions
 import de.openbahn.model.Location
@@ -133,12 +136,16 @@ class SearchViewModel(
                         )
                     }
                 }
-            } catch (e: DbApiBlockedException) {
+            } catch (_: DbApiBlockedException) {
                 _state.update { it.copy(isLoading = false, error = "error_api_blocked") }
-            } catch (e: Exception) {
-                _state.update {
-                    it.copy(isLoading = false, error = e.message ?: "error_search_failed")
-                }
+            } catch (_: DbParseException) {
+                _state.update { it.copy(isLoading = false, error = "error_parse") }
+            } catch (_: DbApiException) {
+                _state.update { it.copy(isLoading = false, error = "error_search_failed") }
+            } catch (_: IOException) {
+                _state.update { it.copy(isLoading = false, error = "error_network") }
+            } catch (_: Exception) {
+                _state.update { it.copy(isLoading = false, error = "error_search_failed") }
             }
         }
     }
