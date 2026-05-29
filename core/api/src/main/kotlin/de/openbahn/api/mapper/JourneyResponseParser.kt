@@ -3,6 +3,8 @@ package de.openbahn.api.mapper
 import de.openbahn.api.DbApiBlockedException
 import de.openbahn.api.DbApiException
 import de.openbahn.api.DbParseException
+import de.openbahn.api.debug.OpenBahnDebugLog
+import de.openbahn.api.debug.FahrplanDiagnostics
 import de.openbahn.model.Journey
 import de.openbahn.model.Leg
 import de.openbahn.model.StopEvent
@@ -67,16 +69,29 @@ internal object JourneyResponseParser {
             }
         }
 
-        val items = extractVerbindungElements(root)
-        return items.mapNotNull { mapVerbindung(it) }
+        val (items, source) = extractVerbindungElements(root)
+        val journeys = items.mapNotNull { mapVerbindung(it) }
+        val skipped = items.size - journeys.size
+        OpenBahnDebugLog.d(
+            "JourneyParser",
+            "${FahrplanDiagnostics.summarizeFahrplanRoot(root)} source=$source " +
+                "rawConnections=${items.size} parsedJourneys=${journeys.size} skipped=$skipped",
+        )
+        if (items.isNotEmpty() && journeys.isEmpty()) {
+            OpenBahnDebugLog.w(
+                "JourneyParser",
+                "API returned ${items.size} connection(s) but none mapped to journeys — check abschnitte/halte fields",
+            )
+        }
+        return journeys
     }
 
-    private fun extractVerbindungElements(root: JsonObject): List<JsonElement> {
+    private fun extractVerbindungElements(root: JsonObject): Pair<List<JsonElement>, String> {
         root["verbindungen"]?.jsonArray?.let { top ->
-            if (top.isNotEmpty()) return top.map(::flattenVerbindungElement)
+            if (top.isNotEmpty()) return top.map(::flattenVerbindungElement) to "verbindungen"
         }
         root["journeys"]?.jsonArray?.let { journeys ->
-            if (journeys.isNotEmpty()) return journeys.map(::flattenVerbindungElement)
+            if (journeys.isNotEmpty()) return journeys.map(::flattenVerbindungElement) to "journeys"
         }
 
         val intervalKeys = listOf("intervalle", "tagesbestPreisIntervalle")
@@ -84,10 +99,10 @@ internal object JourneyResponseParser {
             val fromIntervals = root[key]?.jsonArray.orEmpty().flatMap { interval ->
                 interval.jsonObject["verbindungen"]?.jsonArray.orEmpty()
             }.map(::flattenVerbindungElement)
-            if (fromIntervals.isNotEmpty()) return fromIntervals
+            if (fromIntervals.isNotEmpty()) return fromIntervals to key
         }
 
-        return root["verbindungen"]?.jsonArray?.map(::flattenVerbindungElement).orEmpty()
+        return (root["verbindungen"]?.jsonArray?.map(::flattenVerbindungElement).orEmpty()) to "none"
     }
 
     /** Matches db-vendo-client: spread `verbindung` wrapper into the connection object. */

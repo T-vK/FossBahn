@@ -54,6 +54,14 @@ Requirements: JDK 17, Android SDK 35.
 
 Run e2e locally before pushing to avoid burning CI emulator minutes. You need API 30+ x86_64 AVD with Google APIs, or a USB device with USB debugging enabled (`adb devices` must list it).
 
+### Debug logs (debug APK only)
+
+Journey search logs use tag prefix `OpenBahn/` (enabled when `BuildConfig.DEBUG`):
+
+```bash
+adb logcat -s 'OpenBahn/DbVendo' 'OpenBahn/JourneyParser' 'OpenBahn/Search'
+```
+
 ## Releases & versioning
 
 Version is stored in `version.properties` (`versionName` + `versionCode`).

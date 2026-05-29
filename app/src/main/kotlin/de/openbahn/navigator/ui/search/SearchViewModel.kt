@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import de.openbahn.api.DbApiBlockedException
 import de.openbahn.api.DbApiException
 import de.openbahn.api.DbParseException
+import de.openbahn.api.debug.FahrplanDiagnostics
+import de.openbahn.api.debug.OpenBahnDebugLog
 import java.io.IOException
 import de.openbahn.model.Journey
 import de.openbahn.model.JourneySearchOptions
@@ -88,18 +90,30 @@ class SearchViewModel(
 
     fun search() {
         viewModelScope.launch {
+            OpenBahnDebugLog.d(
+                "Search",
+                "search() fromQuery=\"${_state.value.fromQuery}\" toQuery=\"${_state.value.toQuery}\" " +
+                    "departureTime=${_state.value.departureTime} arrivalSearch=${_state.value.options.arrivalSearch}",
+            )
             _state.update { it.copy(isLoading = true, error = null, info = null, hasSearched = true) }
             val from = resolveLocation(
+                "from",
                 _state.value.fromQuery,
                 _state.value.from,
                 _state.value.fromSuggestions,
             )
             val to = resolveLocation(
+                "to",
                 _state.value.toQuery,
                 _state.value.to,
                 _state.value.toSuggestions,
             )
             if (from == null || to == null) {
+                OpenBahnDebugLog.w(
+                    "Search",
+                    "search() aborted: could not resolve stations " +
+                        "(from=${from != null} to=${to != null}) — pick from suggestions",
+                )
                 _state.update {
                     it.copy(
                         isLoading = false,
@@ -115,10 +129,12 @@ class SearchViewModel(
                     val rated = searchUseCase.searchWithPredictions(
                         from, to, options, _state.value.departureTime,
                     )
+                    val journeys = rated.map { it.journey }
+                    logSearchOutcome(journeys.size, rated.isEmpty())
                     _state.update {
                         it.copy(
                             ratedJourneys = rated,
-                            journeys = rated.map { r -> r.journey },
+                            journeys = journeys,
                             isLoading = false,
                             info = if (rated.isEmpty()) "info_no_connections" else null,
                         )
@@ -127,6 +143,7 @@ class SearchViewModel(
                     val journeys = searchUseCase.searchJourneys(
                         from, to, options, _state.value.departureTime,
                     )
+                    logSearchOutcome(journeys.size, journeys.isEmpty())
                     _state.update {
                         it.copy(
                             journeys = journeys,
@@ -136,17 +153,34 @@ class SearchViewModel(
                         )
                     }
                 }
-            } catch (_: DbApiBlockedException) {
+            } catch (e: DbApiBlockedException) {
+                OpenBahnDebugLog.w("Search", "search() blocked: ${e.message}")
                 _state.update { it.copy(isLoading = false, error = "error_api_blocked") }
-            } catch (_: DbParseException) {
+            } catch (e: DbParseException) {
+                OpenBahnDebugLog.w("Search", "search() parse error: ${e.message}", e)
                 _state.update { it.copy(isLoading = false, error = "error_parse") }
-            } catch (_: DbApiException) {
+            } catch (e: DbApiException) {
+                OpenBahnDebugLog.w("Search", "search() api error: ${e.message}")
                 _state.update { it.copy(isLoading = false, error = "error_search_failed") }
-            } catch (_: IOException) {
+            } catch (e: IOException) {
+                OpenBahnDebugLog.w("Search", "search() network error: ${e.message}", e)
                 _state.update { it.copy(isLoading = false, error = "error_network") }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                OpenBahnDebugLog.w("Search", "search() failed: ${e.message}", e)
                 _state.update { it.copy(isLoading = false, error = "error_search_failed") }
             }
+        }
+    }
+
+    private fun logSearchOutcome(journeyCount: Int, showNoConnections: Boolean) {
+        if (showNoConnections) {
+            OpenBahnDebugLog.w(
+                "Search",
+                "search() UI will show info_no_connections — API returned $journeyCount journey(s). " +
+                    "See OpenBahn/DbVendo and OpenBahn/JourneyParser log lines above.",
+            )
+        } else {
+            OpenBahnDebugLog.d("Search", "search() success: $journeyCount journey(s) for UI")
         }
     }
 
@@ -160,16 +194,44 @@ class SearchViewModel(
     }
 
     private suspend fun resolveLocation(
+        label: String,
         query: String,
         selected: Location?,
         suggestions: List<Location>,
     ): Location? {
-        if (selected != null && selected.name.equals(query, ignoreCase = true)) return selected
-        suggestions.firstOrNull { it.name.equals(query, ignoreCase = true) }?.let { return it }
-        if (query.length < 2) return null
+        if (selected != null && selected.name.equals(query, ignoreCase = true)) {
+            OpenBahnDebugLog.d("Search", "resolve $label: kept selection ${FahrplanDiagnostics.describeLocation(selected)}")
+            return selected
+        }
+        suggestions.firstOrNull { it.name.equals(query, ignoreCase = true) }?.let {
+            OpenBahnDebugLog.d("Search", "resolve $label: matched suggestion ${FahrplanDiagnostics.describeLocation(it)}")
+            return it
+        }
+        if (query.length < 2) {
+            OpenBahnDebugLog.d("Search", "resolve $label: query too short")
+            return null
+        }
         val results = searchUseCase.searchLocations(query, _state.value.locale)
-        return results.firstOrNull { it.name.equals(query, ignoreCase = true) }
-            ?: results.singleOrNull()
+        val exact = results.firstOrNull { it.name.equals(query, ignoreCase = true) }
+        if (exact != null) {
+            OpenBahnDebugLog.d("Search", "resolve $label: exact API match ${FahrplanDiagnostics.describeLocation(exact)}")
+            return exact
+        }
+        val single = results.singleOrNull()
+        if (single != null) {
+            OpenBahnDebugLog.d(
+                "Search",
+                "resolve $label: single API result ${FahrplanDiagnostics.describeLocation(single)} " +
+                    "(query=\"$query\")",
+            )
+            return single
+        }
+        OpenBahnDebugLog.w(
+            "Search",
+            "resolve $label: ambiguous or no match for \"$query\" — ${results.size} result(s): " +
+                results.take(3).joinToString { it.name },
+        )
+        return null
     }
 
     private fun loadSuggestions(query: String, isFrom: Boolean) {
