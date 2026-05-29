@@ -32,12 +32,7 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - uses: android-actions/setup-android@v3
+      - uses: ./.github/actions/android-build-setup
 
       - name: Configure Git
         run: |
@@ -92,7 +87,6 @@ jobs:
       - name: Build APK
         if: steps.semver.outputs.skip == 'false'
         run: |
-          echo "sdk.dir=$ANDROID_SDK_ROOT" >> local.properties
           chmod +x gradlew
           ./gradlew :app:assembleDebug --stacktrace
 

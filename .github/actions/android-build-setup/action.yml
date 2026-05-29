@@ -1,0 +1,29 @@
+name: Android build setup
+description: JDK, Gradle dependency/build cache, and Android SDK for CI
+
+inputs:
+  java-version:
+    description: Java version
+    required: false
+    default: '17'
+
+runs:
+  using: composite
+  steps:
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: ${{ inputs.java-version }}
+
+    # Restores ~/.gradle/caches, wrapper dists, and local build cache between CI runs.
+    # Public repos use enhanced caching (free); do not also use setup-java cache: gradle.
+    - name: Set up Gradle
+      uses: gradle/actions/setup-gradle@v4
+
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Write local.properties
+      shell: bash
+      run: echo "sdk.dir=${ANDROID_SDK_ROOT:-$ANDROID_HOME}" >> local.properties
