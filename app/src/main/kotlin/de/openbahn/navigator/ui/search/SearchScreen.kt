@@ -13,10 +13,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -24,9 +27,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -59,21 +59,17 @@ fun SearchScreen(
                 },
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { viewModel.search() }) {
-                Icon(Icons.Default.Search, contentDescription = stringResource(R.string.search))
-            }
-        },
     ) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             OutlinedTextField(
                 value = state.fromQuery,
                 onValueChange = viewModel::setFromQuery,
                 label = { Text(stringResource(R.string.from)) },
                 modifier = Modifier.fillMaxWidth().testTag("search_from"),
+                singleLine = true,
                 trailingIcon = {
                     IconButton(onClick = {
                         val from = state.from
@@ -82,24 +78,53 @@ fun SearchScreen(
                             viewModel.selectFrom(to)
                             viewModel.selectTo(from)
                         }
-                    }) { Icon(Icons.Default.SwapVert, null) }
+                    }) { Icon(Icons.Default.SwapVert, contentDescription = stringResource(R.string.swap_stations)) }
                 },
             )
-            state.fromSuggestions.take(5).forEach { loc ->
-                Text(loc.name, Modifier.fillMaxWidth().clickable { viewModel.selectFrom(loc) }.padding(8.dp))
-            }
+            SuggestionList(state.fromSuggestions, onSelect = viewModel::selectFrom)
             OutlinedTextField(
                 value = state.toQuery,
                 onValueChange = viewModel::setToQuery,
                 label = { Text(stringResource(R.string.to)) },
                 modifier = Modifier.fillMaxWidth().testTag("search_to"),
+                singleLine = true,
             )
-            state.toSuggestions.take(5).forEach { loc ->
-                Text(loc.name, Modifier.fillMaxWidth().clickable { viewModel.selectTo(loc) }.padding(8.dp))
+            SuggestionList(state.toSuggestions, onSelect = viewModel::selectTo)
+
+            Button(
+                onClick = { viewModel.search() },
+                modifier = Modifier.fillMaxWidth().testTag("search_button"),
+                enabled = !state.isLoading,
+            ) {
+                Icon(Icons.Default.Search, contentDescription = null)
+                Text(
+                    stringResource(R.string.search_connections),
+                    modifier = Modifier.padding(start = 8.dp),
+                )
             }
-            state.error?.let { ErrorBanner(it) }
+
+            state.error?.let { key ->
+                ErrorBanner(stringResource(errorStringRes(key)))
+            }
+            state.info?.let { key ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                ) {
+                    Text(
+                        stringResource(infoStringRes(key)),
+                        modifier = Modifier.padding(12.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
             if (state.isLoading) LoadingIndicator()
-            LazyColumn(contentPadding = PaddingValues(bottom = 80.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 val rated = state.ratedJourneys
                 if (rated.isNotEmpty()) {
                     items(rated, key = { it.journey.id }) { ratedJourney ->
@@ -120,4 +145,33 @@ fun SearchScreen(
             }
         }
     }
+}
+
+@Composable
+private fun SuggestionList(
+    suggestions: List<de.openbahn.model.Location>,
+    onSelect: (de.openbahn.model.Location) -> Unit,
+) {
+    suggestions.take(5).forEach { loc ->
+        Text(
+            loc.name,
+            Modifier
+                .fillMaxWidth()
+                .clickable { onSelect(loc) }
+                .padding(vertical = 6.dp, horizontal = 4.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
+}
+
+private fun errorStringRes(key: String): Int = when (key) {
+    "error_select_stations" -> R.string.error_select_stations
+    "error_api_blocked" -> R.string.error_api_blocked
+    else -> R.string.error_search_failed
+}
+
+private fun infoStringRes(key: String): Int = when (key) {
+    "info_no_connections" -> R.string.info_no_connections
+    else -> R.string.info_no_connections
 }

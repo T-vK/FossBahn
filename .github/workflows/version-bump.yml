@@ -1,4 +1,4 @@
-name: Version Bump
+name: Version Bump & Release
 
 on:
   workflow_dispatch:
@@ -13,14 +13,18 @@ on:
           - minor
           - major
 
+permissions:
+  contents: write
+
 jobs:
-  bump:
+  bump-and-tag:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Bump version
+      - name: Bump version.properties
+        id: ver
         run: |
           current=$(grep versionCode version.properties | cut -d= -f2)
           name=$(grep versionName version.properties | cut -d= -f2)
@@ -33,10 +37,16 @@ jobs:
           new_name="$major.$minor.$patch"
           new_code=$((current+1))
           printf 'versionName=%s\nversionCode=%s\n' "$new_name" "$new_code" > version.properties
+          echo "tag=v$new_name" >> $GITHUB_OUTPUT
+          echo "version=$new_name" >> $GITHUB_OUTPUT
       - name: Commit version bump
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add version.properties
-          git commit -m "chore: bump version to $(grep versionName version.properties | cut -d= -f2)"
+          git commit -m "chore: release version ${{ steps.ver.outputs.version }}"
           git push
+      - name: Create and push tag (triggers Release workflow)
+        run: |
+          git tag "${{ steps.ver.outputs.tag }}"
+          git push origin "${{ steps.ver.outputs.tag }}"

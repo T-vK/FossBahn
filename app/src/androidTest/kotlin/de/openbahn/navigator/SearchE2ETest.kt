@@ -19,6 +19,7 @@ class SearchE2ETest {
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("search_from").assertIsDisplayed()
         composeRule.onNodeWithTag("search_to").assertIsDisplayed()
+        composeRule.onNodeWithTag("search_button").assertIsDisplayed()
     }
 
     @Test

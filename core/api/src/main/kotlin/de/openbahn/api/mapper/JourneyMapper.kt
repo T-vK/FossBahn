@@ -1,89 +1,78 @@
 package de.openbahn.api.mapper
 
 import de.openbahn.api.dto.DbJourneyResponse
-import de.openbahn.api.dto.DbSegment
 import de.openbahn.api.dto.DbVerbindung
+import de.openbahn.api.dto.DbVerbindungsAbschnitt
+import de.openbahn.api.dto.DbVerkehrsmittel
 import de.openbahn.model.Journey
 import de.openbahn.model.Leg
 import de.openbahn.model.StopEvent
 import de.openbahn.model.TransportProduct
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import java.util.UUID
 
 internal object JourneyMapper {
     fun mapJourneys(response: DbJourneyResponse): List<Journey> {
+        if (response.status == "ERROR") return emptyList()
         val items = response.verbindungen.orEmpty() + response.journeys.orEmpty()
         return items.mapNotNull(::mapVerbindung)
     }
 
-    fun mapRefresh(response: JsonObject): Journey? {
-        val verbindung = response["verbindung"]?.jsonObject ?: response
-        return mapVerbindungFromJson(verbindung)
-    }
+    fun mapRefresh(response: JsonObject): Journey? = null
 
     private fun mapVerbindung(v: DbVerbindung): Journey? {
-        val legs = v.segmente?.mapNotNull(::mapSegment).orEmpty()
+        val abschnitte = v.verbindungsAbschnitte.orEmpty().ifEmpty { v.segmente.orEmpty() }
+        val legs = abschnitte.mapNotNull(::mapAbschnitt)
         if (legs.isEmpty()) return null
-        val duration = parseDurationMinutes(v.reiseDauer) ?: estimateDuration(legs)
+        val duration = v.verbindungsDauerInSeconds?.div(60)
+            ?: parseDurationMinutes(v.reiseDauer)
+            ?: estimateDuration(legs)
+        val firstDep = legs.first().origin.scheduledTime
+        val lastArr = legs.last().destination.scheduledTime
+        val price = v.preis ?: v.angebotsPreis
         return Journey(
-            id = v.verbindungsId ?: v.id ?: UUID.randomUUID().toString(),
+            id = v.verbindungsId ?: v.tripId ?: v.id ?: UUID.randomUUID().toString(),
             legs = legs,
             durationMinutes = duration,
-            transfers = v.umstiege ?: (legs.size - 1).coerceAtLeast(0),
-            departure = v.abfahrtsZeit ?: legs.first().origin.scheduledTime,
-            arrival = v.ankunftsZeit ?: legs.last().destination.scheduledTime,
-            priceHint = v.preis?.text ?: v.preis?.let { "${it.betrag} ${it.waehrung}" },
-            refreshToken = v.ctxRecon,
+            transfers = v.umstiegsAnzahl ?: v.umstiege ?: (legs.size - 1).coerceAtLeast(0),
+            departure = v.abfahrtsZeit ?: firstDep,
+            arrival = v.ankunftsZeit ?: lastArr,
+            priceHint = price?.text ?: price?.preis?.let { "${it}€" } ?: price?.betrag?.let { "$it ${price.waehrung}" },
+            refreshToken = v.ctxRecon ?: v.kontext,
             deutschlandTicketValid = v.dticketGueltig,
             remarks = v.hinweise.orEmpty(),
         )
     }
 
-    private fun mapVerbindungFromJson(obj: JsonObject): Journey? {
-        val segments = obj["segmente"]?.jsonArray?.mapNotNull { el ->
-            // Fallback minimal mapping for refresh endpoint shape differences
-            null
-        }
-        return null // refresh uses same DTO when possible; integration tests cover live shape
-    }
-
-    private fun mapSegment(segment: DbSegment): Leg? {
-        val origin = segment.abfahrtsOrt ?: return null
-        val dest = segment.ankunftsOrt ?: return null
-        val depTime = origin.abfahrtsZeit ?: origin.ankunftsZeit ?: return null
-        val arrTime = dest.ankunftsZeit ?: dest.abfahrtsZeit ?: return null
+    private fun mapAbschnitt(a: DbVerbindungsAbschnitt): Leg? {
+        val depName = a.abfahrtsOrt ?: return null
+        val arrName = a.ankunftsOrt ?: return null
+        val depTime = a.abfahrtsZeitpunkt ?: return null
+        val arrTime = a.ankunftsZeitpunkt ?: return null
+        val vm = a.verkehrsmittel
         return Leg(
             origin = StopEvent(
-                name = origin.name.orEmpty(),
-                id = origin.id,
-                platform = origin.gleis,
+                name = depName,
+                id = a.abfahrtsOrtExtId,
+                platform = a.gleis,
                 scheduledTime = depTime,
-                prognosedTime = origin.prognoseZeit,
-                delayMinutes = origin.verspaetung,
-                cancelled = origin.ausfall == true,
-                remarks = origin.hinweise.orEmpty(),
             ),
             destination = StopEvent(
-                name = dest.name.orEmpty(),
-                id = dest.id,
-                platform = dest.gleis,
+                name = arrName,
+                id = a.ankunftsOrtExtId,
                 scheduledTime = arrTime,
-                prognosedTime = dest.prognoseZeit,
-                delayMinutes = dest.verspaetung,
-                cancelled = dest.ausfall == true,
-                remarks = dest.hinweise.orEmpty(),
             ),
-            lineName = segment.verkehrsmittel?.kurzText ?: segment.verkehrsmittel?.name,
-            product = segment.verkehrsmittel?.produktGattung?.let(::mapProduct),
-            operator = segment.verkehrsmittel?.betreiber,
-            loadFactor = segment.verkehrsmittel?.auslastung,
-            bikeAllowed = segment.verkehrsmittel?.fahrradErlaubt,
-            tripId = segment.fahrtId,
+            lineName = lineLabel(vm),
+            product = vm?.produktGattung?.let(::mapProduct),
+            operator = vm?.betreiber,
+            loadFactor = vm?.auslastung,
+            bikeAllowed = vm?.fahrradErlaubt,
+            tripId = a.journeyId,
         )
     }
+
+    private fun lineLabel(vm: DbVerkehrsmittel?): String? =
+        vm?.name ?: vm?.kurzText ?: vm?.linienNummer?.let { "Line $it" }
 
     private fun mapProduct(code: String): TransportProduct? =
         TransportProduct.entries.find { it.vendoCode.equals(code, ignoreCase = true) }
