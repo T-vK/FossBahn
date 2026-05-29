@@ -58,13 +58,8 @@ jobs:
           git push origin "${{ steps.ver.outputs.tag }}"
 
       # Release workflow is skipped via [skip ci]; build release here
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-      - uses: android-actions/setup-android@v3
+      - uses: ./.github/actions/android-build-setup
       - run: |
-          echo "sdk.dir=$ANDROID_SDK_ROOT" >> local.properties
           chmod +x gradlew
           ./gradlew :app:assembleDebug --stacktrace
       - uses: softprops/action-gh-release@v2
