@@ -32,15 +32,29 @@ Requirements: JDK 17, Android SDK 35.
 ## Testing
 
 ```bash
-# Unit tests
+# Unit tests (incl. journey JSON fixture)
 ./gradlew :core:api:testDebugUnitTest
 
-# Live API integration tests (hits int.bahn.de)
-RUN_LIVE_API_TESTS=true ./gradlew :core:api:connectedDebugAndroidTest
+# Live API tests (optional; skipped if DB blocks your IP)
+RUN_LIVE_API_TESTS=true ./gradlew :core:api:testDebugUnitTest --tests "de.openbahn.api.DbVendoLiveApiTest"
 
 # UI / E2E (emulator required)
 ./gradlew :app:connectedDebugAndroidTest
 ```
+
+## Releases & versioning
+
+Version is stored in `version.properties` (`versionName` + `versionCode`).
+
+**Automatic GitHub releases** are **not** created on every push. To release:
+
+1. Open **Actions → Version Bump & Release → Run workflow** (patch/minor/major)
+2. The workflow bumps `version.properties`, commits, creates a `vX.Y.Z` tag, and pushes it
+3. The **Release** workflow builds an APK and publishes a [GitHub Release](https://github.com/T-vK/FossBahn/releases) for that tag
+
+You can also tag manually: `git tag v0.2.0 && git push origin v0.2.0`
+
+**CI** runs on pull requests and `main` pushes only (not duplicate feature-branch push + PR). Live API and E2E run on `main` only.
 
 ## F-Droid
 

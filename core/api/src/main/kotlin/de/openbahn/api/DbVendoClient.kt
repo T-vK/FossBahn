@@ -1,6 +1,5 @@
 package de.openbahn.api
 
-import de.openbahn.api.dto.DbApiError
 import de.openbahn.api.dto.DbJourneyResponse
 import de.openbahn.api.dto.DbLocationResponse
 import de.openbahn.api.dto.DbOrt
@@ -79,6 +78,9 @@ class DbVendoClient(
         }.body<String>()
         if (text.contains("OPS_BLOCKED")) throw DbApiBlockedException("Journey search blocked")
         val response = json.decodeFromString<DbJourneyResponse>(text)
+        if (response.status == "ERROR") {
+            throw DbApiException(response.code ?: "API_ERROR")
+        }
         return JourneyMapper.mapJourneys(response)
     }
 

@@ -5,6 +5,12 @@
     <string name="from">From</string>
     <string name="to">To</string>
     <string name="search">Search</string>
+    <string name="search_connections">Search connections</string>
+    <string name="swap_stations">Swap stations</string>
+    <string name="error_select_stations">Please pick a station from the suggestions for both origin and destination.</string>
+    <string name="error_search_failed">Connection search failed. Please try again.</string>
+    <string name="error_api_blocked">Could not reach Deutsche Bahn. Check your network or try again later.</string>
+    <string name="info_no_connections">No connections found for this route and time. Try different options or a later departure.</string>
     <string name="filters">Options</string>
     <string name="nav_search">Search</string>
     <string name="nav_board">Departures</string>

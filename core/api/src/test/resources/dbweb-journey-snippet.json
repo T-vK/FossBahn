@@ -1,0 +1,26 @@
+{
+  "verbindungen": [
+    {
+      "tripId": "test_1",
+      "ctxRecon": "token",
+      "umstiegsAnzahl": 1,
+      "verbindungsDauerInSeconds": 3600,
+      "verbindungsAbschnitte": [
+        {
+          "abfahrtsOrt": "Berlin Hbf",
+          "abfahrtsOrtExtId": "8011160",
+          "abfahrtsZeitpunkt": "2026-05-30T10:00:00",
+          "ankunftsOrt": "München Hbf",
+          "ankunftsOrtExtId": "8000261",
+          "ankunftsZeitpunkt": "2026-05-30T16:00:00",
+          "gleis": "5",
+          "verkehrsmittel": {
+            "name": "ICE 123",
+            "produktGattung": "ICE",
+            "richtung": "München Hbf"
+          }
+        }
+      ]
+    }
+  ]
+}
