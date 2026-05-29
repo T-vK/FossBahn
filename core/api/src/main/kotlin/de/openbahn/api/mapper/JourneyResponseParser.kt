@@ -135,21 +135,35 @@ internal object JourneyResponseParser {
     }
 
     private fun mapAbschnitt(a: JsonObject): Leg? {
-        val depName = text(a, "abfahrtsOrt") ?: return null
-        val arrName = text(a, "ankunftsOrt") ?: return null
-        val depTime = text(a, "abfahrtsZeitpunkt") ?: return null
-        val arrTime = text(a, "ankunftsZeitpunkt") ?: return null
+        val halte = a["halte"]?.jsonArray?.mapNotNull { runCatching { it.jsonObject }.getOrNull() }.orEmpty()
+        val firstHalt = halte.firstOrNull()
+        val lastHalt = halte.lastOrNull()
+
+        val depName = text(a, "abfahrtsOrt")
+            ?: text(firstHalt, "name")
+            ?: return null
+        val arrName = text(a, "ankunftsOrt")
+            ?: text(lastHalt, "name")
+            ?: return null
+        val depTime = text(a, "abfahrtsZeitpunkt")
+            ?: text(firstHalt, "abfahrtsZeitpunkt")
+            ?: text(firstHalt, "abgangsDatum")
+            ?: return null
+        val arrTime = text(a, "ankunftsZeitpunkt")
+            ?: text(lastHalt, "ankunftsZeitpunkt")
+            ?: text(lastHalt, "ankunftsDatum")
+            ?: return null
         val vm = a["verkehrsmittel"]?.jsonObject
         return Leg(
             origin = StopEvent(
                 name = depName,
-                id = text(a, "abfahrtsOrtExtId"),
-                platform = text(a, "gleis"),
+                id = text(a, "abfahrtsOrtExtId") ?: text(firstHalt, "extId"),
+                platform = text(a, "gleis") ?: text(firstHalt, "gleis"),
                 scheduledTime = depTime,
             ),
             destination = StopEvent(
                 name = arrName,
-                id = text(a, "ankunftsOrtExtId"),
+                id = text(a, "ankunftsOrtExtId") ?: text(lastHalt, "extId"),
                 scheduledTime = arrTime,
             ),
             lineName = lineLabel(vm),
