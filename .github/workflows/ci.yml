@@ -78,6 +78,4 @@ jobs:
           script: |
             echo "sdk.dir=$ANDROID_HOME" >> local.properties
             chmod +x gradlew
-            ./gradlew :app:connectedDebugAndroidTest \
-              -Pandroid.testInstrumentationRunnerArguments.clearPackageData=true \
-              --stacktrace
+            ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.clearPackageData=true --stacktrace
