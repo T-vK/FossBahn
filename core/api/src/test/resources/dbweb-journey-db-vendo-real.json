@@ -1,0 +1,668 @@
+{
+    "verbindungen": [
+        {
+			"tripId": "9e5371f1_3",
+			"ctxRecon": "¶HKI¶T$A=1@O=Köln Hbf@X=6958730@Y=50943029@L=8000207@a=128@$A=1@O=Köln Messe/Deutz@X=6975000@Y=50940872@L=8003368@a=128@$202504110511$202504110512$S     12$$1$$$$$$§W$A=1@O=Köln Messe/Deutz@X=6975000@Y=50940872@L=8003368@a=128@$A=1@O=Köln Messe/Deutz Gl.11-12@X=6974065@Y=50941717@L=8073368@a=128@$202504110512$202504110519$$$1$$$$$$§T$A=1@O=Köln Messe/Deutz Gl.11-12@X=6974065@Y=50941717@L=8073368@a=128@$A=1@O=Nürnberg Hbf@X=11082989@Y=49445615@L=8000284@a=128@$202504110520$202504110858$ICE  523$$1$$$$$$¶KC¶#VE#2#CF#100#CA#0#CM#0#SICT#0#AM#81#AM2#0#RT#7#¶KCC¶I1ZFIzEjRVJHIzMjSElOIzAjRUNLIzcwNTkxMXw3MDU5MTF8NzA2MTM4fDcwNjEzOHwwfDB8NDg1fDcwNTg5N3wxfDB8MTh8MHwwfC0yMTQ3NDgzNjQ4I0dBTSMxMTA0MjUwNTExIwpaI1ZOIzEjU1QjMTczMzE3MzczMSNQSSMxI1pJIzE2MTQ3MyNUQSMxI0RBIzExMDQyNSMxUyM4MDAwMjA4IzFUIzUwNCNMUyM4MDAyNzUzI0xUIzU0NSNQVSM4MSNSVCMxI0NBI3MjWkUjMTIjWkIjUyAgICAgMTIjUEMjNCNGUiM4MDAwMjA3I0ZUIzUxMSNUTyM4MDAzMzY4I1RUIzUxMiMKRiNWTiMwI1NUIzE3MzMxNzM3MzEjUEkjMSNQVSM4MSNaSSMyMjgzODI4ODkzI0RBIzExMDQyNSNGUiM4MDAzMzY4I1RPIzgwNzMzNjgjRlQjNTEyI1RUIzUxOSNUUyMwI0ZGIyNGViMwIwpaI1ZOIzEjU1QjMTczMzE3MzczMSNQSSMxI1pJIzE1NTA2MyNUQSMwI0RBIzExMDQyNSMxUyM4MDAwMDgwIzFUIzM1OCNMUyM4MDAwMjYxI0xUIzEwMDYjUFUjODEjUlQjMSNDQSNJQ0UjWkUjNTIzI1pCI0lDRSAgNTIzI1BDIzAjRlIjODA3MzM2OCNGVCM1MjAjVE8jODAwMDI4NCNUVCM4NTgj¶KRCC¶#VE#1#¶SC¶1_H4sIAAAAAAACA32P306DMBjFX8X0GpevhUIhIUFGFv8sGzHOaIwXbHQTU2CWskgIz+GbeOXdXswCemE09qLpOT09v68tOnCJPIQnDkMG4q9Kiyic3EYTV2vJX5DXoqLOZ8ijRn8IkQcGKmsVJYrrMAFCwcIYDeZNlvcmUNBLW9uh4RQb6LloZkLJOfIeWqSafR+Lr5eRDuVl2quLxVSLQyLqXmEgJuoeh5mmT7uxWJNTvp+Xm7FGZKlOnvk4WPpXx3dRnJyvt8Gdb7uUOSYE9z4F1zKBuMHKZxDM9QZAwAlC/WbvY8c0scNsmwSZvzq+ATDA1KIs0INUavzgbJgikfJP7OL4IYs1l7svNMbAiMtczbZcy6I2pj/YzPqHTQh2zd/sHVdxKRqRFdpTsuaDdVnWsuBNWNZFWiFvm4hqvIiTqhJZpb6zfFPGiUxyHWq7rvsE0LytQvMBAAA=",
+			"verbindungsAbschnitte": [
+				{
+					"risNotizen": [],
+					"himMeldungen": [],
+					"priorisierteMeldungen": [],
+					"externeBahnhofsinfoIdOrigin": "3320",
+					"externeBahnhofsinfoIdDestination": "3329",
+					"abfahrtsZeitpunkt": "2025-04-11T05:11:00",
+					"abfahrtsOrt": "Köln Hbf",
+					"abfahrtsOrtExtId": "8000207",
+					"abschnittsDauer": 60,
+					"abschnittsAnteil": 0.44,
+					"ankunftsZeitpunkt": "2025-04-11T05:12:00",
+					"ankunftsOrt": "Köln Messe/Deutz",
+					"ankunftsOrtExtId": "8003368",
+					"auslastungsmeldungen": [
+						{
+							"klasse": "KLASSE_1",
+							"stufe": 0
+						},
+						{
+							"klasse": "KLASSE_2",
+							"stufe": 0
+						}
+					],
+					"halte": [
+						{
+							"id": "A=1@O=Köln Hbf@X=6958730@Y=50943029@U=81@L=8000207@i=U×008015458@",
+							"abfahrtsZeitpunkt": "2025-04-11T05:11:00",
+							"auslastungsmeldungen": [
+								{
+									"klasse": "KLASSE_1",
+									"stufe": 0
+								},
+								{
+									"klasse": "KLASSE_2",
+									"stufe": 0
+								}
+							],
+							"gleis": "10 A-B",
+							"name": "Köln Hbf",
+							"risNotizen": [],
+							"bahnhofsInfoId": "3320",
+							"extId": "8000207",
+							"himMeldungen": [],
+							"routeIdx": 2,
+							"priorisierteMeldungen": []
+						},
+						{
+							"id": "A=1@O=Köln Messe/Deutz@X=6975000@Y=50940872@U=81@L=8003368@i=U×008015561@",
+							"ankunftsZeitpunkt": "2025-04-11T05:12:00",
+							"auslastungsmeldungen": [
+								{
+									"klasse": "KLASSE_1",
+									"stufe": 0
+								},
+								{
+									"klasse": "KLASSE_2",
+									"stufe": 0
+								}
+							],
+							"gleis": "9",
+							"name": "Köln Messe/Deutz",
+							"risNotizen": [],
+							"bahnhofsInfoId": "3329",
+							"extId": "8003368",
+							"himMeldungen": [],
+							"routeIdx": 3,
+							"priorisierteMeldungen": []
+						}
+					],
+					"idx": 0,
+					"journeyId": "2|#VN#1#ST#1733173731#PI#1#ZI#161473#TA#1#DA#110425#1S#8000208#1T#504#LS#8002753#LT#545#PU#81#RT#1#CA#s#ZE#12#ZB#S     12#PC#4#FR#8000208#FT#504#TO#8002753#TT#545#",
+					"polylineGroup": {
+						"polylineDescriptions": [
+							{
+								"coordinates": [
+									{
+										"lng": 6.959197,
+										"lat": 50.942823
+									},
+									{
+										"lng": 6.9597,
+										"lat": 50.943038
+									},
+									{
+										"lng": 6.9597,
+										"lat": 50.943038
+									}
+								],
+								"delta": false
+							},
+							{
+								"coordinates": [
+									{
+										"lng": 6.9597,
+										"lat": 50.943038
+									},
+									{
+										"lng": 6.9597,
+										"lat": 50.943038
+									},
+									{
+										"lng": 6.960033,
+										"lat": 50.942724
+									},
+									{
+										"lng": 6.960491,
+										"lat": 50.942301
+									},
+									{
+										"lng": 6.961282,
+										"lat": 50.941825
+									},
+									{
+										"lng": 6.962253,
+										"lat": 50.941582
+									},
+									{
+										"lng": 6.971467,
+										"lat": 50.941492
+									},
+									{
+										"lng": 6.974658,
+										"lat": 50.941285
+									}
+								],
+								"delta": false
+							},
+							{
+								"coordinates": [
+									{
+										"lng": 6.974658,
+										"lat": 50.941285
+									},
+									{
+										"lng": 6.974578,
+										"lat": 50.940989
+									}
+								],
+								"delta": false
+							}
+						]
+					},
+					"verkehrsmittel": {
+						"produktGattung": "SBAHN",
+						"kategorie": "s",
+						"linienNummer": "12",
+						"name": "S 12",
+						"nummer": "12",
+						"richtung": "Hennef(Sieg)",
+						"typ": "PUBLICTRANSPORT",
+						"zugattribute": [
+							{
+								"kategorie": "BEFÖRDERER",
+								"key": "BEF",
+								"value": "DB Regio AG NRW"
+							},
+							{
+								"kategorie": "FAHRRADMITNAHME",
+								"key": "FB",
+								"value": "Fahrradmitnahme begrenzt möglich",
+								"teilstreckenHinweis": "(Köln Hbf - Köln Messe/Deutz)"
+							},
+							{
+								"kategorie": "INFORMATION",
+								"key": "K2",
+								"value": "nur 2. Klasse",
+								"teilstreckenHinweis": "(Köln Hbf - Köln Messe/Deutz)"
+							},
+							{
+								"kategorie": "INFORMATION",
+								"key": "EH",
+								"value": "Fahrzeuggebundene Einstiegshilfe vorhanden",
+								"teilstreckenHinweis": "(Köln Hbf - Köln Messe/Deutz)"
+							}
+						],
+						"kurzText": "S",
+						"mittelText": "S 12",
+						"langText": "S 12"
+					}
+				},
+				{
+					"risNotizen": [],
+					"himMeldungen": [],
+					"priorisierteMeldungen": [],
+					"externeBahnhofsinfoIdOrigin": "3329",
+					"externeBahnhofsinfoIdDestination": "3329",
+					"abfahrtsZeitpunkt": "2025-04-11T05:12:00",
+					"abfahrtsOrt": "Köln Messe/Deutz",
+					"abfahrtsOrtExtId": "8003368",
+					"abschnittsDauer": 420,
+					"abschnittsAnteil": 3.1,
+					"ankunftsZeitpunkt": "2025-04-11T05:19:00",
+					"ankunftsOrt": "Köln Messe/Deutz Gl.11-12",
+					"ankunftsOrtExtId": "8073368",
+					"auslastungsmeldungen": [
+						{
+							"klasse": "KLASSE_1",
+							"stufe": 0
+						},
+						{
+							"klasse": "KLASSE_2",
+							"stufe": 0
+						}
+					],
+					"distanz": 59,
+					"halte": [],
+					"idx": 1,
+					"verkehrsmittel": {
+						"name": "Fußweg",
+						"typ": "WALK",
+						"zugattribute": []
+					}
+				},
+				{
+					"risNotizen": [],
+					"himMeldungen": [],
+					"priorisierteMeldungen": [],
+					"externeBahnhofsinfoIdOrigin": "3329",
+					"externeBahnhofsinfoIdDestination": "4593",
+					"abfahrtsZeitpunkt": "2025-04-11T05:20:00",
+					"abfahrtsOrt": "Köln Messe/Deutz Gl.11-12",
+					"abfahrtsOrtExtId": "8073368",
+					"abschnittsDauer": 13080,
+					"abschnittsAnteil": 96.46,
+					"ankunftsZeitpunkt": "2025-04-11T08:58:00",
+					"ankunftsOrt": "Nürnberg Hbf",
+					"ankunftsOrtExtId": "8000284",
+					"auslastungsmeldungen": [
+						{
+							"klasse": "KLASSE_1",
+							"stufe": 0
+						},
+						{
+							"klasse": "KLASSE_2",
+							"stufe": 0
+						}
+					],
+					"halte": [
+						{
+							"id": "A=1@O=Köln Messe/Deutz Gl.11-12@X=6974065@Y=50941717@U=81@L=8073368@i=U×008015032@",
+							"abfahrtsZeitpunkt": "2025-04-11T05:20:00",
+							"auslastungsmeldungen": [
+								{
+									"klasse": "KLASSE_1",
+									"stufe": 0
+								},
+								{
+									"klasse": "KLASSE_2",
+									"stufe": 0
+								}
+							],
+							"gleis": "11",
+							"name": "Köln Messe/Deutz Gl.11-12",
+							"risNotizen": [],
+							"bahnhofsInfoId": "3329",
+							"extId": "8073368",
+							"himMeldungen": [],
+							"routeIdx": 4,
+							"priorisierteMeldungen": []
+						},
+						{
+							"id": "A=1@O=Köln/Bonn Flughafen@X=7119304@Y=50878900@U=81@L=8003330@i=U×008032003@",
+							"abfahrtsZeitpunkt": "2025-04-11T05:31:00",
+							"ankunftsZeitpunkt": "2025-04-11T05:29:00",
+							"auslastungsmeldungen": [
+								{
+									"klasse": "KLASSE_1",
+									"stufe": 0
+								},
+								{
+									"klasse": "KLASSE_2",
+									"stufe": 0
+								}
+							],
+							"gleis": "4",
+							"name": "Köln/Bonn Flughafen",
+							"risNotizen": [],
+							"bahnhofsInfoId": "4762",
+							"extId": "8003330",
+							"routeIdx": 5,
+							"priorisierteMeldungen": []
+						},
+						{
+							"id": "A=1@O=Siegburg/Bonn@X=7203029@Y=50793916@U=81@L=8005556@i=U×008015588@",
+							"abfahrtsZeitpunkt": "2025-04-11T05:41:00",
+							"ankunftsZeitpunkt": "2025-04-11T05:40:00",
+							"auslastungsmeldungen": [
+								{
+									"klasse": "KLASSE_1",
+									"stufe": 0
+								},
+								{
+									"klasse": "KLASSE_2",
+									"stufe": 0
+								}
+							],
+							"gleis": "6",
+							"name": "Siegburg/Bonn",
+							"risNotizen": [],
+							"bahnhofsInfoId": "5840",
+							"extId": "8005556",
+							"routeIdx": 6,
+							"priorisierteMeldungen": []
+						},
+						{
+							"id": "A=1@O=Montabaur@X=7825335@Y=50444838@U=81@L=8000667@i=U×008019585@",
+							"abfahrtsZeitpunkt": "2025-04-11T06:02:00",
+							"ankunftsZeitpunkt": "2025-04-11T06:01:00",
+							"auslastungsmeldungen": [
+								{
+									"klasse": "KLASSE_1",
+									"stufe": 0
+								},
+								{
+									"klasse": "KLASSE_2",
+									"stufe": 0
+								}
+							],
+							"gleis": "1",
+							"name": "Montabaur",
+							"risNotizen": [],
+							"bahnhofsInfoId": "4169",
+							"extId": "8000667",
+							"routeIdx": 7,
+							"priorisierteMeldungen": []
+						},
+						{
+							"id": "A=1@O=Limburg Süd@X=8096108@Y=50382498@U=81@L=8003680@i=U×008032572@",
+							"abfahrtsZeitpunkt": "2025-04-11T06:13:00",
+							"ankunftsZeitpunkt": "2025-04-11T06:12:00",
+							"auslastungsmeldungen": [
+								{
+									"klasse": "KLASSE_1",
+									"stufe": 0
+								},
+								{
+									"klasse": "KLASSE_2",
+									"stufe": 0
+								}
+							],
+							"gleis": "1",
+							"name": "Limburg Süd",
+							"risNotizen": [],
+							"bahnhofsInfoId": "3723",
+							"extId": "8003680",
+							"routeIdx": 8,
+							"priorisierteMeldungen": []
+						},
+						{
+							"id": "A=1@O=Frankfurt(M) Flughafen Fernbf@X=8570181@Y=50053169@U=81@L=8070003@i=U×008061676@",
+							"abfahrtsZeitpunkt": "2025-04-11T06:35:00",
+							"ankunftsZeitpunkt": "2025-04-11T06:33:00",
+							"auslastungsmeldungen": [
+								{
+									"klasse": "KLASSE_1",
+									"stufe": 0
+								},
+								{
+									"klasse": "KLASSE_2",
+									"stufe": 0
+								}
+							],
+							"gleis": "Fern 4",
+							"name": "Frankfurt(M) Flughafen Fernbf",
+							"risNotizen": [],
+							"bahnhofsInfoId": "7982",
+							"extId": "8070003",
+							"routeIdx": 9,
+							"priorisierteMeldungen": []
+						},
+						{
+							"id": "A=1@O=Frankfurt(Main)Hbf@X=8663785@Y=50107149@U=81@L=8000105@i=U×008011068@",
+							"abfahrtsZeitpunkt": "2025-04-11T06:54:00",
+							"ankunftsZeitpunkt": "2025-04-11T06:48:00",
+							"auslastungsmeldungen": [
+								{
+									"klasse": "KLASSE_1",
+									"stufe": 0
+								},
+								{
+									"klasse": "KLASSE_2",
+									"stufe": 0
+								}
+							],
+							"gleis": "7",
+							"name": "Frankfurt(Main)Hbf",
+							"risNotizen": [],
+							"bahnhofsInfoId": "1866",
+							"extId": "8000105",
+							"routeIdx": 10,
+							"priorisierteMeldungen": []
+						},
+						{
+							"id": "A=1@O=Aschaffenburg Hbf@X=9143693@Y=49980554@U=81@L=8000010@i=U×008022610@",
+							"abfahrtsZeitpunkt": "2025-04-11T07:23:00",
+							"ankunftsZeitpunkt": "2025-04-11T07:22:00",
+							"auslastungsmeldungen": [
+								{
+									"klasse": "KLASSE_1",
+									"stufe": 0
+								},
+								{
+									"klasse": "KLASSE_2",
+									"stufe": 0
+								}
+							],
+							"gleis": "6",
+							"name": "Aschaffenburg Hbf",
+							"risNotizen": [],
+							"bahnhofsInfoId": "0187",
+							"extId": "8000010",
+							"routeIdx": 11,
+							"priorisierteMeldungen": []
+						},
+						{
+							"id": "A=1@O=Würzburg Hbf@X=9935777@Y=49801795@U=81@L=8000260@i=U×008022534@",
+							"abfahrtsZeitpunkt": "2025-04-11T08:03:00",
+							"ankunftsZeitpunkt": "2025-04-11T08:01:00",
+							"auslastungsmeldungen": [
+								{
+									"klasse": "KLASSE_1",
+									"stufe": 0
+								},
+								{
+									"klasse": "KLASSE_2",
+									"stufe": 0
+								}
+							],
+							"gleis": "4",
+							"name": "Würzburg Hbf",
+							"risNotizen": [],
+							"bahnhofsInfoId": "6945",
+							"extId": "8000260",
+							"routeIdx": 12,
+							"priorisierteMeldungen": []
+						},
+						{
+							"id": "A=1@O=Nürnberg Hbf@X=11082989@Y=49445615@U=81@L=8000284@i=U×008022193@",
+							"ankunftsZeitpunkt": "2025-04-11T08:58:00",
+							"auslastungsmeldungen": [
+								{
+									"klasse": "KLASSE_1",
+									"stufe": 0
+								},
+								{
+									"klasse": "KLASSE_2",
+									"stufe": 0
+								}
+							],
+							"gleis": "9",
+							"name": "Nürnberg Hbf",
+							"risNotizen": [],
+							"bahnhofsInfoId": "4593",
+							"extId": "8000284",
+							"himMeldungen": [],
+							"routeIdx": 13,
+							"priorisierteMeldungen": []
+						}
+					],
+					"idx": 2,
+					"journeyId": "2|#VN#1#ST#1733173731#PI#1#ZI#155063#TA#0#DA#110425#1S#8000080#1T#358#LS#8000261#LT#1006#PU#81#RT#1#CA#ICE#ZE#523#ZB#ICE  523#PC#0#FR#8000080#FT#358#TO#8000261#TT#1006#",
+					"polylineGroup": {
+						"polylineDescriptions": [
+							{
+								"coordinates": [
+									{
+										"lng": 11.082144,
+										"lat": 49.445678
+									},
+									{
+										"lng": 11.08227,
+										"lat": 49.445435
+									}
+								],
+								"delta": false
+							}
+						]
+					},
+					"verkehrsmittel": {
+						"produktGattung": "ICE",
+						"kategorie": "ICE",
+						"name": "ICE 523",
+						"nummer": "523",
+						"richtung": "München Hbf",
+						"typ": "PUBLICTRANSPORT",
+						"zugattribute": [
+							{
+								"kategorie": "BEFÖRDERER",
+								"key": "BEF",
+								"value": "DB Fernverkehr AG"
+							},
+							{
+								"kategorie": "BORDBISTRO",
+								"key": "BR",
+								"value": "Bordrestaurant",
+								"teilstreckenHinweis": "(Köln Messe/Deutz Gl.11-12 - Nürnberg Hbf)"
+							},
+							{
+								"kategorie": "INFORMATION",
+								"key": "CK",
+								"value": "Komfort Check-in verfügbar - wenn möglich bitte einchecken",
+								"teilstreckenHinweis": "(Köln Messe/Deutz Gl.11-12 - Nürnberg Hbf)"
+							}
+						],
+						"kurzText": "ICE",
+						"mittelText": "ICE 523",
+						"langText": "ICE 523"
+					}
+				}
+			],
+			"umstiegsAnzahl": 1,
+			"verbindungsDauerInSeconds": 13620,
+			"ezVerbindungsDauerInSeconds": 13620,
+			"isAlternativeVerbindung": false,
+			"auslastungsmeldungen": [
+				{
+					"klasse": "KLASSE_1",
+					"stufe": 0
+				},
+				{
+					"klasse": "KLASSE_2",
+					"stufe": 0
+				}
+			],
+			"auslastungstexte": [
+				{
+					"klasse": "KLASSE_1",
+					"stufe": 0,
+					"kurzText": "Keine Auslastungsinformation verfügbar"
+				},
+				{
+					"klasse": "KLASSE_2",
+					"stufe": 0,
+					"kurzText": "Keine Auslastungsinformation verfügbar"
+				},
+				{
+					"klasse": "KLASSE_1",
+					"stufe": 1,
+					"kurzText": "Geringe Auslastung erwartet"
+				},
+				{
+					"klasse": "KLASSE_2",
+					"stufe": 1,
+					"kurzText": "Geringe Auslastung erwartet"
+				},
+				{
+					"klasse": "KLASSE_1",
+					"stufe": 2,
+					"anzeigeText": "Wir erwarten im Verlauf Ihrer Reise eine mittlere Auslastung. Reservieren Sie bereits jetzt Ihren Wunschplatz.",
+					"kurzText": "Mittlere Auslastung erwartet",
+					"langText": "Wir erwarten im Verlauf Ihrer Reise eine mittlere Auslastung. Reservieren Sie bereits jetzt Ihren Wunschplatz."
+				},
+				{
+					"klasse": "KLASSE_2",
+					"stufe": 2,
+					"anzeigeText": "Wir erwarten im Verlauf Ihrer Reise eine mittlere Auslastung. Reservieren Sie bereits jetzt Ihren Wunschplatz.",
+					"kurzText": "Mittlere Auslastung erwartet",
+					"langText": "Wir erwarten im Verlauf Ihrer Reise eine mittlere Auslastung. Reservieren Sie bereits jetzt Ihren Wunschplatz."
+				},
+				{
+					"klasse": "KLASSE_1",
+					"stufe": 3,
+					"anzeigeText": "Wir erwarten im Verlauf Ihrer Reise eine hohe Auslastung. Wir empfehlen eine Sitzplatzreservierung.",
+					"kurzText": "Hohe Auslastung erwartet",
+					"langText": "Wir erwarten im Verlauf Ihrer Reise eine hohe Auslastung. Wir empfehlen eine Sitzplatzreservierung."
+				},
+				{
+					"klasse": "KLASSE_2",
+					"stufe": 3,
+					"anzeigeText": "Wir erwarten im Verlauf Ihrer Reise eine hohe Auslastung. Wir empfehlen eine Sitzplatzreservierung.",
+					"kurzText": "Hohe Auslastung erwartet",
+					"langText": "Wir erwarten im Verlauf Ihrer Reise eine hohe Auslastung. Wir empfehlen eine Sitzplatzreservierung."
+				},
+				{
+					"klasse": "KLASSE_1",
+					"stufe": 4,
+					"anzeigeText": "Wir erwarten im Verlauf Ihrer Reise eine außergewöhnlich hohe Auslastung in der 1. Klasse. Reisende, die noch keine Fahrkarte gekauft haben, wählen bitte eine andere Verbindung oder buchen ein Ticket der 2. Klasse.",
+					"kurzText": "Außergewöhnlich hohe Auslastung erwartet",
+					"langText": "Wir erwarten im Verlauf Ihrer Reise eine außergewöhnlich hohe Auslastung in der 1. Klasse. Reisende, die noch keine Fahrkarte gekauft haben, wählen bitte eine andere Verbindung oder buchen ein Ticket der 2. Klasse."
+				},
+				{
+					"klasse": "KLASSE_2",
+					"stufe": 4,
+					"anzeigeText": "Wir erwarten im Verlauf Ihrer Reise eine außergewöhnlich hohe Auslastung in der 2. Klasse. Reisende, die noch keine Fahrkarte gekauft haben, wählen bitte eine andere Verbindung oder buchen ein Ticket der 1. Klasse.",
+					"kurzText": "Außergewöhnlich hohe Auslastung erwartet",
+					"langText": "Wir erwarten im Verlauf Ihrer Reise eine außergewöhnlich hohe Auslastung in der 2. Klasse. Reisende, die noch keine Fahrkarte gekauft haben, wählen bitte eine andere Verbindung oder buchen ein Ticket der 1. Klasse."
+				},
+				{
+					"klasse": "KLASSE_1",
+					"stufe": 99,
+					"anzeigeText": "Wir erwarten im Verlauf Ihrer Reise eine außergewöhnlich hohe Auslastung. Reisende, die noch keine Fahrkarte gekauft haben, wählen bitte eine andere Verbindung.",
+					"kurzText": "Außergewöhnlich hohe Auslastung erwartet",
+					"langText": "Wir erwarten im Verlauf Ihrer Reise eine außergewöhnlich hohe Auslastung. Reisende, die noch keine Fahrkarte gekauft haben, wählen bitte eine andere Verbindung."
+				},
+				{
+					"klasse": "KLASSE_2",
+					"stufe": 99,
+					"anzeigeText": "Wir erwarten im Verlauf Ihrer Reise eine außergewöhnlich hohe Auslastung. Reisende, die noch keine Fahrkarte gekauft haben, wählen bitte eine andere Verbindung.",
+					"kurzText": "Außergewöhnlich hohe Auslastung erwartet",
+					"langText": "Wir erwarten im Verlauf Ihrer Reise eine außergewöhnlich hohe Auslastung. Reisende, die noch keine Fahrkarte gekauft haben, wählen bitte eine andere Verbindung."
+				}
+			],
+			"himMeldungen": [],
+			"risNotizen": [],
+			"priorisierteMeldungen": [],
+			"reservierungsMeldungen": [],
+			"isAngebotseinholungNachgelagert": false,
+			"isAlterseingabeErforderlich": false,
+			"serviceDays": [
+				{
+					"lastDateInPeriod": "2025-10-31",
+					"regular": "nicht täglich",
+					"irregular": "3. Mär bis 25. Apr 2025 Mo - Fr; 8. Sep bis 31. Okt 2025 Mo - Fr; nicht 25. Mär 2025, 18., 21. Apr 2025, 3. Okt 2025",
+					"planningPeriodBegin": "2023-12-10",
+					"planningPeriodEnd": "2025-12-13",
+					"weekdays": [
+						"MO",
+						"DI",
+						"MI",
+						"DO",
+						"FR"
+					]
+				}
+			],
+			"angebotsPreis": {
+				"betrag": 31.49,
+				"waehrung": "EUR",
+				"mwst": [
+					{
+						"betrag": 2.06,
+						"brutto": 31.49,
+						"netto": 29.43,
+						"satz": 7,
+						"literal": "D"
+					}
+				]
+			},
+			"angebotsPreisKlasse": "KLASSE_2",
+			"hasTeilpreis": false,
+			"reiseAngebote": [],
+			"angebotsInformationen": [
+				"Hinweis zum City-Ticket: Das City-Ticket wird im Super Sparpreis und Sparpreis passend zu Ihrer angefragten Verbindung ausgegeben."
+			],
+			"angebotsInformationenAsObject": [
+				{
+					"code": "MDA-ANGEBOTSINFORMATION-CITYTICKET",
+					"nachrichtKurz": "Hinweis zum City-Ticket: Das City-Ticket wird im Super Sparpreis und Sparpreis passend zu Ihrer angefragten Verbindung ausgegeben.",
+					"nachrichtLang": "Hinweis zum City-Ticket: Das City-Ticket wird im Super Sparpreis und Sparpreis passend zu Ihrer angefragten Verbindung ausgegeben.",
+					"fahrtRichtungKennzeichen": "HINFAHRT"
+				}
+			],
+			"hinRueckPauschalpreis": false,
+			"isReservierungAusserhalbVorverkaufszeitraum": false,
+			"gesamtAngebotsbeziehungList": []
+		}
+   	],
+    "verbindungReference": {
+        "earlier": "3|OB|MTµ14µ705911µ705911µ706138µ706138µ0µ0µ485µ705897µ1µ0µ18µ0µ0µ-2147483648µ1µ2|PDHµ6b68530b8778e9e7a323eac122dc6140|RDµ11042025|RTµ50000|USµ0|RSµINIT",
+        "later": "3|OF|MTµ14µ706015µ706015µ706227µ706227µ0µ0µ485µ705992µ5µ0µ18µ0µ0µ-2147483648µ1µ2|PDHµ6b68530b8778e9e7a323eac122dc6140|RDµ11042025|RTµ50000|USµ0|RSµINIT"
+    }
+}

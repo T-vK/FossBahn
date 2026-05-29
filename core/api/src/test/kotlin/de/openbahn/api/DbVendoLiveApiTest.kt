@@ -1,19 +1,20 @@
 package de.openbahn.api
 
+import de.openbahn.api.LiveApiTestSupport.apiCall
+import de.openbahn.api.LiveApiTestSupport.assertJourneysNotEmpty
+import de.openbahn.api.LiveApiTestSupport.findStation
 import de.openbahn.model.JourneySearchOptions
 import de.openbahn.model.TransportProduct
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
-import java.time.LocalDateTime
 
 /**
- * Live integration tests against int.bahn.de — run on the CI host JVM (no emulator).
- * Enable with RUN_LIVE_API_TESTS=true.
- * Skips (does not fail) when DB blocks datacenter IPs (OPS_BLOCKED).
+ * Live integration tests against int.bahn.de — JVM only (no emulator).
+ *
+ * Run: `.github/scripts/run-live-api-tests.sh`
  */
 @Tag("live-api")
 @EnabledIfEnvironmentVariable(named = "RUN_LIVE_API_TESTS", matches = "true")
@@ -31,56 +32,42 @@ class DbVendoLiveApiTest {
 
     @Test
     fun searchJourneys_returnsConnections() = runBlocking {
-        val from = apiCall { client.searchLocations("Berlin Hbf", "de").firstOrNull() }
-        val to = apiCall { client.searchLocations("München Hbf", "de").firstOrNull() }
-        val origin = from ?: return@runBlocking
-        val destination = to ?: return@runBlocking
+        val origin = apiCall { client.findStation("Berlin Hbf", LiveApiTestSupport.BERLIN_HBF_EVA) }
+            ?: return@runBlocking
+        val destination = apiCall { client.findStation("München Hbf", "8000261") }
+            ?: return@runBlocking
+        val whenTime = LiveApiTestSupport.berlinDeparturePlusHours(3)
         val journeys = apiCall {
             client.searchJourneys(
                 origin,
                 destination,
                 JourneySearchOptions(products = setOf(TransportProduct.ICE)),
-                LocalDateTime.now().plusHours(2),
+                whenTime,
             )
         }
-        assertTrue(
-            journeys.isNotEmpty(),
-            "Expected journeys ${origin.name}→${destination.name}, got none",
-        )
+        assertJourneysNotEmpty(journeys, origin, destination)
     }
 
     @Test
     fun searchJourneys_hamburgToBerlin_returnsConnections() = runBlocking {
-        val from = apiCall { client.searchLocations("Hamburg Hbf", "de").firstOrNull() }
-        val to = apiCall { client.searchLocations("Berlin Hbf", "de").firstOrNull() }
-        val origin = from ?: return@runBlocking
-        val destination = to ?: return@runBlocking
+        val origin = apiCall {
+            client.findStation("Hamburg Hbf", LiveApiTestSupport.HAMBURG_HBF_EVA)
+        } ?: return@runBlocking
+        val destination = apiCall {
+            client.findStation("Berlin Hbf", LiveApiTestSupport.BERLIN_HBF_EVA)
+        } ?: return@runBlocking
+        val whenTime = LiveApiTestSupport.berlinDeparturePlusHours(3)
         val journeys = apiCall {
-            client.searchJourneys(
-                origin,
-                destination,
-                JourneySearchOptions(),
-                LocalDateTime.now().plusHours(2),
-            )
+            client.searchJourneys(origin, destination, JourneySearchOptions(), whenTime)
         }
-        assertTrue(
-            journeys.isNotEmpty(),
-            "Expected journeys ${origin.name}→${destination.name}, got none",
-        )
+        assertJourneysNotEmpty(journeys, origin, destination)
     }
 
     @Test
     fun departures_returnsEntries() = runBlocking {
-        val station = apiCall { client.searchLocations("Berlin Hbf", "de").firstOrNull() }
+        val station = apiCall { client.findStation("Berlin Hbf", LiveApiTestSupport.BERLIN_HBF_EVA) }
             ?: return@runBlocking
         val deps = apiCall { client.departures(station) }
         assertTrue(deps.isNotEmpty(), "Expected departures at ${station.name}")
-    }
-
-    private suspend fun <T> apiCall(block: suspend () -> T): T = try {
-        block()
-    } catch (e: DbApiBlockedException) {
-        assumeTrue(false, "Deutsche Bahn blocked this IP (OPS_BLOCKED): ${e.message}")
-        error("unreachable")
     }
 }

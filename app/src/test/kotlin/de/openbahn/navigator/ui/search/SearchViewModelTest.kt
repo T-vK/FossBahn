@@ -80,6 +80,20 @@ class SearchViewModelTest {
     }
 
     @Test
+    fun search_withNoJourneys_showsInfoNotError() = runTest(dispatcher) {
+        coEvery {
+            searchRepository.searchWithPredictions(any(), any(), any(), any())
+        } returns emptyList()
+        val viewModel = SearchViewModel(searchRepository, trackingRepository)
+        viewModel.selectFrom(berlin)
+        viewModel.selectTo(munich)
+        viewModel.search()
+        advanceUntilIdle()
+        assertEquals("info_no_connections", viewModel.state.value.info)
+        assertNull(viewModel.state.value.error)
+    }
+
+    @Test
     fun search_withoutStations_showsError() = runTest(dispatcher) {
         coEvery { searchRepository.searchLocations(any(), any()) } returns emptyList()
         val viewModel = SearchViewModel(searchRepository, trackingRepository)

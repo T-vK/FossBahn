@@ -75,9 +75,17 @@ class DbVendoClient(
         to: Location,
         options: JourneySearchOptions = JourneySearchOptions(),
         whenTime: LocalDateTime = LocalDateTime.now(),
-    ): List<Journey> {
+    ): List<Journey> = parseJourneyResponse(postFahrplan(from, to, options, whenTime))
+
+    /** Raw POST /angebote/fahrplan body (for live integration diagnostics). */
+    internal suspend fun postFahrplan(
+        from: Location,
+        to: Location,
+        options: JourneySearchOptions,
+        whenTime: LocalDateTime,
+    ): String {
         val body = JourneyRequestBuilder.build(from, to, options, whenTime)
-        val text = try {
+        return try {
             httpClient.post("$baseUrl/angebote/fahrplan") {
                 contentType(ContentType.Application.Json)
                 setBody(body)
@@ -89,7 +97,6 @@ class DbVendoClient(
         } catch (e: ServerResponseException) {
             throw DbApiException("HTTP_${e.response.status.value}")
         }
-        return parseJourneyResponse(text)
     }
 
     private fun parseJourneyResponse(text: String): List<Journey> =
