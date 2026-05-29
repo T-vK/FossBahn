@@ -8,7 +8,7 @@ import de.openbahn.model.JourneySearchOptions
 import de.openbahn.model.Location
 import de.openbahn.model.RatedJourney
 import de.openbahn.navigator.data.TrackedJourneyRepository
-import de.openbahn.navigator.domain.JourneySearchUseCase
+import de.openbahn.navigator.domain.JourneySearchRepository
 import de.openbahn.navigator.tracking.DelayTrackingWorker
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -39,7 +39,7 @@ data class SearchUiState(
 )
 
 class SearchViewModel(
-    private val searchUseCase: JourneySearchUseCase,
+    private val searchUseCase: JourneySearchRepository,
     private val trackingRepository: TrackedJourneyRepository,
 ) : ViewModel() {
 
@@ -48,12 +48,18 @@ class SearchViewModel(
     private var suggestJob: Job? = null
 
     fun setFromQuery(query: String) {
-        _state.update { it.copy(fromQuery = query, from = null) }
+        _state.update { state ->
+            val keepSelection = state.from?.name.equals(query, ignoreCase = true)
+            state.copy(fromQuery = query, from = if (keepSelection) state.from else null)
+        }
         loadSuggestions(query, isFrom = true)
     }
 
     fun setToQuery(query: String) {
-        _state.update { it.copy(toQuery = query, to = null) }
+        _state.update { state ->
+            val keepSelection = state.to?.name.equals(query, ignoreCase = true)
+            state.copy(toQuery = query, to = if (keepSelection) state.to else null)
+        }
         loadSuggestions(query, isFrom = false)
     }
 
@@ -80,8 +86,16 @@ class SearchViewModel(
     fun search() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null, info = null, hasSearched = true) }
-            val from = resolveLocation(_state.value.fromQuery, _state.value.from)
-            val to = resolveLocation(_state.value.toQuery, _state.value.to)
+            val from = resolveLocation(
+                _state.value.fromQuery,
+                _state.value.from,
+                _state.value.fromSuggestions,
+            )
+            val to = resolveLocation(
+                _state.value.toQuery,
+                _state.value.to,
+                _state.value.toSuggestions,
+            )
             if (from == null || to == null) {
                 _state.update {
                     it.copy(
@@ -138,12 +152,17 @@ class SearchViewModel(
         }
     }
 
-    private suspend fun resolveLocation(query: String, selected: Location?): Location? {
+    private suspend fun resolveLocation(
+        query: String,
+        selected: Location?,
+        suggestions: List<Location>,
+    ): Location? {
         if (selected != null && selected.name.equals(query, ignoreCase = true)) return selected
+        suggestions.firstOrNull { it.name.equals(query, ignoreCase = true) }?.let { return it }
         if (query.length < 2) return null
-        return searchUseCase.searchLocations(query, _state.value.locale)
-            .firstOrNull { it.name.equals(query, ignoreCase = true) }
-            ?: searchUseCase.searchLocations(query, _state.value.locale).firstOrNull()
+        val results = searchUseCase.searchLocations(query, _state.value.locale)
+        return results.firstOrNull { it.name.equals(query, ignoreCase = true) }
+            ?: results.firstOrNull()
     }
 
     private fun loadSuggestions(query: String, isFrom: Boolean) {

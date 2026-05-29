@@ -46,6 +46,19 @@ class JourneyRequestBuilderTest {
     }
 
     @Test
+    fun `uses eva halt id for journey request`() {
+        val from = Location(
+            id = "A=1@O=Berlin Hbf@X=1@Y=2@L=8011160@",
+            name = "Berlin Hbf",
+            evaNumber = "8011160",
+        )
+        val to = Location(id = "8000261", name = "München Hbf", evaNumber = "8000261")
+        val body = JourneyRequestBuilder.build(from, to, JourneySearchOptions(), LocalDateTime.now())
+        assertEquals("A=1@L=8011160@", body["abfahrtsHalt"]?.toString()?.trim('"'))
+        assertEquals("A=1@L=8000261@", body["ankunftsHalt"]?.toString()?.trim('"'))
+    }
+
+    @Test
     fun `builds accessibility filter`() {
         val body = JourneyRequestBuilder.build(
             berlin,
