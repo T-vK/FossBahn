@@ -12,6 +12,10 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
+/**
+ * UI e2e with a **fake** [de.openbahn.navigator.ui.search.FakeJourneySearchRepository]
+ * (see [OpenBahnTestApplication]). Does not call bahn.de — see [SearchLiveE2ETest] for live API.
+ */
 @RunWith(AndroidJUnit4::class)
 class SearchE2ETest {
     @get:Rule
@@ -34,15 +38,15 @@ class SearchE2ETest {
     @Test
     fun searchConnections_showsJourneyResult() {
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag("search_from").performTextInput("Berlin Hbf")
+        composeRule.onNodeWithTag("search_from").performTextInput("Hamburg Hbf")
+        waitForTag("location_suggestion_8002549")
+        composeRule.onNodeWithTag("location_suggestion_8002549").performClick()
+        composeRule.onNodeWithTag("search_to").performTextInput("Berlin Hbf")
         waitForTag("location_suggestion_8011160")
         composeRule.onNodeWithTag("location_suggestion_8011160").performClick()
-        composeRule.onNodeWithTag("search_to").performTextInput("München Hbf")
-        waitForTag("location_suggestion_8000261")
-        composeRule.onNodeWithTag("location_suggestion_8000261").performClick()
         composeRule.onNodeWithTag("search_button").performClick()
-        waitForTag("journey_card_test-journey-1")
-        composeRule.onNodeWithTag("journey_card_test-journey-1").assertIsDisplayed()
+        waitForTag("journey_card")
+        composeRule.onNodeWithTag("journey_card").assertIsDisplayed()
         composeRule.onNodeWithTag("search_results").assertIsDisplayed()
     }
 

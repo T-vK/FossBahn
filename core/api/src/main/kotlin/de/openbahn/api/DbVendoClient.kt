@@ -16,16 +16,20 @@ import de.openbahn.model.TransportProduct
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.ServerResponseException
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
@@ -72,14 +76,33 @@ class DbVendoClient(
         whenTime: LocalDateTime = LocalDateTime.now(),
     ): List<Journey> {
         val body = JourneyRequestBuilder.build(from, to, options, whenTime)
-        val text = httpClient.post("$baseUrl/angebote/fahrplan") {
-            contentType(ContentType.Application.Json)
-            setBody(body)
-        }.body<String>()
+        val text = try {
+            httpClient.post("$baseUrl/angebote/fahrplan") {
+                contentType(ContentType.Application.Json)
+                setBody(body)
+            }.bodyAsText()
+        } catch (e: ClientRequestException) {
+            val errorBody = runCatching { e.response.bodyAsText() }.getOrDefault("")
+            if (errorBody.contains("OPS_BLOCKED")) throw DbApiBlockedException("Journey search blocked")
+            throw DbApiException("HTTP_${e.response.status.value}")
+        } catch (e: ServerResponseException) {
+            throw DbApiException("HTTP_${e.response.status.value}")
+        }
+        return parseJourneyResponse(text)
+    }
+
+    private fun parseJourneyResponse(text: String): List<Journey> {
         if (text.contains("OPS_BLOCKED")) throw DbApiBlockedException("Journey search blocked")
-        val response = json.decodeFromString<DbJourneyResponse>(text)
+        val response = try {
+            json.decodeFromString<DbJourneyResponse>(text)
+        } catch (e: SerializationException) {
+            throw DbParseException(cause = e)
+        }
         if (response.status == "ERROR") {
-            throw DbApiException(response.code ?: "API_ERROR")
+            when (response.code) {
+                "OPS_BLOCKED" -> throw DbApiBlockedException("Journey search blocked")
+                else -> throw DbApiException(response.code ?: "API_ERROR")
+            }
         }
         return JourneyMapper.mapJourneys(response)
     }

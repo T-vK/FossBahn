@@ -169,6 +169,8 @@ private fun SuggestionList(
 private fun errorStringRes(key: String): Int = when (key) {
     "error_select_stations" -> R.string.error_select_stations
     "error_api_blocked" -> R.string.error_api_blocked
+    "error_network" -> R.string.error_network
+    "error_parse" -> R.string.error_parse
     else -> R.string.error_search_failed
 }
 

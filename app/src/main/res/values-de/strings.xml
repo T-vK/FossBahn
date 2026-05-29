@@ -9,7 +9,9 @@
     <string name="swap_stations">Stationen tauschen</string>
     <string name="error_select_stations">Bitte wählen Sie Start und Ziel aus den Vorschlägen aus.</string>
     <string name="error_search_failed">Die Verbindungssuche ist fehlgeschlagen. Bitte erneut versuchen.</string>
-    <string name="error_api_blocked">Deutsche Bahn konnte nicht erreicht werden. Netzwerk prüfen oder später erneut versuchen.</string>
+    <string name="error_api_blocked">Deutsche Bahn hat die Anfrage blockiert. Später erneut versuchen oder anderes Netz nutzen.</string>
+    <string name="error_network">Netzwerkfehler. Verbindung prüfen und erneut versuchen.</string>
+    <string name="error_parse">Unerwartete Antwort von Deutsche Bahn. Bitte App aktualisieren, falls das anhält.</string>
     <string name="info_no_connections">Keine Verbindungen für diese Route und Zeit gefunden. Andere Optionen oder Abfahrtszeit wählen.</string>
     <string name="filters">Optionen</string>
     <string name="nav_search">Suche</string>

@@ -50,6 +50,26 @@ class DbVendoLiveApiTest {
     }
 
     @Test
+    fun searchJourneys_hamburgToBerlin_returnsConnections() = runBlocking {
+        val from = apiCall { client.searchLocations("Hamburg Hbf", "de").firstOrNull() }
+        val to = apiCall { client.searchLocations("Berlin Hbf", "de").firstOrNull() }
+        val origin = from ?: return@runBlocking
+        val destination = to ?: return@runBlocking
+        val journeys = apiCall {
+            client.searchJourneys(
+                origin,
+                destination,
+                JourneySearchOptions(),
+                LocalDateTime.now().plusHours(2),
+            )
+        }
+        assertTrue(
+            journeys.isNotEmpty(),
+            "Expected journeys ${origin.name}→${destination.name}, got none",
+        )
+    }
+
+    @Test
     fun departures_returnsEntries() = runBlocking {
         val station = apiCall { client.searchLocations("Berlin Hbf", "de").firstOrNull() }
             ?: return@runBlocking

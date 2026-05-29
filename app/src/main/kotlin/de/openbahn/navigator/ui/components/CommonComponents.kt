@@ -50,7 +50,7 @@ fun JourneyCard(
     modifier: Modifier = Modifier,
 ) {
     Card(
-        modifier = modifier.fillMaxWidth().testTag("journey_card_${journey.id}"),
+        modifier = modifier.fillMaxWidth().testTag("journey_card"),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -8,7 +8,12 @@ import de.openbahn.model.Journey
 import de.openbahn.model.Leg
 import de.openbahn.model.StopEvent
 import de.openbahn.model.TransportProduct
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.util.UUID
 
 internal object JourneyMapper {
@@ -40,9 +45,18 @@ internal object JourneyMapper {
             priceHint = price?.text ?: price?.preis?.let { "${it}€" } ?: price?.betrag?.let { "$it ${price.waehrung}" },
             refreshToken = v.ctxRecon ?: v.kontext,
             deutschlandTicketValid = v.dticketGueltig,
-            remarks = v.hinweise.orEmpty(),
+            remarks = mapHinweise(v.hinweise),
         )
     }
+
+    private fun mapHinweise(hinweise: List<JsonElement>?): List<String> =
+        hinweise.orEmpty().mapNotNull { element ->
+            when (element) {
+                is JsonPrimitive -> element.contentOrNull
+                else -> element.jsonObject["text"]?.jsonPrimitive?.contentOrNull
+                    ?: element.jsonObject["kurzText"]?.jsonPrimitive?.contentOrNull
+            }
+        }
 
     private fun mapAbschnitt(a: DbVerbindungsAbschnitt): Leg? {
         val depName = a.abfahrtsOrt ?: return null
