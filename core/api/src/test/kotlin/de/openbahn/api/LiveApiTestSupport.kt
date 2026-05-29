@@ -1,6 +1,8 @@
 package de.openbahn.api
 
 import de.openbahn.api.debug.FahrplanDiagnostics
+import de.openbahn.api.mapper.JourneyResponseParser
+import de.openbahn.model.Journey
 import de.openbahn.model.Location
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assumptions.assumeTrue
@@ -31,8 +33,24 @@ internal object LiveApiTestSupport {
     suspend fun <T> apiCall(block: suspend () -> T): T = try {
         block()
     } catch (e: DbApiBlockedException) {
-        assumeTrue(false, "Deutsche Bahn blocked this IP (OPS_BLOCKED): ${e.message}")
+        assumeBlocked(e)
         error("unreachable")
+    }
+
+    /** Parse fahrplan JSON with OPS_BLOCKED → skipped test (not failed). */
+    suspend fun parseFahrplanResponse(raw: String): List<Journey> = apiCall {
+        JourneyResponseParser.parse(raw)
+    }
+
+    fun assumeBlockedByResponseBody(raw: String) {
+        if (raw.contains("OPS_BLOCKED")) {
+            assumeTrue(false, "Deutsche Bahn blocked this IP (OPS_BLOCKED) in response body")
+        }
+    }
+
+    private fun assumeBlocked(e: DbApiBlockedException): Nothing {
+        assumeTrue(false, "Deutsche Bahn blocked this IP (OPS_BLOCKED): ${e.message}")
+        throw AssertionError("unreachable")
     }
 
     fun requireFullBahnId(location: Location, label: String) {
