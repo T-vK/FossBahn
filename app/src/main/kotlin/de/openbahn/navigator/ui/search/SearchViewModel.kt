@@ -169,7 +169,7 @@ class SearchViewModel(
         if (query.length < 2) return null
         val results = searchUseCase.searchLocations(query, _state.value.locale)
         return results.firstOrNull { it.name.equals(query, ignoreCase = true) }
-            ?: results.firstOrNull()
+            ?: results.singleOrNull()
     }
 
     private fun loadSuggestions(query: String, isFrom: Boolean) {

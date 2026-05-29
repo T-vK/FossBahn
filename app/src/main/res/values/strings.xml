@@ -6,6 +6,11 @@
     <string name="to">To</string>
     <string name="search">Search</string>
     <string name="search_connections">Search connections</string>
+    <string name="search_when">When</string>
+    <string name="search_departure_at">Departure: %1$s</string>
+    <string name="search_arrival_at">Arrival: %1$s</string>
+    <string name="search_pick_date">Change date</string>
+    <string name="search_pick_time">Change time</string>
     <string name="swap_stations">Swap stations</string>
     <string name="error_select_stations">Please pick a station from the suggestions for both origin and destination.</string>
     <string name="error_search_failed">Connection search failed. Please try again.</string>

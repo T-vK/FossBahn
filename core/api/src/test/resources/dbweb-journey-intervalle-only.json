@@ -1,0 +1,31 @@
+{
+  "verbindungen": [],
+  "intervalle": [
+    {
+      "verbindungen": [
+        {
+          "verbindung": {
+            "tripId": "hh_be_interval",
+            "umstiegsAnzahl": 0,
+            "verbindungsDauerInSeconds": 7200,
+            "verbindungsAbschnitte": [
+              {
+                "abfahrtsOrt": "Hamburg Hbf",
+                "abfahrtsOrtExtId": "8002549",
+                "abfahrtsZeitpunkt": "2026-05-30T08:00:00",
+                "ankunftsOrt": "Berlin Hbf",
+                "ankunftsOrtExtId": "8011160",
+                "ankunftsZeitpunkt": "2026-05-30T10:00:00",
+                "gleis": "7",
+                "verkehrsmittel": {
+                  "name": "ICE 701",
+                  "produktGattung": "ICE"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

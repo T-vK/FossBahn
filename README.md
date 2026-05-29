@@ -38,9 +38,21 @@ Requirements: JDK 17, Android SDK 35.
 # Live API tests (optional; skipped if DB blocks your IP)
 RUN_LIVE_API_TESTS=true ./gradlew :core:api:testDebugUnitTest --tests "de.openbahn.api.DbVendoLiveApiTest"
 
-# UI / E2E (emulator required)
-./gradlew :app:connectedDebugAndroidTest
+# UI / E2E (Android emulator or device required; uses fake API, no bahn.de)
+./gradlew :app:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.notClass=de.openbahn.navigator.SearchLiveE2ETest
+
+# Or use the helper script (same as CI, without live API test):
+.github/scripts/run-e2e-local.sh
+
+# Live Hamburg→Berlin UI test (real network; manual only):
+./gradlew :app:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunner=de.openbahn.navigator.OpenBahnLiveTestRunner \
+  -Pandroid.testInstrumentationRunnerArguments.runLiveSearchE2e=true \
+  -Pandroid.testInstrumentationRunnerArguments.class=de.openbahn.navigator.SearchLiveE2ETest
 ```
+
+Run e2e locally before pushing to avoid burning CI emulator minutes. You need API 30+ x86_64 AVD with Google APIs, or a USB device with USB debugging enabled (`adb devices` must list it).
 
 ## Releases & versioning
 

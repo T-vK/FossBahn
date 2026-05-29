@@ -114,6 +114,8 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(project(":core:api"))
+    androidTestImplementation(libs.koin.android)
+    androidTestImplementation(libs.koin.compose)
 }
 
 tasks.withType<Test> {

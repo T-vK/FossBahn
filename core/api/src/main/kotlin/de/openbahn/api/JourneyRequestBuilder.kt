@@ -14,6 +14,8 @@ import java.time.format.DateTimeFormatter
 
 /** bahn.de / db-vendo halt identifier for journey requests (abfahrtsHalt / ankunftsHalt). */
 internal fun Location.haltIdForJourney(): String {
+    // Prefer full location id from /orte (db-vendo uses the same `lid` string).
+    if (id.startsWith("A=1@")) return id
     val eva = evaNumber?.takeIf { it.isNotEmpty() && it.all(Char::isDigit) }
         ?: id.takeIf { it.length >= 6 && it.all(Char::isDigit) }
     if (eva != null) return "A=1@L=$eva@"
