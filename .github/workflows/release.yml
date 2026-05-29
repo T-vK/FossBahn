@@ -2,43 +2,100 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
 
 permissions:
   contents: write
 
 jobs:
   release:
+    # Avoid infinite loop when we push the version-bump commit
+    if: >-
+      github.event_name == 'push' &&
+      !contains(github.event.head_commit.message, '[skip ci]') &&
+      !startsWith(github.event.head_commit.message, 'chore: release v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
+
       - uses: android-actions/setup-android@v3
-      - run: echo "sdk.dir=$ANDROID_SDK_ROOT" >> local.properties
-      - run: chmod +x gradlew
-      - name: Sync version from tag
+
+      - name: Configure Git
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Compute next semantic version
+        id: semver
+        run: |
+          chmod +x .github/scripts/next-semver.sh
+          eval "$(.github/scripts/next-semver.sh)"
+          echo "Computed: bump=$bump version=$version"
+          echo "bump=$bump" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ "$bump" = "none" ]; then
+            echo "No releasable commits (use feat:/fix:/BREAKING). Skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update version.properties
+        if: steps.semver.outputs.skip == 'false'
+        run: |
+          VERSION="${{ steps.semver.outputs.version }}"
+          VERSION="${VERSION#v}"
           CODE=$(echo "$VERSION" | awk -F. '{printf "%d", $1*10000+$2*100+$3}')
           printf 'versionName=%s\nversionCode=%s\n' "$VERSION" "$CODE" > version.properties
           cat version.properties
-      - name: Build debug APK (signed, reproducible for CI)
-        run: ./gradlew :app:assembleDebug --stacktrace
-      - name: Create GitHub Release
+
+      - name: Commit version bump
+        if: steps.semver.outputs.skip == 'false'
+        run: |
+          git add version.properties
+          git commit -m "chore: release ${{ steps.semver.outputs.version }} [skip ci]"
+          git push origin main
+
+      - name: Create and push tag
+        if: steps.semver.outputs.skip == 'false'
+        run: |
+          git tag "${{ steps.semver.outputs.version }}"
+          git push origin "${{ steps.semver.outputs.version }}"
+
+      - name: Build APK
+        if: steps.semver.outputs.skip == 'false'
+        run: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" >> local.properties
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Publish GitHub Release
+        if: steps.semver.outputs.skip == 'false'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.semver.outputs.version }}
+          name: OpenBahn Navigator ${{ steps.semver.outputs.version }}
           files: app/build/outputs/apk/debug/*.apk
           generate_release_notes: true
           draft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
-          name: OpenBahn Navigator ${{ github.ref_name }}
+          prerelease: ${{ contains(steps.semver.outputs.version, '-') }}
           body: |
-            ## OpenBahn Navigator ${{ github.ref_name }}
+            ## OpenBahn Navigator ${{ steps.semver.outputs.version }}
 
-            Install the attached `app-debug.apk` (debug-signed for testing).
+            Automatic release from `main` (semantic versioning).
 
-            For F-Droid builds, use the source tag — release APKs are debug-signed from CI.
+            **Version bump:** `${{ steps.semver.outputs.bump }}` (from conventional commits since the previous tag)
+
+            Install the attached `app-debug.apk` (debug-signed CI build).

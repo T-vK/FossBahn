@@ -46,15 +46,24 @@ RUN_LIVE_API_TESTS=true ./gradlew :core:api:testDebugUnitTest --tests "de.openba
 
 Version is stored in `version.properties` (`versionName` + `versionCode`).
 
-**Automatic GitHub releases** are **not** created on every push. To release:
+**Automatic releases on every push to `main`:**
 
-1. Open **Actions → Version Bump & Release → Run workflow** (patch/minor/major)
-2. The workflow bumps `version.properties`, commits, creates a `vX.Y.Z` tag, and pushes it
-3. The **Release** workflow builds an APK and publishes a [GitHub Release](https://github.com/T-vK/FossBahn/releases) for that tag
+| Commit prefix | Version bump |
+|---------------|--------------|
+| `feat:` | minor (0.1.0 → 0.2.0) |
+| `fix:`, `perf:`, `refactor:` | patch (0.1.0 → 0.1.1) |
+| `BREAKING CHANGE` or `feat!:` | major (0.1.0 → 1.0.0) |
+| `chore:`, `docs:`, `ci:` only | no release (skipped) |
 
-You can also tag manually: `git tag v0.2.0 && git push origin v0.2.0`
+The [Release](.github/workflows/release.yml) workflow then:
 
-**CI** runs on pull requests and `main` pushes only (not duplicate feature-branch push + PR). Live API and E2E run on `main` only.
+1. Bumps `version.properties`
+2. Commits `chore: release vX.Y.Z [skip ci]` (does not re-trigger release)
+3. Tags `vX.Y.Z`, builds the APK, and publishes a [GitHub Release](https://github.com/T-vK/FossBahn/releases)
+
+**Manual override:** Actions → **Version Bump (manual)** to force patch/minor/major.
+
+**CI** ([ci.yml](.github/workflows/ci.yml)) runs tests and uploads a build artifact on PRs and `main`; the release APK is attached to GitHub Releases, not only artifacts.
 
 ## F-Droid
 
