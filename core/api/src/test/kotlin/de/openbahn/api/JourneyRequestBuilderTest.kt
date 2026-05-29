@@ -59,6 +59,18 @@ class JourneyRequestBuilderTest {
     }
 
     @Test
+    fun `includes travellers and class for dbweb`() {
+        val body = JourneyRequestBuilder.build(
+            berlin,
+            munich,
+            JourneySearchOptions(),
+            LocalDateTime.now(),
+        )
+        assertEquals("KLASSE_2", body["klasse"]?.toString()?.trim('"'))
+        assertTrue(body["reisende"].toString().contains("ERWACHSENER"))
+    }
+
+    @Test
     fun `builds accessibility filter`() {
         val body = JourneyRequestBuilder.build(
             berlin,

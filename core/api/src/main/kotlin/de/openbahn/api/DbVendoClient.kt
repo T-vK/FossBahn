@@ -5,6 +5,7 @@ import de.openbahn.api.dto.DbLocationResponse
 import de.openbahn.api.dto.DbOrt
 import de.openbahn.api.dto.DbStationBoardResponse
 import de.openbahn.api.mapper.JourneyMapper
+import de.openbahn.api.mapper.JourneyResponseParser
 import de.openbahn.api.mapper.LocationMapper
 import de.openbahn.api.mapper.StationBoardMapper
 import de.openbahn.model.BoardEntry
@@ -91,21 +92,18 @@ class DbVendoClient(
         return parseJourneyResponse(text)
     }
 
-    private fun parseJourneyResponse(text: String): List<Journey> {
-        if (text.contains("OPS_BLOCKED")) throw DbApiBlockedException("Journey search blocked")
-        val response = try {
-            json.decodeFromString<DbJourneyResponse>(text)
+    private fun parseJourneyResponse(text: String): List<Journey> =
+        try {
+            JourneyResponseParser.parse(text)
+        } catch (e: DbApiBlockedException) {
+            throw e
+        } catch (e: DbApiException) {
+            throw e
+        } catch (e: DbParseException) {
+            throw e
         } catch (e: SerializationException) {
             throw DbParseException(cause = e)
         }
-        if (response.status == "ERROR") {
-            when (response.code) {
-                "OPS_BLOCKED" -> throw DbApiBlockedException("Journey search blocked")
-                else -> throw DbApiException(response.code ?: "API_ERROR")
-            }
-        }
-        return JourneyMapper.mapJourneys(response)
-    }
 
     suspend fun refreshJourney(refreshToken: String): Journey? {
         val body = buildJsonObject { put("ctxRecon", refreshToken); put("poly", true) }
