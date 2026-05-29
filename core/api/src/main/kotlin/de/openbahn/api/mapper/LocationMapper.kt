@@ -8,12 +8,17 @@ import de.openbahn.model.LocationType
 internal object LocationMapper {
     fun mapLocations(response: DbLocationResponse): List<Location> {
         val items = response.orte.orEmpty() + response.locations.orEmpty()
-        return items.mapNotNull(::mapOrt).distinctBy { it.id }
+        return mapOrtList(items)
     }
+
+    fun mapOrtList(items: List<DbOrt>): List<Location> =
+        items.mapNotNull(::mapOrt).distinctBy { it.id }
 
     private fun mapOrt(ort: DbOrt): Location? {
         val id = ort.id ?: ort.extId ?: return null
         val name = ort.name ?: return null
+        val lat = ort.lat ?: ort.coordinate?.y
+        val lon = ort.lon ?: ort.coordinate?.x
         return Location(
             id = id,
             name = name,
@@ -22,8 +27,8 @@ internal object LocationMapper {
                 "ST" -> LocationType.STATION
                 else -> LocationType.STATION
             },
-            latitude = ort.coordinate?.y,
-            longitude = ort.coordinate?.x,
+            latitude = lat,
+            longitude = lon,
             evaNumber = ort.extId,
         )
     }

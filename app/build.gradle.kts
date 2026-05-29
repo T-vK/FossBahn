@@ -25,7 +25,7 @@ android {
         targetSdk = 35
         versionCode = appVersionCode
         versionName = appVersionName
-        testInstrumentationRunner = "de.openbahn.navigator.OpenBahnTestRunner"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -108,6 +108,8 @@ dependencies {
     testRuntimeOnly(libs.junit.jupiter.engine)
 
     androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.rules)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.kotlinx.coroutines.test)

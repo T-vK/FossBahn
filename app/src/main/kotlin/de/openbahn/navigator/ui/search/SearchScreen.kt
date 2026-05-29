@@ -29,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.openbahn.navigator.R
@@ -49,6 +50,7 @@ fun SearchScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                modifier = Modifier.testTag("search_screen_title"),
                 title = { Text(stringResource(R.string.search_title)) },
                 actions = {
                     IconButton(onClick = onOpenFilters) {
@@ -71,7 +73,7 @@ fun SearchScreen(
                 value = state.fromQuery,
                 onValueChange = viewModel::setFromQuery,
                 label = { Text(stringResource(R.string.from)) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("search_from"),
                 trailingIcon = {
                     IconButton(onClick = {
                         val from = state.from
@@ -90,7 +92,7 @@ fun SearchScreen(
                 value = state.toQuery,
                 onValueChange = viewModel::setToQuery,
                 label = { Text(stringResource(R.string.to)) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("search_to"),
             )
             state.toSuggestions.take(5).forEach { loc ->
                 Text(loc.name, Modifier.fillMaxWidth().clickable { viewModel.selectTo(loc) }.padding(8.dp))

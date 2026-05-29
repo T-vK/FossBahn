@@ -2,9 +2,9 @@ package de.openbahn.navigator
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import org.junit.Assume.assumeTrue
+import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -16,14 +16,20 @@ class SearchE2ETest {
 
     @Test
     fun searchScreen_displaysFromAndToFields() {
-        composeRule.onNodeWithText("From", substring = true, ignoreCase = true).assertIsDisplayed()
-        composeRule.onNodeWithText("To", substring = true, ignoreCase = true).assertIsDisplayed()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("search_from").assertIsDisplayed()
+        composeRule.onNodeWithTag("search_to").assertIsDisplayed()
     }
 
     @Test
-    fun liveSearch_findsJourney_whenApiEnabled() {
-        assumeTrue(System.getenv("RUN_LIVE_API_TESTS") == "true")
-        // Full live E2E would type into fields and assert journey cards; kept minimal for CI stability
-        composeRule.onNodeWithText("Journey search", substring = true, ignoreCase = true).assertIsDisplayed()
+    fun searchScreen_displaysTitle() {
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("search_screen_title").assertIsDisplayed()
+    }
+
+    @Test
+    fun app_launchesWithCorrectPackage() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        assert(context.packageName.startsWith("de.openbahn.navigator"))
     }
 }

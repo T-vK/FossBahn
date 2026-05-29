@@ -16,8 +16,11 @@ data class DbOrt(
     val id: String? = null,
     val name: String? = null,
     @SerialName("extId") val extId: String? = null,
+    val lat: Double? = null,
+    val lon: Double? = null,
     val coordinate: DbCoordinate? = null,
     val type: String? = null,
+    val products: List<String>? = null,
 )
 
 @Serializable
@@ -84,6 +87,13 @@ data class DbVerkehrsmittel(
     val betreiber: String? = null,
     val fahrradErlaubt: Boolean? = null,
     val auslastung: String? = null,
+)
+
+@Serializable
+data class DbApiError(
+    val status: String? = null,
+    val code: String? = null,
+    @SerialName("errorRefId") val errorRefId: String? = null,
 )
 
 @Serializable

@@ -1,7 +1,9 @@
 package de.openbahn.api
 
+import de.openbahn.api.dto.DbApiError
 import de.openbahn.api.dto.DbJourneyResponse
 import de.openbahn.api.dto.DbLocationResponse
+import de.openbahn.api.dto.DbOrt
 import de.openbahn.api.dto.DbStationBoardResponse
 import de.openbahn.api.mapper.JourneyMapper
 import de.openbahn.api.mapper.LocationMapper
@@ -47,13 +49,21 @@ class DbVendoClient(
     }
 
     suspend fun searchLocations(query: String, locale: String = "de"): List<Location> {
-        val response: DbLocationResponse = httpClient.get("$baseUrl/reiseloesung/orte") {
+        val raw = httpClient.get("$baseUrl/reiseloesung/orte") {
             parameter("suchbegriff", query)
             parameter("typ", "ALL")
             parameter("max", 12)
             parameter("locale", locale)
-        }.body()
-        return LocationMapper.mapLocations(response)
+        }
+        val text = raw.body<String>()
+        if (text.contains("OPS_BLOCKED")) throw DbApiBlockedException("Location search blocked")
+        return try {
+            val asList = json.decodeFromString<List<DbOrt>>(text)
+            LocationMapper.mapOrtList(asList)
+        } catch (_: Exception) {
+            val wrapped = json.decodeFromString<DbLocationResponse>(text)
+            LocationMapper.mapLocations(wrapped)
+        }
     }
 
     suspend fun searchJourneys(
@@ -63,10 +73,12 @@ class DbVendoClient(
         whenTime: LocalDateTime = LocalDateTime.now(),
     ): List<Journey> {
         val body = JourneyRequestBuilder.build(from, to, options, whenTime)
-        val response: DbJourneyResponse = httpClient.post("$baseUrl/angebote/fahrplan") {
+        val text = httpClient.post("$baseUrl/angebote/fahrplan") {
             contentType(ContentType.Application.Json)
             setBody(body)
-        }.body()
+        }.body<String>()
+        if (text.contains("OPS_BLOCKED")) throw DbApiBlockedException("Journey search blocked")
+        val response = json.decodeFromString<DbJourneyResponse>(text)
         return JourneyMapper.mapJourneys(response)
     }
 
@@ -86,14 +98,17 @@ class DbVendoClient(
         products: Set<TransportProduct> = TransportProduct.ALL,
         locale: String = "de",
     ): List<BoardEntry> {
-        val response: DbStationBoardResponse = httpClient.get("$baseUrl/reiseloesung/abfahrten") {
-            parameter("ortExtId", station.id)
+        val ortExtId = station.evaNumber ?: station.id
+        val text = httpClient.get("$baseUrl/reiseloesung/abfahrten") {
+            parameter("ortExtId", ortExtId)
             parameter("datum", whenTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")))
             parameter("zeit", whenTime.format(DateTimeFormatter.ofPattern("HH:mm:ss")))
             parameter("dauer", durationMinutes)
             products.forEach { parameter("verkehrsmittel[]", it.vendoCode) }
             parameter("locale", locale)
-        }.body()
+        }.body<String>()
+        if (text.contains("OPS_BLOCKED")) throw DbApiBlockedException("Departures blocked")
+        val response = json.decodeFromString<DbStationBoardResponse>(text)
         return StationBoardMapper.mapDepartures(response)
     }
 
@@ -104,14 +119,17 @@ class DbVendoClient(
         products: Set<TransportProduct> = TransportProduct.ALL,
         locale: String = "de",
     ): List<BoardEntry> {
-        val response: DbStationBoardResponse = httpClient.get("$baseUrl/reiseloesung/ankuenfte") {
-            parameter("ortExtId", station.id)
+        val ortExtId = station.evaNumber ?: station.id
+        val text = httpClient.get("$baseUrl/reiseloesung/ankuenfte") {
+            parameter("ortExtId", ortExtId)
             parameter("datum", whenTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")))
             parameter("zeit", whenTime.format(DateTimeFormatter.ofPattern("HH:mm:ss")))
             parameter("dauer", durationMinutes)
             products.forEach { parameter("verkehrsmittel[]", it.vendoCode) }
             parameter("locale", locale)
-        }.body()
+        }.body<String>()
+        if (text.contains("OPS_BLOCKED")) throw DbApiBlockedException("Arrivals blocked")
+        val response = json.decodeFromString<DbStationBoardResponse>(text)
         return StationBoardMapper.mapArrivals(response)
     }
 
