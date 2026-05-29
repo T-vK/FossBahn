@@ -22,6 +22,8 @@ jobs:
       - uses: android-actions/setup-android@v3
       - run: echo "sdk.dir=$ANDROID_SDK_ROOT" >> local.properties
       - run: chmod +x gradlew
+      - name: Validate release semver script
+        run: chmod +x .github/scripts/test-next-semver.sh && .github/scripts/test-next-semver.sh
       - name: Unit tests (incl. journey mapper fixture)
         run: ./gradlew :core:api:testDebugUnitTest --stacktrace
       - name: Assemble debug APK

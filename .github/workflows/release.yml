@@ -3,6 +3,13 @@ name: Release
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force a patch release if semver finds no conventional commits'
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: release-main
@@ -39,14 +46,22 @@ jobs:
 
       - name: Compute next semantic version
         id: semver
+        env:
+          FORCE_BUMP: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force == 'true' }}
         run: |
-          chmod +x .github/scripts/next-semver.sh
+          chmod +x .github/scripts/next-semver.sh .github/scripts/test-next-semver.sh
+          .github/scripts/test-next-semver.sh
+          echo "Commits since last tag:"
+          LAST=$(git describe --tags --match 'v*' --abbrev=0 2>/dev/null || echo "(none)")
+          if [ "$LAST" != "(none)" ]; then
+            git log "${LAST}..HEAD" --oneline --no-merges || true
+          fi
           eval "$(.github/scripts/next-semver.sh)"
           echo "Computed: bump=$bump version=$version"
           echo "bump=$bump" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           if [ "$bump" = "none" ]; then
-            echo "No releasable commits (use feat:/fix:/BREAKING). Skipping."
+            echo "No releasable commits (use feat:/fix:/BREAKING or run workflow with force=true). Skipping."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
