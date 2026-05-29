@@ -41,6 +41,17 @@ internal object JourneyRequestBuilder {
         put("schnelleVerbindungen", options.fastRoutesOnly)
         put("sitzplatzOnly", false)
         put("reservierungsKontingenteVorhanden", false)
+        put("klasse", if (options.firstClass) "KLASSE_1" else "KLASSE_2")
+        putJsonArray("reisende") {
+            add(
+                buildJsonObject {
+                    put("typ", "ERWACHSENER")
+                    put("anzahl", 1)
+                    putJsonArray("alter") { }
+                    putJsonArray("ermaessigungen") { }
+                },
+            )
+        }
         if (options.directOnly) put("maxUmstiege", 0)
         putJsonArray("produktgattungen") {
             options.products.forEach { add(it.vendoCode) }

@@ -1,5 +1,6 @@
 package de.openbahn.api
 
+import de.openbahn.api.mapper.JourneyResponseParser
 import de.openbahn.model.JourneySearchOptions
 import de.openbahn.model.Location
 import io.ktor.client.HttpClient
@@ -65,6 +66,15 @@ class DbVendoJourneyIntegrationTest {
         assertEquals("Berlin Hbf", j.legs.first().destination.name)
         assertEquals("7", j.legs.first().origin.platform)
         assertEquals("ICE 701", j.legs.first().lineName)
+    }
+
+    @Test
+    fun journeyResponseParser_readsHamburgBerlinFixture() {
+        val text = journeyJson
+        val journeys = JourneyResponseParser.parse(text)
+        assertEquals(1, journeys.size)
+        assertEquals("Hamburg Hbf", journeys.first().legs.first().origin.name)
+        assertEquals("Berlin Hbf", journeys.first().legs.last().destination.name)
     }
 
     @Test
