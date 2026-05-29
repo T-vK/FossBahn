@@ -1,0 +1,10 @@
+OpenBahn Navigator is a privacy-friendly, open-source journey planner for German railways.
+
+• Search connections without an account or API key
+• Filter by transport mode, bike, Deutschland-Ticket, transfer time, and more
+• Station departure and arrival boards
+• ML-based connection predictions (Bahn-Vorhersage)
+• Track journeys and get delay notifications
+• Import tickets including Deutschland-Ticket with photo
+
+Uses public bahn.de APIs. English and German supported.

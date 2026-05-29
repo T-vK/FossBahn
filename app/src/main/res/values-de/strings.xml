@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OpenBahn Navigator</string>
+    <string name="search_title">Verbindungssuche</string>
+    <string name="from">Von</string>
+    <string name="to">Nach</string>
+    <string name="search">Suchen</string>
+    <string name="filters">Optionen</string>
+    <string name="nav_search">Suche</string>
+    <string name="nav_board">Abfahrten</string>
+    <string name="nav_tickets">Tickets</string>
+    <string name="nav_tracking">Live</string>
+    <string name="board_title">Bahnhofstafel</string>
+    <string name="station">Bahnhof</string>
+    <string name="departures">Abfahrten</string>
+    <string name="arrivals">Ankünfte</string>
+    <string name="tickets_title">Ticket-Wallet</string>
+    <string name="import_ticket">Ticket importieren</string>
+    <string name="import_dticket_photo">Deutschland-Ticket importieren (inkl. Lichtbild)</string>
+    <string name="dticket_import_hint">Importieren Sie PDF-Tickets aus dem DB Navigator oder fügen Sie Ihr Deutschland-Ticket mit Lichtbild zur Kontrolle hinzu.</string>
+    <string name="dticket_photo">Ticket-Foto</string>
+    <string name="tracking_title">Live-Verfolgung</string>
+    <string name="tracking_description">Verfolgte Verbindungen werden alle 15 Minuten geprüft. Bei Verspätungen erhalten Sie eine Benachrichtigung.</string>
+    <string name="stop_tracking">Verfolgung beenden</string>
+    <string name="track_journey">Verbindung verfolgen</string>
+    <string name="transfers_count">%d Umstiege</string>
+    <string name="dticket_valid">Mit Deutschland-Ticket gültig</string>
+    <string name="transfer_probability">Anschlusswahrscheinlichkeit: %d%%</string>
+    <string name="delay_minutes">+%d Min. Verspätung</string>
+    <string name="filter_transport">Verkehrsmittel</string>
+    <string name="filter_bike">Fahrradmitnahme</string>
+    <string name="filter_direct">Nur Direktverbindungen</string>
+    <string name="filter_dticket_only">Nur D-Ticket-Verbindungen</string>
+    <string name="filter_dticket_owned">Deutschland-Ticket vorhanden</string>
+    <string name="filter_fast_routes">Schnelle Verbindungen bevorzugen</string>
+    <string name="filter_arrival_search">Ankunftssuche</string>
+    <string name="filter_transfer_time">Mindestumstiegszeit</string>
+    <string name="filter_transfer_default">Standard</string>
+    <string name="filter_transfer_minutes">%d Minuten</string>
+    <string name="filter_accessibility">Barrierefreiheit</string>
+    <string name="filter_routing">Routing</string>
+    <string name="notification_channel_delays">Verspätungsalarme</string>
+    <string name="notification_channel_delays_desc">Benachrichtigungen bei Verspätung Ihrer verfolgten Verbindung</string>
+    <string name="notification_channel_tracking">Reiseverfolgung</string>
+    <string name="delay_notification_title">Verspätung auf Ihrer Reise</string>
+    <string name="delay_notification_body">%1$s → %2$s: %3$d Minuten Verspätung</string>
+</resources>

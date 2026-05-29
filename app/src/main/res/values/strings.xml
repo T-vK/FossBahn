@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OpenBahn Navigator</string>
+    <string name="search_title">Journey search</string>
+    <string name="from">From</string>
+    <string name="to">To</string>
+    <string name="search">Search</string>
+    <string name="filters">Options</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_board">Departures</string>
+    <string name="nav_tickets">Tickets</string>
+    <string name="nav_tracking">Tracking</string>
+    <string name="board_title">Station board</string>
+    <string name="station">Station</string>
+    <string name="departures">Departures</string>
+    <string name="arrivals">Arrivals</string>
+    <string name="tickets_title">Ticket wallet</string>
+    <string name="import_ticket">Import ticket</string>
+    <string name="import_dticket_photo">Import Deutschland-Ticket (incl. photo)</string>
+    <string name="dticket_import_hint">Import PDF tickets from DB Navigator or add your Deutschland-Ticket with photo (Lichtbild) for inspection.</string>
+    <string name="dticket_photo">Ticket photo</string>
+    <string name="tracking_title">Live tracking</string>
+    <string name="tracking_description">Tracked journeys are checked every 15 minutes. You receive a notification when delays exceed your threshold.</string>
+    <string name="stop_tracking">Stop tracking</string>
+    <string name="track_journey">Track journey</string>
+    <string name="transfers_count">%d transfers</string>
+    <string name="dticket_valid">Valid with Deutschland-Ticket</string>
+    <string name="transfer_probability">Connection probability: %d%%</string>
+    <string name="delay_minutes">+%d min delay</string>
+    <string name="filter_transport">Transport modes</string>
+    <string name="filter_bike">Bicycle carriage</string>
+    <string name="filter_direct">Direct connections only</string>
+    <string name="filter_dticket_only">D-Ticket connections only</string>
+    <string name="filter_dticket_owned">I have a Deutschland-Ticket</string>
+    <string name="filter_fast_routes">Prefer fast connections</string>
+    <string name="filter_arrival_search">Arrival time search</string>
+    <string name="filter_transfer_time">Minimum transfer time</string>
+    <string name="filter_transfer_default">Standard</string>
+    <string name="filter_transfer_minutes">%d minutes</string>
+    <string name="filter_accessibility">Accessibility</string>
+    <string name="filter_routing">Routing</string>
+    <string name="notification_channel_delays">Delay alerts</string>
+    <string name="notification_channel_delays_desc">Notifications when your tracked journey is delayed</string>
+    <string name="notification_channel_tracking">Journey tracking</string>
+    <string name="delay_notification_title">Delay on your journey</string>
+    <string name="delay_notification_body">%1$s → %2$s: delay of %3$d minutes</string>
+</resources>
