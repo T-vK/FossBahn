@@ -65,6 +65,14 @@ class JourneyUiContractTest {
     }
 
     @Test
+    fun sollzeitAbschnittFixture_yieldsJourneysForUi() {
+        val text = javaClass.getResource("/dbweb-journey-sollzeit-abschnitt.json")!!.readText()
+        val journeys = JourneyResponseParser.parse(text)
+        assertUiContract(journeys, "abfahrt/ankunft sollzeit fixture")
+        assertTrue(journeys.first().legs.first().origin.name.contains("Hamburg"))
+    }
+
+    @Test
     fun abfahrtNestedAbfahrtsZeitpunktFixture_yieldsJourneysForUi() {
         val text = javaClass.getResource("/dbweb-journey-abfahrt-nested-zeit.json")!!.readText()
         val journeys = JourneyResponseParser.parse(text)

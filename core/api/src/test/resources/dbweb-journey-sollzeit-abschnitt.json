@@ -1,0 +1,26 @@
+{
+  "verbindungen": [
+    {
+      "tripId": "sollzeit_1",
+      "verbindungsAbschnitte": [
+        {
+          "abfahrtsOrt": "Hamburg Hbf",
+          "abfahrtsOrtExtId": "8002549",
+          "ankunftsOrt": "Berlin Hbf",
+          "ankunftsOrtExtId": "8011160",
+          "abfahrt": {
+            "sollzeit": "2026-05-30T12:15:00"
+          },
+          "ankunft": {
+            "sollzeit": "2026-05-30T14:45:00"
+          },
+          "halte": [],
+          "verkehrsmittel": {
+            "name": "ICE 100",
+            "produktGattung": "ICE"
+          }
+        }
+      ]
+    }
+  ]
+}
