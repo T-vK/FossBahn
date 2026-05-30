@@ -24,6 +24,7 @@ def render(size: int) -> Image.Image:
 
 def main() -> None:
     icon = render(512)
+    icon.save(FDROID / "icon.png", "PNG", optimize=True)
     (FDROID / "icons").mkdir(parents=True, exist_ok=True)
     icon.save(FDROID / "icons" / "icon.png", "PNG", optimize=True)
 
