@@ -2,6 +2,7 @@
 # Repo URL is overridden in CI from GITHUB_REPOSITORY; default matches FossBahn on GitHub Pages.
 repo_url: https://t-vk.github.io/FossBahn/fdroid/repo
 repo_name: OpenBahn Navigator
+repo_icon: icons/icon.png
 repo_description: Official OpenBahn Navigator APK repository (FOSS, CI-signed debug builds)
 repo_maxage: 366
 archive_older: 2

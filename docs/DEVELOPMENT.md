@@ -121,6 +121,8 @@ Each semver release runs one **`assembleDebug`** in the **release** job. The sam
 
 Implementation: [.github/actions/publish-fdroid-pages](../.github/actions/publish-fdroid-pages/action.yml), [.github/scripts/update-fdroid-repo.sh](../.github/scripts/update-fdroid-repo.sh), [`fdroid/`](../fdroid/).
 
+Repo and app icons match the Android launcher (red background, white mark). Sources: [`fdroid/icons/`](../fdroid/icons/), [`fdroid/metadata/de.openbahn.navigator.debug/en-US/images/`](../fdroid/metadata/de.openbahn.navigator.debug/en-US/images/). Regenerate with `python3 .github/scripts/generate-fdroid-icons.py` (requires Pillow).
+
 CI caches `fdroid/repo/` and `fdroid/archive/` so older APKs stay available (`archive_older: 2`). The repo index signing key is copied each run from [.github/signing/fdroid-repo.p12](../.github/signing/fdroid-repo.p12) (public, like the APK CI key).
 
 ### Main F-Droid.org catalog

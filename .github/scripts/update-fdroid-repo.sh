@@ -32,7 +32,9 @@ echo "== F-Droid repo update (${APP_ID}) =="
 echo "Publish URL: $REPO_URL"
 
 python3 -m pip install --quiet --upgrade pip
-python3 -m pip install --quiet fdroidserver
+python3 -m pip install --quiet fdroidserver Pillow
+
+python3 "$ROOT/.github/scripts/generate-fdroid-icons.py"
 
 export ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
 if [ -z "$ANDROID_HOME" ]; then
@@ -84,11 +86,14 @@ if [ "$INDEX_ADDR" != "$REPO_URL" ]; then
   echo "ERROR: index-v2.json address is $INDEX_ADDR (expected $REPO_URL)" >&2
   exit 1
 fi
+test -f repo/icons/icon.png || { echo "ERROR: missing repo icon (repo/icons/icon.png)" >&2; exit 1; }
 
 rm -rf "$PAGES"
 mkdir -p "$PAGES/fdroid"
 cp -a pages/site-index.html "$PAGES/index.html"
 cp -a pages/index.html "$PAGES/fdroid/index.html"
+mkdir -p "$PAGES/fdroid/icons"
+cp -a icons/icon.png "$PAGES/fdroid/icons/icon.png"
 sed -i "s|https://github.com/T-vK/FossBahn|https://github.com/${GITHUB_REPOSITORY_OWNER:-T-vK}/${REPO_NAME}|g" "$PAGES/index.html"
 sed -i "s|https://t-vk.github.io/[^/]*/fdroid/repo|${REPO_URL}|g" "$PAGES/fdroid/index.html"
 cp -a repo "$PAGES/fdroid/repo"

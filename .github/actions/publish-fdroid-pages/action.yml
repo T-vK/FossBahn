@@ -55,6 +55,8 @@ runs:
           exit 1
         fi
         echo "F-Droid index OK ($ACTUAL)"
+        test -f fdroid-pages/fdroid/repo/icons/icon.png
+        echo "F-Droid repo icon present"
 
     - name: Upload GitHub Pages artifact
       uses: actions/upload-pages-artifact@v3

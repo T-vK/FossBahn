@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>OpenBahn Navigator — F-Droid repository</title>
+    <link rel="icon" href="icons/icon.png" type="image/png" />
     <style>
       :root {
         color-scheme: light dark;
@@ -27,10 +28,24 @@
       a {
         word-break: break-all;
       }
+      .logo {
+        width: 5rem;
+        height: 5rem;
+        border-radius: 0.75rem;
+        vertical-align: middle;
+        margin-right: 0.75rem;
+      }
+      h1 {
+        display: flex;
+        align-items: center;
+      }
     </style>
   </head>
   <body>
-    <h1>OpenBahn Navigator</h1>
+    <h1>
+      <img class="logo" src="icons/icon.png" width="80" height="80" alt="" />
+      OpenBahn Navigator
+    </h1>
     <p>Custom <a href="https://f-droid.org/">F-Droid</a> repository (APK updates via GitHub Pages).</p>
 
     <h2>Add this repository</h2>
