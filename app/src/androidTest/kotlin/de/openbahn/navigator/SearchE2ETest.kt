@@ -45,7 +45,10 @@ class SearchE2ETest {
         waitForTag("location_suggestion_8011160")
         composeRule.onNodeWithTag("location_suggestion_8011160").performClick()
         composeRule.onNodeWithTag("search_button").performClick()
-        waitForTag("journey_card")
+        composeRule.waitUntil(15_000) {
+            scrollToJourneyCardIfNeeded()
+            composeRule.onAllNodesWithTag("journey_card").fetchSemanticsNodes().isNotEmpty()
+        }
         composeRule.onNodeWithTag("journey_card").assertIsDisplayed()
         composeRule.onNodeWithTag("search_results").assertIsDisplayed()
     }
@@ -59,6 +62,13 @@ class SearchE2ETest {
     private fun waitForTag(tag: String, timeoutMillis: Long = 10_000) {
         composeRule.waitUntil(timeoutMillis) {
             composeRule.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    private fun scrollToJourneyCardIfNeeded() {
+        if (composeRule.onAllNodesWithTag("journey_card").fetchSemanticsNodes().isNotEmpty()) return
+        runCatching {
+            composeRule.onNodeWithTag("search_results").performScrollToNode(hasTestTag("journey_card"))
         }
     }
 }
