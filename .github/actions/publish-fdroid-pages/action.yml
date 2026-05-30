@@ -1,9 +1,9 @@
 name: Publish F-Droid Pages artifact
-description: Index a release APK into fdroid/repo and stage fdroid-pages (no Gradle when apk-path is set)
+description: Index the debug APK into fdroid/repo and stage fdroid-pages (no Gradle when apk-path is set)
 
 inputs:
   release-apk-path:
-    description: Pre-built release APK from the release job (skips assembleRelease)
+    description: Pre-built debug APK from the release job (skips assembleDebug)
     required: false
     default: ''
 

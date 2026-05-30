@@ -33,13 +33,9 @@ Journey search uses a lenient parser in `core/api/.../JourneyResponseParser.kt` 
 
 Output: `app/build/outputs/apk/debug/OpenBahnNavigator-v{versionName}-{versionCode}-debug.apk`
 
-Release APK (no `.debug` suffix, used for the F-Droid repo):
-
-```bash
-CI=true ./gradlew :app:assembleRelease
-```
-
 CI signing uses the public key in [.github/signing](../.github/signing/README.md) when `CI=true` or `-PuseCiSigning`.
+
+Release builds currently ship the **debug** APK everywhere (`assembleDebug` only). A separate `assembleRelease` variant for GitHub/F-Droid may be added later.
 
 ### Build performance
 
@@ -112,7 +108,7 @@ User-facing install URL:
 
 **Settings → Pages → Build and deployment → Source: GitHub Actions**
 
-Each semver release runs one Gradle build in the **release** job (`assembleDebug` + `assembleRelease`). The debug APK goes to GitHub Releases; the release APK is passed to **publish-fdroid**, which only runs `fdroid update` (no second compile).
+Each semver release runs one **`assembleDebug`** in the **release** job. The same APK is attached to GitHub Releases and passed to **publish-fdroid** for `fdroid update` only (no second compile).
 
 ### Publish
 

@@ -87,22 +87,21 @@ jobs:
           git tag "${{ steps.semver.outputs.version }}"
           git push origin "${{ steps.semver.outputs.version }}"
 
-      - name: Build APKs (debug for GitHub Release, release for F-Droid)
+      - name: Build debug APK (GitHub Release + F-Droid repo)
         if: steps.semver.outputs.skip == 'false'
         env:
           CI: true
         run: |
           chmod +x gradlew
-          ./gradlew :app:assembleDebug :app:assembleRelease --stacktrace
+          ./gradlew :app:assembleDebug --stacktrace
           ls -la app/build/outputs/apk/debug/
-          ls -la app/build/outputs/apk/release/
 
-      - name: Upload release APK for F-Droid job
+      - name: Upload debug APK for F-Droid job
         if: steps.semver.outputs.skip == 'false'
         uses: actions/upload-artifact@v4
         with:
-          name: fdroid-release-apk
-          path: app/build/outputs/apk/release/OpenBahnNavigator-*-release.apk
+          name: fdroid-debug-apk
+          path: app/build/outputs/apk/debug/OpenBahnNavigator-*-debug.apk
           retention-days: 2
 
       - name: Publish GitHub Release
@@ -124,7 +123,7 @@ jobs:
 
             Install the attached **`OpenBahnNavigator-v…-….apk`** (debug build, CI-signed for in-place upgrades).
 
-            **F-Droid custom repo:** [Add repository](https://t-vk.github.io/OpenBahn-Navigator/fdroid/) — URL `https://t-vk.github.io/OpenBahn-Navigator/fdroid/repo` (release APK, package `de.openbahn.navigator`). Updated automatically on GitHub Pages after this release.
+            **F-Droid custom repo:** [Add repository](https://t-vk.github.io/OpenBahn-Navigator/fdroid/) — URL `https://t-vk.github.io/OpenBahn-Navigator/fdroid/repo` (same debug APK, package `de.openbahn.navigator.debug`). Updated automatically on GitHub Pages after this release.
 
             **One-time:** If you installed an older release built before stable CI signing, uninstall once, then install this APK. Later releases upgrade without uninstalling as long as `versionCode` increases.
 
@@ -147,16 +146,16 @@ jobs:
 
       - uses: ./.github/actions/android-build-setup
 
-      - name: Download release APK from release job
+      - name: Download debug APK from release job
         uses: actions/download-artifact@v4
         with:
-          name: fdroid-release-apk
-          path: fdroid-release-apk
+          name: fdroid-debug-apk
+          path: fdroid-debug-apk
 
-      - name: Resolve release APK path
+      - name: Resolve debug APK path
         id: apk
         run: |
-          APK="$(ls -1 fdroid-release-apk/OpenBahnNavigator-*-release.apk | head -1)"
+          APK="$(ls -1 fdroid-debug-apk/OpenBahnNavigator-*-debug.apk | head -1)"
           echo "path=$APK" >> "$GITHUB_OUTPUT"
           echo "F-Droid will index: $APK"
 

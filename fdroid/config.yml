@@ -2,7 +2,7 @@
 # Repo URL is overridden in CI from GITHUB_REPOSITORY; default matches OpenBahn-Navigator.
 repo_url: https://t-vk.github.io/OpenBahn-Navigator/fdroid/repo
 repo_name: OpenBahn Navigator
-repo_description: Official OpenBahn Navigator APK repository (FOSS, CI-signed release builds)
+repo_description: Official OpenBahn Navigator APK repository (FOSS, CI-signed debug builds)
 repo_maxage: 366
 archive_older: 2
 

@@ -32,4 +32,4 @@ AntiFeatures:
     en-US: |
       The app queries public Deutsche Bahn and Bahn-Vorhersage endpoints for timetables and predictions.
 
-# APKs are published by CI (release builds); no fdroidserver build recipes in this repo.
+# APKs are published by CI (debug builds, same as GitHub Releases); no fdroidserver build recipes here.
