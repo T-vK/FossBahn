@@ -139,25 +139,92 @@ internal object JourneyResponseParser {
         val delayMinutes: Int? = null,
     )
 
-    private fun parseStopTimes(obj: JsonObject?): ParsedStopTimes? {
+    /** Which bahn.de halt/section time fields apply (departure vs arrival vs either). */
+    private enum class HaltTimeRole { DEPARTURE, ARRIVAL, EITHER }
+
+    private fun parseStopTimes(obj: JsonObject?, role: HaltTimeRole = HaltTimeRole.EITHER): ParsedStopTimes? {
         if (obj == null) return null
-        val scheduled = timeText(obj, "sollzeit", "abfahrtsZeitpunkt", "ankunftsZeitpunkt", "zeitpunkt", "zeit")
-            ?: return null
-        val prognosed = timeText(
-            obj,
+        val scheduled = timeText(obj, *scheduledKeys(role)) ?: return null
+        val prognosed = timeText(obj, *prognosedKeys(role))
+            ?: timeText(obj["prognose"]?.jsonObject, *prognosedKeys(HaltTimeRole.EITHER))
+        val delay = intVal(obj, "verspaetung", "verspätung", "delay", "verspaetungMinuten")
+            ?: intVal(obj["prognose"]?.jsonObject, "verspaetung", "verspätung", "delay")
+            ?: computeDelayMinutes(scheduled, prognosed)
+        return ParsedStopTimes(scheduled, prognosed, delay)
+    }
+
+    /** Prefer the candidate with realtime delay data (bahn.de often puts delays on abfahrt/ankunft, not halte). */
+    private fun bestStopTimes(vararg candidates: ParsedStopTimes?): ParsedStopTimes? =
+        candidates.filterNotNull().maxWithOrNull(
+            compareBy<ParsedStopTimes> { it.delayMinutes ?: 0 }
+                .thenBy { if (it.prognosed != null && it.prognosed != it.scheduled) 1 else 0 },
+        )
+
+    private fun scheduledKeys(role: HaltTimeRole): Array<String> = when (role) {
+        HaltTimeRole.DEPARTURE -> arrayOf(
+            "sollzeit",
+            "abfahrtsZeitpunkt",
+            "abgangsZeitpunkt",
+            "abgangsDatum",
+            "abfahrtsZeit",
+            "zeitpunkt",
+            "zeit",
+        )
+        HaltTimeRole.ARRIVAL -> arrayOf(
+            "sollzeit",
+            "ankunftsZeitpunkt",
+            "ankunftsDatum",
+            "ankunftsZeit",
+            "ankunft",
+            "zeitpunkt",
+            "zeit",
+        )
+        HaltTimeRole.EITHER -> arrayOf(
+            "sollzeit",
+            "abfahrtsZeitpunkt",
+            "ankunftsZeitpunkt",
+            "abgangsZeitpunkt",
+            "ankunftsDatum",
+            "zeitpunkt",
+            "zeit",
+        )
+    }
+
+    private fun prognosedKeys(role: HaltTimeRole): Array<String> = when (role) {
+        HaltTimeRole.DEPARTURE -> arrayOf(
             "prognosezeit",
             "prognoseZeit",
             "istzeit",
             "istZeit",
             "ezZeit",
+            "ezAbfahrtsZeitpunkt",
+            "ezAbgangsZeitpunkt",
+            "ezAbgangsDatum",
+            "prognoseAbfahrtsZeitpunkt",
+        )
+        HaltTimeRole.ARRIVAL -> arrayOf(
+            "prognosezeit",
+            "prognoseZeit",
+            "istzeit",
+            "istZeit",
+            "ezZeit",
+            "ezAnkunftsZeitpunkt",
+            "ezAnkunftsDatum",
+            "prognoseAnkunftsZeitpunkt",
+        )
+        HaltTimeRole.EITHER -> arrayOf(
+            "prognosezeit",
+            "prognoseZeit",
+            "istzeit",
+            "istZeit",
+            "ezZeit",
+            "ezAbfahrtsZeitpunkt",
+            "ezAnkunftsZeitpunkt",
+            "ezAbgangsZeitpunkt",
+            "ezAnkunftsDatum",
             "prognoseAbfahrtsZeitpunkt",
             "prognoseAnkunftsZeitpunkt",
         )
-            ?: timeText(obj["prognose"]?.jsonObject, "zeitpunkt", "prognosezeit", "istzeit", "ezZeit")
-        val delay = intVal(obj, "verspaetung", "verspätung", "delay")
-            ?: intVal(obj["prognose"]?.jsonObject, "verspaetung", "verspätung", "delay")
-            ?: computeDelayMinutes(scheduled, prognosed)
-        return ParsedStopTimes(scheduled, prognosed, delay)
     }
 
     private fun computeDelayMinutes(scheduled: String, prognosed: String?): Int? {
@@ -349,14 +416,8 @@ internal object JourneyResponseParser {
             ?: stationName(a, "ankunftsBahnhof", lastHalt)
             ?: stationNameFromHalt(zielHalt)
             ?: return null
-        val depTimes = when {
-            halte.isNotEmpty() -> parseStopTimes(firstHalt) ?: sectionDepartureTimes(a, firstHalt, startHalt)
-            else -> sectionDepartureTimes(a, firstHalt, startHalt)
-        } ?: return null
-        val arrTimes = when {
-            halte.isNotEmpty() -> parseStopTimes(lastHalt) ?: sectionArrivalTimes(a, lastHalt, zielHalt)
-            else -> sectionArrivalTimes(a, lastHalt, zielHalt)
-        } ?: return null
+        val depTimes = sectionDepartureTimes(a, firstHalt, startHalt) ?: return null
+        val arrTimes = sectionArrivalTimes(a, lastHalt, zielHalt) ?: return null
         val depPlatform = text(a, "gleis")
             ?: text(a, "abfahrtsGleis")
             ?: text(firstHalt, "gleis")
@@ -404,7 +465,10 @@ internal object JourneyResponseParser {
                 return@mapNotNull null
             }
             run {
-                val times = parseStopTimes(halt)
+                val times = bestStopTimes(
+                    parseStopTimes(halt, HaltTimeRole.DEPARTURE),
+                    parseStopTimes(halt, HaltTimeRole.ARRIVAL),
+                )
                     ?: timeText(halt, "abfahrtsZeitpunkt", "ankunftsZeitpunkt", "ankunftsZeit")
                         ?.let { ParsedStopTimes(scheduled = it) }
                     ?: return@mapNotNull null
@@ -428,35 +492,43 @@ internal object JourneyResponseParser {
         section: JsonObject,
         firstHalt: JsonObject?,
         startHalt: JsonObject?,
-    ): ParsedStopTimes? =
-        parseStopTimes(section["abfahrt"]?.jsonObject)
-            ?: parseStopTimes(startHalt)
-            ?: parseStopTimes(firstHalt)
-            ?: timeText(section, "abfahrtsZeitpunkt", "abgangsZeitpunkt", "abfahrtsZeit", "abgangsZeit", "abfahrt")
-                ?.let { scheduled ->
-                    ParsedStopTimes(
-                        scheduled = scheduled,
-                        prognosed = timeText(section, "prognosezeit", "prognoseZeit", "istzeit"),
-                        delayMinutes = intVal(section, "verspaetung"),
-                    )
-                }
+    ): ParsedStopTimes? = bestStopTimes(
+        parseStopTimes(section["abfahrt"]?.jsonObject, HaltTimeRole.DEPARTURE),
+        parseStopTimes(startHalt, HaltTimeRole.DEPARTURE),
+        parseStopTimes(firstHalt, HaltTimeRole.DEPARTURE),
+        timeText(section, "abfahrtsZeitpunkt", "abgangsZeitpunkt", "abfahrtsZeit", "abgangsZeit", "abfahrt")
+            ?.let { scheduled ->
+                ParsedStopTimes(
+                    scheduled = scheduled,
+                    prognosed = timeText(
+                        section,
+                        *prognosedKeys(HaltTimeRole.DEPARTURE),
+                    ),
+                    delayMinutes = intVal(section, "verspaetung", "verspätung", "delay"),
+                )
+            },
+    )
 
     private fun sectionArrivalTimes(
         section: JsonObject,
         lastHalt: JsonObject?,
         zielHalt: JsonObject?,
-    ): ParsedStopTimes? =
-        parseStopTimes(section["ankunft"]?.jsonObject)
-            ?: parseStopTimes(zielHalt)
-            ?: parseStopTimes(lastHalt)
-            ?: timeText(section, "ankunftsZeitpunkt", "ankunftsDatum", "ankunftsZeit", "ankunft")
-                ?.let { scheduled ->
-                    ParsedStopTimes(
-                        scheduled = scheduled,
-                        prognosed = timeText(section, "prognosezeit", "prognoseZeit", "istzeit"),
-                        delayMinutes = intVal(section, "verspaetung"),
-                    )
-                }
+    ): ParsedStopTimes? = bestStopTimes(
+        parseStopTimes(section["ankunft"]?.jsonObject, HaltTimeRole.ARRIVAL),
+        parseStopTimes(zielHalt, HaltTimeRole.ARRIVAL),
+        parseStopTimes(lastHalt, HaltTimeRole.ARRIVAL),
+        timeText(section, "ankunftsZeitpunkt", "ankunftsDatum", "ankunftsZeit", "ankunft")
+            ?.let { scheduled ->
+                ParsedStopTimes(
+                    scheduled = scheduled,
+                    prognosed = timeText(
+                        section,
+                        *prognosedKeys(HaltTimeRole.ARRIVAL),
+                    ),
+                    delayMinutes = intVal(section, "verspaetung", "verspätung", "delay"),
+                )
+            },
+    )
 
     private fun haltObject(section: JsonObject, vararg keys: String): JsonObject? {
         for (key in keys) {

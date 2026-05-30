@@ -34,9 +34,14 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.SerializationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -147,11 +152,29 @@ class DbVendoClient(
 
     suspend fun refreshJourney(refreshToken: String): Journey? {
         val body = buildJsonObject { put("ctxRecon", refreshToken); put("poly", true) }
-        val response: JsonObject = httpClient.post("$baseUrl/reiseloesung/verbindung") {
+        val text = httpClient.post("$baseUrl/reiseloesung/verbindung") {
             contentType(ContentType.Application.Json)
             setBody(body)
-        }.body()
-        return JourneyMapper.mapRefresh(response)
+        }.bodyAsText()
+        if (text.contains("OPS_BLOCKED")) throw DbApiBlockedException("Journey refresh blocked")
+        val root = runCatching { json.parseToJsonElement(text).jsonObject }.getOrNull() ?: return null
+        return JourneyMapper.mapRefresh(root)
+    }
+
+    /** Fetches up-to-date delays via `/reiseloesung/verbindung` (search often omits verspaetung). */
+    suspend fun enrichJourneysWithRealtime(journeys: List<Journey>): List<Journey> {
+        if (journeys.isEmpty()) return journeys
+        return coroutineScope {
+            val semaphore = Semaphore(MAX_CONCURRENT_JOURNEY_REFRESH)
+            journeys.map { journey ->
+                async {
+                    val token = journey.refreshToken?.takeIf { it.isNotBlank() } ?: return@async journey
+                    semaphore.withPermit {
+                        runCatching { refreshJourney(token) }.getOrNull() ?: journey
+                    }
+                }
+            }.map { it.await() }
+        }
     }
 
     suspend fun departures(
@@ -211,6 +234,8 @@ class DbVendoClient(
     fun close() = httpClient.close()
 
     companion object {
+        private const val MAX_CONCURRENT_JOURNEY_REFRESH = 4
+
         const val DEFAULT_BASE_URL = "https://int.bahn.de/web/api"
 
         fun createDefaultClient(): HttpClient = HttpClient(OkHttp) {

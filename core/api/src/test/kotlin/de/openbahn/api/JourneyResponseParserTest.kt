@@ -68,4 +68,21 @@ class JourneyResponseParserTest {
         assertEquals("2026-05-30T12:08:00", leg.origin.prognosedTime)
         assertEquals(15, leg.destination.delayMinutes)
     }
+
+    @Test
+    fun parsesDelaysOnAbfahrtWhenHalteListPresent() {
+        val text = javaClass.getResource("/dbweb-journey-halte-abfahrt-delay.json")!!.readText()
+        val leg = JourneyResponseParser.parse(text).journeys.single().legs.single()
+        assertEquals(10, leg.origin.delayMinutes)
+        assertEquals("2026-05-30T12:10:00", leg.origin.prognosedTime)
+        assertEquals(12, leg.destination.delayMinutes)
+    }
+
+    @Test
+    fun parsesDelaysFromEzHaltTimes() {
+        val text = javaClass.getResource("/dbweb-journey-halt-ez-delay.json")!!.readText()
+        val leg = JourneyResponseParser.parse(text).journeys.single().legs.single()
+        assertEquals(7, leg.origin.delayMinutes)
+        assertEquals(11, leg.destination.delayMinutes)
+    }
 }

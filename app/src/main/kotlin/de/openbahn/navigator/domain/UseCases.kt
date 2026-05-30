@@ -37,7 +37,11 @@ class JourneySearchUseCase(
         options: JourneySearchOptions,
         whenTime: LocalDateTime,
         pagingReference: String?,
-    ): JourneySearchResult = dbClient.searchJourneys(from, to, options, whenTime, pagingReference)
+    ): JourneySearchResult {
+        val result = dbClient.searchJourneys(from, to, options, whenTime, pagingReference)
+        val withDelays = dbClient.enrichJourneysWithRealtime(result.journeys)
+        return result.copy(journeys = withDelays)
+    }
 
     override suspend fun rateJourneys(journeys: List<Journey>): List<RatedJourney> = coroutineScope {
         journeys.map { journey ->
