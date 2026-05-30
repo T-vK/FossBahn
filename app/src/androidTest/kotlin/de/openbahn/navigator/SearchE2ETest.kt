@@ -6,6 +6,8 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Rule
@@ -67,8 +69,9 @@ class SearchE2ETest {
 
     private fun scrollToJourneyCardIfNeeded() {
         if (composeRule.onAllNodesWithTag("journey_card").fetchSemanticsNodes().isNotEmpty()) return
-        runCatching {
-            composeRule.onNodeWithTag("search_results").performScrollToNode(hasTestTag("journey_card"))
+        repeat(6) {
+            composeRule.onNodeWithTag("search_results").performTouchInput { swipeUp() }
+            if (composeRule.onAllNodesWithTag("journey_card").fetchSemanticsNodes().isNotEmpty()) return
         }
     }
 }
