@@ -1,0 +1,26 @@
+{
+  "verbindungen": [
+    {
+      "tripId": "nested_ort_1",
+      "verbindungsDauerInSeconds": 7200,
+      "verbindungsAbschnitte": [
+        {
+          "abfahrtsOrt": {
+            "name": "Hamburg Hbf",
+            "extId": "8002549"
+          },
+          "ankunftsOrt": {
+            "name": "Berlin Hbf",
+            "extId": "8011160"
+          },
+          "abfahrtsZeitpunkt": "2026-05-30T10:00:00",
+          "ankunftsZeitpunkt": "2026-05-30T12:00:00",
+          "verkehrsmittel": {
+            "name": "ICE 1001",
+            "produktGattung": "ICE"
+          }
+        }
+      ]
+    }
+  ]
+}

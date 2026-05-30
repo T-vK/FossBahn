@@ -36,6 +36,13 @@ internal object JourneyResponseParser {
         coerceInputValues = true
     }
 
+    /** Outer wrapper fields must not replace inner arrays with empty lists (common in live bahn.de responses). */
+    private val mergePreserveNonEmptyArrayKeys = setOf(
+        "verbindungsAbschnitte",
+        "segmente",
+        "halte",
+    )
+
     fun parse(text: String): List<Journey> {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) throw DbParseException("Empty response body")
@@ -78,9 +85,13 @@ internal object JourneyResponseParser {
                 "rawConnections=${items.size} parsedJourneys=${journeys.size} skipped=$skipped",
         )
         if (items.isNotEmpty() && journeys.isEmpty()) {
+            val sample = items.firstOrNull()?.jsonObject
+            val merged = sample?.let { mergeConnectionObjects(it["verbindung"]?.jsonObject ?: it, it) }
+            val abschnitte = merged?.let { abschnitteArray(it)?.size } ?: 0
             OpenBahnDebugLog.w(
                 "JourneyParser",
-                "API returned ${items.size} connection(s) but none mapped to journeys — check abschnitte/halte fields",
+                "API returned ${items.size} connection(s) but none mapped to journeys — " +
+                    "sampleAbschnitte=$abschnitte keys=${merged?.keys?.take(12)?.joinToString()}",
             )
         }
         return journeys
@@ -109,28 +120,79 @@ internal object JourneyResponseParser {
     private fun flattenVerbindungElement(element: JsonElement): JsonElement {
         val obj = element.jsonObject
         val inner = obj["verbindung"]?.jsonObject ?: return element
-        return buildJsonObject {
-            inner.forEach { (key, value) -> put(key, value) }
-            obj.forEach { (key, value) ->
-                if (key != "verbindung") put(key, value)
+        return mergeConnectionObjects(inner, obj)
+    }
+
+    private fun mergeConnectionObjects(primary: JsonObject, overlay: JsonObject): JsonObject =
+        buildJsonObject {
+            primary.forEach { (key, value) -> put(key, value) }
+            overlay.forEach { (key, value) ->
+                if (key == "verbindung") return@forEach
+                if (key in mergePreserveNonEmptyArrayKeys) {
+                    val incoming = runCatching { value.jsonArray }.getOrNull()
+                    val existing = primary[key]?.jsonArray
+                    when {
+                        incoming != null && incoming.isNotEmpty() -> put(key, incoming)
+                        existing != null && existing.isNotEmpty() -> put(key, existing)
+                        else -> put(key, value)
+                    }
+                } else {
+                    put(key, value)
+                }
             }
         }
-    }
 
     private fun mapVerbindung(element: JsonElement): Journey? {
         val raw = element.jsonObject
-        val v = raw["verbindung"]?.jsonObject ?: raw
-        val abschnitte = v["verbindungsAbschnitte"]?.jsonArray
-            ?: v["segmente"]?.jsonArray
-            ?: return null
-        val legs = abschnitte.mapNotNull { mapAbschnitt(it.jsonObject) }
+        val inner = raw["verbindung"]?.jsonObject
+        val v = if (inner != null) mergeConnectionObjects(inner, raw) else raw
+        val abschnitte = abschnitteArray(v)
+        val legs = abschnitte?.mapNotNull { mapAbschnitt(it.jsonObject) }.orEmpty().ifEmpty {
+            listOfNotNull(mapVerbindungSummaryLeg(v))
+        }
         if (legs.isEmpty()) return null
 
         val duration = intVal(v, "verbindungsDauerInSeconds")?.div(60)
             ?: parseDurationMinutes(text(v, "reiseDauer"))
             ?: 60
 
-        return Journey(
+        return buildJourney(v, legs, duration)
+    }
+
+    private fun abschnitteArray(v: JsonObject): JsonArray? =
+        v["verbindungsAbschnitte"]?.jsonArray?.takeIf { it.isNotEmpty() }
+            ?: v["segmente"]?.jsonArray?.takeIf { it.isNotEmpty() }
+            ?: v["verbindungsAbschnitte"]?.jsonArray
+            ?: v["segmente"]?.jsonArray
+
+    /** Single-leg fallback when the API omits section arrays but provides trip-level times. */
+    private fun mapVerbindungSummaryLeg(v: JsonObject): Leg? {
+        val depName = text(v, "abfahrtsOrt") ?: text(v, "origin") ?: return null
+        val arrName = text(v, "ankunftsOrt") ?: text(v, "destination") ?: return null
+        val depTime = timeText(v, "abfahrtsZeit", "abfahrtsZeitpunkt") ?: return null
+        val arrTime = timeText(v, "ankunftsZeit", "ankunftsZeitpunkt") ?: return null
+        return Leg(
+            origin = StopEvent(
+                name = depName,
+                id = text(v, "abfahrtsOrtExtId"),
+                scheduledTime = depTime,
+            ),
+            destination = StopEvent(
+                name = arrName,
+                id = text(v, "ankunftsOrtExtId"),
+                scheduledTime = arrTime,
+            ),
+            lineName = null,
+            product = null,
+            operator = null,
+            loadFactor = null,
+            bikeAllowed = null,
+            tripId = text(v, "tripId"),
+        )
+    }
+
+    private fun buildJourney(v: JsonObject, legs: List<Leg>, duration: Int): Journey =
+        Journey(
             id = text(v, "verbindungsId")
                 ?: text(v, "tripId")
                 ?: text(v, "id")
@@ -140,45 +202,46 @@ internal object JourneyResponseParser {
             transfers = intVal(v, "umstiegsAnzahl")
                 ?: intVal(v, "umstiege")
                 ?: (legs.size - 1).coerceAtLeast(0),
-            departure = text(v, "abfahrtsZeit") ?: legs.first().origin.scheduledTime,
-            arrival = text(v, "ankunftsZeit") ?: legs.last().destination.scheduledTime,
+            departure = timeText(v, "abfahrtsZeit", "abfahrtsZeitpunkt") ?: legs.first().origin.scheduledTime,
+            arrival = timeText(v, "ankunftsZeit", "ankunftsZeitpunkt") ?: legs.last().destination.scheduledTime,
             priceHint = priceHint(v),
             refreshToken = text(v, "ctxRecon") ?: text(v, "kontext"),
             deutschlandTicketValid = bool(v, "dticketGueltig"),
             remarks = mapHinweise(v["hinweise"]?.jsonArray),
         )
-    }
 
     private fun mapAbschnitt(a: JsonObject): Leg? {
         val halte = a["halte"]?.jsonArray?.mapNotNull { runCatching { it.jsonObject }.getOrNull() }.orEmpty()
         val firstHalt = halte.firstOrNull()
         val lastHalt = halte.lastOrNull()
 
-        val depName = text(a, "abfahrtsOrt")
-            ?: text(firstHalt, "name")
+        val depName = stationName(a, "abfahrtsOrt", firstHalt) ?: return null
+        val arrName = stationName(a, "ankunftsOrt", lastHalt) ?: return null
+        val depTime = timeText(
+            a,
+            "abfahrtsZeitpunkt",
+            "abgangsZeitpunkt",
+            "abfahrtsZeit",
+        ) ?: timeText(firstHalt, "abfahrtsZeitpunkt", "abgangsDatum", "abgangsZeitpunkt", "abfahrtsZeit")
             ?: return null
-        val arrName = text(a, "ankunftsOrt")
-            ?: text(lastHalt, "name")
-            ?: return null
-        val depTime = text(a, "abfahrtsZeitpunkt")
-            ?: text(firstHalt, "abfahrtsZeitpunkt")
-            ?: text(firstHalt, "abgangsDatum")
-            ?: return null
-        val arrTime = text(a, "ankunftsZeitpunkt")
-            ?: text(lastHalt, "ankunftsZeitpunkt")
-            ?: text(lastHalt, "ankunftsDatum")
+        val arrTime = timeText(
+            a,
+            "ankunftsZeitpunkt",
+            "ankunftsDatum",
+            "ankunftsZeit",
+        ) ?: timeText(lastHalt, "ankunftsZeitpunkt", "ankunftsDatum", "ankunftsZeit")
             ?: return null
         val vm = a["verkehrsmittel"]?.jsonObject
         return Leg(
             origin = StopEvent(
                 name = depName,
-                id = text(a, "abfahrtsOrtExtId") ?: text(firstHalt, "extId"),
+                id = stationExtId(a, "abfahrtsOrt", "abfahrtsOrtExtId", firstHalt),
                 platform = text(a, "gleis") ?: text(firstHalt, "gleis"),
                 scheduledTime = depTime,
             ),
             destination = StopEvent(
                 name = arrName,
-                id = text(a, "ankunftsOrtExtId") ?: text(lastHalt, "extId"),
+                id = stationExtId(a, "ankunftsOrt", "ankunftsOrtExtId", lastHalt),
                 scheduledTime = arrTime,
             ),
             lineName = lineLabel(vm),
@@ -189,6 +252,22 @@ internal object JourneyResponseParser {
             tripId = text(a, "journeyId"),
         )
     }
+
+    private fun stationName(section: JsonObject, ortKey: String, halt: JsonObject?): String? =
+        text(section, ortKey)
+            ?: section[ortKey]?.jsonObject?.let { text(it, "name") ?: text(it, "bezeichnung") }
+            ?: text(halt, "name")
+            ?: halt?.get("ort")?.jsonObject?.let { text(it, "name") }
+
+    private fun stationExtId(
+        section: JsonObject,
+        ortKey: String,
+        extIdKey: String,
+        halt: JsonObject?,
+    ): String? =
+        text(section, extIdKey)
+            ?: section[ortKey]?.jsonObject?.let { text(it, "extId") ?: text(it, "id") }
+            ?: text(halt, "extId")
 
     private fun lineLabel(vm: JsonObject?): String? {
         if (vm == null) return null
@@ -227,8 +306,30 @@ internal object JourneyResponseParser {
             is JsonPrimitive -> el.contentOrNull
                 ?: el.intOrNull?.toString()
                 ?: el.doubleOrNull?.toString()
+            is JsonObject -> text(el, "name")
+                ?: text(el, "bezeichnung")
+                ?: text(el, "label")
             else -> null
         }
+    }
+
+    private fun timeText(obj: JsonObject?, vararg keys: String): String? {
+        if (obj == null) return null
+        for (key in keys) {
+            when (val el = obj[key] ?: continue) {
+                is JsonPrimitive -> {
+                    el.contentOrNull?.let { return it }
+                    el.intOrNull?.toString()?.let { return it }
+                }
+                is JsonObject -> {
+                    text(el, "zeitpunkt")?.let { return it }
+                    text(el, "zeit")?.let { return it }
+                    text(el, "value")?.let { return it }
+                }
+                else -> Unit
+            }
+        }
+        return null
     }
 
     private fun bool(obj: JsonObject?, key: String): Boolean? {
