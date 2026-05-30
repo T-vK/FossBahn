@@ -1,0 +1,41 @@
+{
+  "verbindungen": [
+    {
+      "tripId": "starthalt_abfahrt_1",
+      "verbindungsDauerInSeconds": 9000,
+      "verbindungsAbschnitte": [
+        {
+          "externeBahnhofsinfoIdOrigin": "1",
+          "externeBahnhofsinfoIdDestination": "2",
+          "abfahrtsOrt": "Berlin Hbf",
+          "abfahrtsOrtExtId": "8011160",
+          "ankunftsOrt": "Hamburg Hbf",
+          "ankunftsOrtExtId": "8002549",
+          "originCancelled": false,
+          "destinationCancelled": false,
+          "startHalt": {
+            "name": "Berlin Hbf",
+            "extId": "8011160",
+            "gleis": "3"
+          },
+          "zielHalt": {
+            "name": "Hamburg Hbf",
+            "extId": "8002549",
+            "gleis": "7"
+          },
+          "abfahrt": {
+            "zeitpunkt": "2026-05-30T12:00:00"
+          },
+          "ankunft": {
+            "zeitpunkt": "2026-05-30T14:30:00"
+          },
+          "halte": [],
+          "verkehrsmittel": {
+            "name": "ICE 555",
+            "produktGattung": "ICE"
+          }
+        }
+      ]
+    }
+  ]
+}

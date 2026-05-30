@@ -241,26 +241,32 @@ internal object JourneyResponseParser {
         val halte = halteArray(a)
         val firstHalt = halte.firstOrNull()
         val lastHalt = halte.lastOrNull()
+        val startHalt = haltObject(a, "startHalt", "start", "abfahrtsHalt")
+        val zielHalt = haltObject(a, "zielHalt", "ziel", "ankunftsHalt", "zielBahnhof")
         val vm = a["verkehrsmittel"]?.jsonObject
 
         val depName = stationName(a, "abfahrtsOrt", firstHalt)
             ?: stationName(a, "abgangsOrt", firstHalt)
+            ?: stationNameFromHalt(startHalt)
             ?: return null
         val arrName = stationName(a, "ankunftsOrt", lastHalt)
             ?: stationName(a, "ankunftsBahnhof", lastHalt)
+            ?: stationNameFromHalt(zielHalt)
             ?: return null
-        val depTime = sectionDepartureTime(a, firstHalt) ?: return null
-        val arrTime = sectionArrivalTime(a, lastHalt) ?: return null
+        val depTime = sectionDepartureTime(a, firstHalt, startHalt) ?: return null
+        val arrTime = sectionArrivalTime(a, lastHalt, zielHalt) ?: return null
         return Leg(
             origin = StopEvent(
                 name = depName,
-                id = stationExtId(a, "abfahrtsOrt", "abfahrtsOrtExtId", firstHalt),
-                platform = text(a, "gleis") ?: text(firstHalt, "gleis"),
+                id = stationExtId(a, "abfahrtsOrt", "abfahrtsOrtExtId", firstHalt)
+                    ?: stationExtIdFromHalt(startHalt),
+                platform = text(a, "gleis") ?: text(firstHalt, "gleis") ?: text(startHalt, "gleis"),
                 scheduledTime = depTime,
             ),
             destination = StopEvent(
                 name = arrName,
-                id = stationExtId(a, "ankunftsOrt", "ankunftsOrtExtId", lastHalt),
+                id = stationExtId(a, "ankunftsOrt", "ankunftsOrtExtId", lastHalt)
+                    ?: stationExtIdFromHalt(zielHalt),
                 scheduledTime = arrTime,
             ),
             lineName = lineLabel(vm),
@@ -278,13 +284,45 @@ internal object JourneyResponseParser {
             ?: section["stops"]?.jsonArray?.mapNotNull { runCatching { it.jsonObject }.getOrNull() }
             ?: emptyList()
 
-    private fun sectionDepartureTime(section: JsonObject, firstHalt: JsonObject?): String? =
-        timeText(section, "abfahrtsZeitpunkt", "abgangsZeitpunkt", "abfahrtsZeit", "abgangsZeit")
+    private fun sectionDepartureTime(
+        section: JsonObject,
+        firstHalt: JsonObject?,
+        startHalt: JsonObject?,
+    ): String? =
+        timeText(section, "abfahrtsZeitpunkt", "abgangsZeitpunkt", "abfahrtsZeit", "abgangsZeit", "abfahrt")
+            ?: timeText(startHalt, "abfahrtsZeitpunkt", "abfahrtsZeit", "zeitpunkt", "abfahrt")
             ?: timeText(firstHalt, "abfahrtsZeitpunkt", "abgangsDatum", "abgangsZeitpunkt", "abfahrtsZeit", "abgangsZeit")
 
-    private fun sectionArrivalTime(section: JsonObject, lastHalt: JsonObject?): String? =
-        timeText(section, "ankunftsZeitpunkt", "ankunftsDatum", "ankunftsZeit")
+    private fun sectionArrivalTime(
+        section: JsonObject,
+        lastHalt: JsonObject?,
+        zielHalt: JsonObject?,
+    ): String? =
+        timeText(section, "ankunftsZeitpunkt", "ankunftsDatum", "ankunftsZeit", "ankunft")
+            ?: timeText(zielHalt, "ankunftsZeitpunkt", "ankunftsZeit", "zeitpunkt", "ankunft")
             ?: timeText(lastHalt, "ankunftsZeitpunkt", "ankunftsDatum", "ankunftsZeit", "ankunftZeitpunkt")
+
+    private fun haltObject(section: JsonObject, vararg keys: String): JsonObject? {
+        for (key in keys) {
+            section[key]?.jsonObject?.let { return it }
+        }
+        return null
+    }
+
+    private fun stationNameFromHalt(halt: JsonObject?): String? {
+        if (halt == null) return null
+        return text(halt, "name")
+            ?: text(halt, "bezeichnung")
+            ?: text(halt, "bahnhofsName")
+            ?: nameFromHaltId(text(halt, "id"))
+    }
+
+    private fun stationExtIdFromHalt(halt: JsonObject?): String? {
+        if (halt == null) return null
+        return text(halt, "extId")
+            ?: text(halt, "evaNr")
+            ?: text(halt, "id")?.takeIf { it.all(Char::isDigit) }
+    }
 
     private fun stationName(section: JsonObject, ortKey: String, halt: JsonObject?): String? =
         text(section, ortKey)
@@ -341,9 +379,12 @@ internal object JourneyResponseParser {
     private fun text(obj: JsonObject?, key: String): String? {
         if (obj == null) return null
         return when (val el = obj[key] ?: return null) {
-            is JsonPrimitive -> el.contentOrNull
-                ?: el.intOrNull?.toString()
-                ?: el.doubleOrNull?.toString()
+            is JsonPrimitive -> {
+                if (el.booleanOrNull != null) return null
+                el.contentOrNull
+                    ?: el.intOrNull?.toString()
+                    ?: el.doubleOrNull?.toString()
+            }
             is JsonObject -> text(el, "name")
                 ?: text(el, "bezeichnung")
                 ?: text(el, "label")
@@ -359,6 +400,9 @@ internal object JourneyResponseParser {
                 is JsonObject -> {
                     text(el, "zeitpunkt")?.let { return it }
                     text(el, "zeit")?.let { return it }
+                    text(el, "abfahrtszeit")?.let { return it }
+                    text(el, "ankunftszeit")?.let { return it }
+                    text(el, "dateTime")?.let { return it }
                     text(el, "value")?.let { return it }
                 }
                 else -> Unit
