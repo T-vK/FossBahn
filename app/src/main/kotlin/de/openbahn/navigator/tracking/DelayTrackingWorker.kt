@@ -3,12 +3,12 @@ package de.openbahn.navigator.tracking
 import android.app.NotificationManager
 import android.content.Context
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import de.openbahn.api.DbVendoClient
 import de.openbahn.navigator.OpenBahnApplication
 import de.openbahn.navigator.R
 import de.openbahn.navigator.data.OpenBahnDatabase
@@ -23,29 +23,32 @@ class DelayTrackingWorker(
     override suspend fun doWork(): Result {
         val database = androidx.room.Room.databaseBuilder(
             applicationContext,
-            de.openbahn.navigator.data.OpenBahnDatabase::class.java,
+            OpenBahnDatabase::class.java,
             "openbahn.db",
         ).build()
         val repo = TrackedJourneyRepository(database.trackedJourneyDao())
         repo.pruneArrived()
-        val client = DbVendoClient()
+        val client = de.openbahn.api.DbVendoClient()
+        val refreshUseCase = TrackedJourneyRefreshUseCase(client, repo)
         val active = repo.getActiveForWorker()
 
         active.forEach { tracked ->
-            val token = tracked.refreshToken ?: return@forEach
-            val refreshed = client.refreshJourney(token) ?: return@forEach
-            val maxDelay = refreshed.legs.maxOfOrNull { leg ->
-                maxOf(leg.origin.delayMinutes ?: 0, leg.destination.delayMinutes ?: 0)
-            } ?: 0
-            if (maxDelay >= tracked.notifyOnDelayMinutes) {
-                notifyDelay(tracked.fromName, tracked.toName, maxDelay)
-            }
+            val token = tracked.refreshToken?.takeIf { it.isNotBlank() } ?: return@forEach
+            val delayMinutes = refreshUseCase.refreshAndCheckDelayNotification(
+                entityId = tracked.id,
+                refreshToken = token,
+                fromName = tracked.fromName,
+                toName = tracked.toName,
+                notifyThresholdMinutes = tracked.notifyOnDelayMinutes,
+            ) ?: return@forEach
+            notifyDelay(tracked.fromName, tracked.toName, delayMinutes)
         }
         client.close()
         return Result.success()
     }
 
     private fun notifyDelay(from: String, to: String, delayMinutes: Int) {
+        if (!canPostNotifications()) return
         val notification = NotificationCompat.Builder(
             applicationContext,
             OpenBahnApplication.CHANNEL_DELAY_ALERTS,
@@ -66,6 +69,13 @@ class DelayTrackingWorker(
         applicationContext.getSystemService(NotificationManager::class.java)
             .notify(from.hashCode() + to.hashCode(), notification)
     }
+
+    private fun canPostNotifications(): Boolean =
+        ContextCompat.checkSelfPermission(
+            applicationContext,
+            android.Manifest.permission.POST_NOTIFICATIONS,
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
+            android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU
 
     companion object {
         private const val WORK_NAME = "delay_tracking"

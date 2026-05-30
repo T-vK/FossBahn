@@ -23,7 +23,7 @@ internal object JourneyMapper {
         return items.mapNotNull(::mapVerbindung)
     }
 
-    fun mapRefresh(response: JsonObject): Journey? = null
+    fun mapRefresh(response: JsonObject): Journey? = JourneyResponseParser.parseRefresh(response)
 
     private fun mapVerbindung(v: DbVerbindung): Journey? {
         val abschnitte = v.verbindungsAbschnitte.orEmpty().ifEmpty { v.segmente.orEmpty() }

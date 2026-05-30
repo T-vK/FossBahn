@@ -1,6 +1,8 @@
 package de.openbahn.api
 
 import de.openbahn.api.mapper.JourneyResponseParser
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -42,6 +44,17 @@ class JourneyResponseParserTest {
         val journeys = JourneyResponseParser.parse(text).journeys
         assertEquals(1, journeys.size)
         assertEquals("Hamburg Hbf", journeys.first().legs.first().origin.name)
+    }
+
+    @Test
+    fun parseRefresh_parsesWrappedVerbindungWithDelays() {
+        val text = javaClass.getResource("/dbweb-journey-refresh.json")!!.readText()
+        val root = Json.parseToJsonElement(text).jsonObject
+        val journey = JourneyResponseParser.parseRefresh(root)
+        requireNotNull(journey)
+        val leg = journey.legs.single()
+        assertEquals(12, leg.origin.delayMinutes)
+        assertEquals(20, leg.destination.delayMinutes)
     }
 
     @Test

@@ -18,6 +18,7 @@ import de.openbahn.navigator.ui.board.StationBoardViewModel
 import de.openbahn.navigator.ui.favorites.FavoritesViewModel
 import de.openbahn.navigator.ui.search.SearchViewModel
 import de.openbahn.navigator.ui.tickets.TicketsViewModel
+import de.openbahn.navigator.tracking.TrackedJourneyRefreshUseCase
 import de.openbahn.navigator.ui.tracking.TrackingViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
@@ -42,6 +43,7 @@ val appModule = module {
     single { FavoriteRouteRepository(get()) }
     single { TicketRepository(get(), androidContext()) }
     single { TrackedJourneyRepository(get()) }
+    single { TrackedJourneyRefreshUseCase(get(), get()) }
     single<JourneySearchRepository> { JourneySearchUseCase(get(), get()) }
     single { PredictionUseCase(get()) }
     viewModel {
@@ -50,5 +52,5 @@ val appModule = module {
     viewModel { FavoritesViewModel(get(), get(), get()) }
     viewModel { StationBoardViewModel(get()) }
     viewModel { TicketsViewModel(get()) }
-    viewModel { TrackingViewModel(get()) }
+    viewModel { TrackingViewModel(get(), get()) }
 }

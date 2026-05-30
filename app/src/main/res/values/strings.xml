@@ -20,6 +20,7 @@
     <string name="hide_remarks">Hide notices</string>
     <string name="journey_detail_title">Connection</string>
     <string name="back">Back</string>
+    <string name="refresh">Refresh</string>
     <string name="clear_recent_locations">Clear recent stations</string>
     <string name="add_favorite_station">Add to favorite stations</string>
     <string name="remove_favorite_station">Remove from favorite stations</string>

@@ -52,6 +52,18 @@ internal object JourneyResponseParser {
     private val berlinZone = ZoneId.of("Europe/Berlin")
     private val isoLocalFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
 
+    /** Parses a single connection from `/reiseloesung/verbindung` (refresh / live). */
+    fun parseRefresh(response: JsonObject): Journey? {
+        val element = when {
+            response["verbindung"] != null -> response["verbindung"]!!
+            response["verbindungen"]?.jsonArray?.isNotEmpty() == true ->
+                response["verbindungen"]!!.jsonArray.first()
+            abschnitteArray(response) != null -> response
+            else -> null
+        } ?: return null
+        return mapVerbindung(element)
+    }
+
     fun parse(text: String): JourneySearchResult {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) throw DbParseException("Empty response body")
@@ -131,10 +143,19 @@ internal object JourneyResponseParser {
         if (obj == null) return null
         val scheduled = timeText(obj, "sollzeit", "abfahrtsZeitpunkt", "ankunftsZeitpunkt", "zeitpunkt", "zeit")
             ?: return null
-        val prognosed = timeText(obj, "prognosezeit", "prognoseZeit", "istzeit", "istZeit")
-            ?: timeText(obj["prognose"]?.jsonObject, "zeitpunkt", "prognosezeit", "istzeit")
-        val delay = intVal(obj, "verspaetung")
-            ?: intVal(obj["prognose"]?.jsonObject, "verspaetung")
+        val prognosed = timeText(
+            obj,
+            "prognosezeit",
+            "prognoseZeit",
+            "istzeit",
+            "istZeit",
+            "ezZeit",
+            "prognoseAbfahrtsZeitpunkt",
+            "prognoseAnkunftsZeitpunkt",
+        )
+            ?: timeText(obj["prognose"]?.jsonObject, "zeitpunkt", "prognosezeit", "istzeit", "ezZeit")
+        val delay = intVal(obj, "verspaetung", "verspätung", "delay")
+            ?: intVal(obj["prognose"]?.jsonObject, "verspaetung", "verspätung", "delay")
             ?: computeDelayMinutes(scheduled, prognosed)
         return ParsedStopTimes(scheduled, prognosed, delay)
     }
@@ -147,13 +168,23 @@ internal object JourneyResponseParser {
         return mins.takeIf { it > 0 }
     }
 
-    private fun parseInstantMillis(iso: String): Long? = try {
-        Instant.parse(iso).toEpochMilli()
-    } catch (_: Exception) {
-        try {
-            LocalDateTime.parse(iso.take(19), isoLocalFormatter).atZone(berlinZone).toInstant().toEpochMilli()
+    private fun parseInstantMillis(iso: String): Long? {
+        val trimmed = iso.trim()
+        trimmed.toLongOrNull()?.let { raw ->
+            return when {
+                raw > 1_000_000_000_000L -> raw
+                raw > 1_000_000_000L -> raw * 1000
+                else -> null
+            }
+        }
+        return try {
+            Instant.parse(trimmed).toEpochMilli()
         } catch (_: Exception) {
-            null
+            try {
+                LocalDateTime.parse(trimmed.take(19), isoLocalFormatter).atZone(berlinZone).toInstant().toEpochMilli()
+            } catch (_: Exception) {
+                null
+            }
         }
     }
 
@@ -318,8 +349,14 @@ internal object JourneyResponseParser {
             ?: stationName(a, "ankunftsBahnhof", lastHalt)
             ?: stationNameFromHalt(zielHalt)
             ?: return null
-        val depTimes = sectionDepartureTimes(a, firstHalt, startHalt) ?: return null
-        val arrTimes = sectionArrivalTimes(a, lastHalt, zielHalt) ?: return null
+        val depTimes = when {
+            halte.isNotEmpty() -> parseStopTimes(firstHalt) ?: sectionDepartureTimes(a, firstHalt, startHalt)
+            else -> sectionDepartureTimes(a, firstHalt, startHalt)
+        } ?: return null
+        val arrTimes = when {
+            halte.isNotEmpty() -> parseStopTimes(lastHalt) ?: sectionArrivalTimes(a, lastHalt, zielHalt)
+            else -> sectionArrivalTimes(a, lastHalt, zielHalt)
+        } ?: return null
         val depPlatform = text(a, "gleis")
             ?: text(a, "abfahrtsGleis")
             ?: text(firstHalt, "gleis")
@@ -565,10 +602,18 @@ internal object JourneyResponseParser {
             ?: p.contentOrNull?.toBooleanStrictOrNull()
     }
 
-    private fun intVal(obj: JsonObject?, key: String): Int? {
+    private fun intVal(obj: JsonObject?, vararg keys: String): Int? {
         if (obj == null) return null
-        val p = obj[key]?.jsonPrimitive ?: return null
-        return p.intOrNull ?: p.contentOrNull?.toIntOrNull()
+        for (key in keys) {
+            val p = obj[key]?.jsonPrimitive ?: continue
+            p.intOrNull?.let { return it }
+            p.doubleOrNull?.toInt()?.let { return it }
+            p.contentOrNull?.let { raw ->
+                raw.toIntOrNull()?.let { return it }
+                Regex("""\+?(\d+)""").find(raw)?.groupValues?.getOrNull(1)?.toIntOrNull()?.let { return it }
+            }
+        }
+        return null
     }
 
     private fun parseDurationMinutes(isoDuration: String?): Int? {

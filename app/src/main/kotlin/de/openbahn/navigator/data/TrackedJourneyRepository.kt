@@ -46,6 +46,17 @@ class TrackedJourneyRepository(private val dao: TrackedJourneyDao) {
             }
         }
 
+    suspend fun updateJourney(id: String, journey: Journey) {
+        val active = dao.getActive().firstOrNull { it.id == id } ?: return
+        dao.upsert(
+            active.copy(
+                journeyJson = Json.encodeToString(journey),
+                departureIso = journey.departure,
+                refreshToken = journey.refreshToken ?: active.refreshToken,
+            ),
+        )
+    }
+
     suspend fun pruneArrived() {
         dao.getActive().forEach { entity ->
             val journey = runCatching { Json.decodeFromString<Journey>(entity.journeyJson) }.getOrNull()
