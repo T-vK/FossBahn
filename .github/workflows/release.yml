@@ -86,9 +86,13 @@ jobs:
 
       - name: Build APK
         if: steps.semver.outputs.skip == 'false'
+        env:
+          CI: true
         run: |
           chmod +x gradlew
           ./gradlew :app:assembleDebug --stacktrace
+          echo "Built APKs:"
+          ls -la app/build/outputs/apk/debug/
 
       - name: Publish GitHub Release
         if: steps.semver.outputs.skip == 'false'
@@ -96,7 +100,7 @@ jobs:
         with:
           tag_name: ${{ steps.semver.outputs.version }}
           name: OpenBahn Navigator ${{ steps.semver.outputs.version }}
-          files: app/build/outputs/apk/debug/*.apk
+          files: app/build/outputs/apk/debug/OpenBahnNavigator-*.apk
           generate_release_notes: true
           draft: false
           prerelease: ${{ contains(steps.semver.outputs.version, '-') }}
@@ -107,4 +111,6 @@ jobs:
 
             **Version bump:** `${{ steps.semver.outputs.bump }}` (from conventional commits since the previous tag)
 
-            Install the attached `app-debug.apk` (debug-signed CI build).
+            Install the attached **`OpenBahnNavigator-v…-….apk`** (debug build, CI-signed for in-place upgrades).
+
+            **One-time:** If you installed an older release built before stable CI signing, uninstall once, then install this APK. Later releases upgrade without uninstalling as long as `versionCode` increases.

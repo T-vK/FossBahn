@@ -29,6 +29,21 @@ Requirements: JDK 17, Android SDK 35.
 ./gradlew :app:assembleDebug
 ```
 
+Output: `app/build/outputs/apk/debug/OpenBahnNavigator-v{versionName}-{versionCode}-debug.apk`
+
+### Why do APK builds feel slow?
+
+Android apps here compile **four Gradle modules**, run **KSP** (Room), and build **Jetpack Compose** — even a one-line change often recompiles dependent code. The first build on a machine also downloads the Gradle wrapper, dependencies, and compiles everything from scratch (often several minutes).
+
+**Faster local builds:**
+
+- Avoid `./gradlew clean` unless you must; incremental builds reuse caches.
+- Keep the Gradle daemon running (default) — second builds are much faster.
+- `gradle.properties` enables parallel execution, build cache, and configuration cache.
+- CI uses [setup-gradle](.github/actions/android-build-setup/action.yml) caching; cold cache on GitHub still pays a full compile cost once per run.
+
+Changing only docs or non-Android files still triggers CI `assembleDebug` on `main` because the workflow validates the app still builds.
+
 ## Testing
 
 ```bash
@@ -106,6 +121,8 @@ The [Release](.github/workflows/release.yml) workflow then:
 **Manual override:** Actions → **Version Bump (manual)** to force patch/minor/major.
 
 **CI** ([ci.yml](.github/workflows/ci.yml)) runs tests and uploads a build artifact on PRs and `main`; the release APK is attached to GitHub Releases, not only artifacts.
+
+**GitHub Release APKs** are named `OpenBahnNavigator-vX.Y.Z-{versionCode}-debug.apk`, signed with a **fixed CI key** (see [.github/signing](.github/signing/README.md)) so you can upgrade without uninstalling — provided the new release has a higher `versionCode`. If you sideloaded an older GitHub APK signed with a one-off runner key, uninstall once, then use current releases.
 
 ## F-Droid
 
