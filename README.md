@@ -35,8 +35,11 @@ Requirements: JDK 17, Android SDK 35.
 # Unit tests (fixtures + UI contract; excludes live bahn.de)
 ./gradlew :core:api:testDebugUnitTest
 
-# Live API integration (real int.bahn.de, Hamburg→Berlin, Europe/Berlin departure time)
+# Live API integration (real int.bahn.de, Hamburg→Berlin; needs JDK 17 + Android SDK)
 .github/scripts/run-live-api-tests.sh
+
+# Live API smoke on Termux / phone (curl + python3 only — no Java)
+.github/scripts/run-live-api-smoke.sh
 
 # UI / E2E (Android emulator or device required; uses fake API, no bahn.de)
 ./gradlew :app:connectedDebugAndroidTest \
@@ -53,6 +56,25 @@ Requirements: JDK 17, Android SDK 35.
 ```
 
 Run e2e locally before pushing to avoid burning CI emulator minutes. You need API 30+ x86_64 AVD with Google APIs, or a USB device with USB debugging enabled (`adb devices` must list it).
+
+### Termux (on-device)
+
+Gradle live tests need **JDK 17** and the **Android SDK**, which is awkward on Termux. Use the smoke script first:
+
+```bash
+pkg update && pkg install -y curl python openjdk-17
+chmod +x .github/scripts/run-live-api-smoke.sh
+.github/scripts/run-live-api-smoke.sh
+```
+
+If you still want Gradle tests in Termux after installing Java:
+
+```bash
+export JAVA_HOME=$PREFIX/lib/jvm/java-17-openjdk
+export PATH="$JAVA_HOME/bin:$PATH"
+# Android SDK must also be installed and sdk.dir set in local.properties
+.github/scripts/run-live-api-tests.sh
+```
 
 ### Debug logs (debug APK only)
 
