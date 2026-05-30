@@ -7,6 +7,8 @@
 #   ./scripts/verify-delay-scenarios.sh           # fixture tests only (offline)
 #   ./scripts/verify-delay-scenarios.sh --live    # fixtures + live int.bahn.de API
 #   ./scripts/verify-delay-scenarios.sh --python  # Python API trace (no Gradle)
+#   python3 scripts/verify-delay-scenarios.py --when 2026-05-30T12:00:00
+#   python3 scripts/verify-delay-scenarios.py --when "$(date -u -d '+3 hours' +%Y-%m-%dT%H:%M:%S)"
 set -euo pipefail
 cd "$(dirname "$0")/.."
 chmod +x gradlew 2>/dev/null || true

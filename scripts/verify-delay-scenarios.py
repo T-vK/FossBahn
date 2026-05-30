@@ -15,6 +15,8 @@ Steps:
 
 Usage:
   python3 scripts/verify-delay-scenarios.py
+  python3 scripts/verify-delay-scenarios.py --when 2026-05-30T12:00:00
+  python3 scripts/verify-delay-scenarios.py --when "$(date -u -d '+3 hours' +%Y-%m-%dT%H:%M:%S)"  # if 422 (past)
   python3 scripts/verify-delay-scenarios.py --gradle   # also run Kotlin verifyDelayScenarios
 
 Exit codes: 0 = checks passed or skipped (not in results), 1 = assertion failed, 2 = OPS_BLOCKED
@@ -30,7 +32,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import zlib
-from datetime import datetime
+from datetime import datetime, timedelta
 from email.message import Message
 from pathlib import Path
 from typing import Any
@@ -38,7 +40,21 @@ from typing import Any
 API = "https://int.bahn.de/web/api"
 HAMBURG_EVA = "8002549"
 BERLIN_EVA = "8011160"
-SEARCH_TIME = "2026-05-30T12:00:00"
+# Documented scenario day (ICE 603 / FLX 1247). API may reject past times with HTTP 422.
+DEFAULT_SCENARIO_WHEN = "2026-05-30T12:00:00"
+# Must match JourneyRequestBuilder / live_api_smoke.py (invalid codes → HTTP 422).
+PRODUKTGATTUNGEN = [
+    "ICE",
+    "EC_IC",
+    "IR",
+    "REGIONAL",
+    "SBAHN",
+    "BUS",
+    "SCHIFF",
+    "UBAHN",
+    "TRAM",
+    "ANRUFPFLICHTIG",
+]
 SCENARIOS = (
     {
         "name": "ICE 603 (delayed)",
@@ -74,6 +90,15 @@ def decode_body(data: bytes, content_encoding: str | None = None) -> str:
         data = gzip.decompress(data)
     elif enc in ("deflate", "x-deflate"):
         data = zlib.decompress(data)
+    elif enc == "br":
+        try:
+            import brotli  # type: ignore[import-not-found]
+        except ImportError as err:
+            raise RuntimeError(
+                "Response uses Brotli (Content-Encoding: br). "
+                "Install with: pip install brotli  # Termux: pkg install python-brotli",
+            ) from err
+        data = brotli.decompress(data)
     return data.decode("utf-8")
 
 
@@ -98,7 +123,106 @@ def fetch(url: str, data: bytes | None = None, method: str | None = None) -> str
         if "OPS_BLOCKED" in body:
             print("FAIL: Deutsche Bahn blocked this IP (OPS_BLOCKED)")
             sys.exit(2)
-        raise RuntimeError(f"HTTP {e.code}: {body[:400]}") from e
+        print(f"HTTP {e.code} from {url}", file=sys.stderr)
+        print(body[:2000], file=sys.stderr)
+        hint = api_error_hint(body, e.code)
+        if hint:
+            print(f"Hint: {hint}", file=sys.stderr)
+        raise RuntimeError(f"HTTP {e.code}") from e
+
+
+def api_error_hint(body: str, code: int) -> str | None:
+    if code != 422:
+        return None
+    try:
+        data = json.loads(body)
+    except json.JSONDecodeError:
+        return "Request validation failed (422). Check produktgattungen and anfrageZeitpunkt."
+    if data.get("code") == "OPS_BLOCKED":
+        return "Deutsche Bahn blocked this IP."
+    msg = data.get("fehlerNachricht") or data.get("message") or data.get("code")
+    if msg:
+        return f"API says: {msg}"
+    return (
+        "422 often means invalid produktgattungen or anfrageZeitpunkt in the past. "
+        "Try: python3 scripts/verify-delay-scenarios.py --when $(date -u +%Y-%m-%dT%H:%M:%S)"
+    )
+
+
+def search_station(name: str, preferred_eva: str | None = None) -> dict:
+    q = urllib.parse.quote(name)
+    raw = fetch(f"{API}/reiseloesung/orte?suchbegriff={q}&typ=ALL&max=8&locale=de")
+    if "OPS_BLOCKED" in raw:
+        print("FAIL: Deutsche Bahn blocked this IP (OPS_BLOCKED) on /orte")
+        sys.exit(2)
+    stations = json.loads(raw)
+    if not isinstance(stations, list):
+        raise RuntimeError(f"/orte expected JSON array, got {type(stations).__name__}")
+    if preferred_eva:
+        for s in stations:
+            if s.get("extId") == preferred_eva:
+                return s
+    for s in stations:
+        if (s.get("name") or "").lower() == name.lower():
+            return s
+    if not stations:
+        raise RuntimeError(f"No stations found for {name!r}")
+    return stations[0]
+
+
+def halt_id_for_journey(station: dict) -> str:
+    lid = station.get("id")
+    if isinstance(lid, str) and lid.startswith("A=1@"):
+        return lid
+    eva = station.get("extId")
+    if eva and str(eva).isdigit():
+        return f"A=1@L={eva}@"
+    raise RuntimeError(f"Station {station.get('name')!r} has no bahn.de lid id: {station!r}")
+
+
+def build_fahrplan_body(from_station: dict, to_station: dict, when_iso: str) -> dict[str, Any]:
+    """Same shape as JourneyRequestBuilder / live_api_smoke.py."""
+    return {
+        "abfahrtsHalt": halt_id_for_journey(from_station),
+        "ankunftsHalt": halt_id_for_journey(to_station),
+        "anfrageZeitpunkt": when_iso,
+        "ankunftSuche": "ABFAHRT",
+        "bikeCarriage": False,
+        "deutschlandTicketVorhanden": False,
+        "nurDeutschlandTicketVerbindungen": False,
+        "schnelleVerbindungen": False,
+        "sitzplatzOnly": False,
+        "reservierungsKontingenteVorhanden": False,
+        "klasse": "KLASSE_2",
+        "reisende": [{"typ": "ERWACHSENER", "anzahl": 1, "alter": [], "ermaessigungen": []}],
+        "produktgattungen": list(PRODUKTGATTUNGEN),
+    }
+
+
+def parse_when_arg(argv: list[str]) -> str:
+    for i, arg in enumerate(argv):
+        if arg == "--when" and i + 1 < len(argv):
+            return argv[i + 1]
+        if arg.startswith("--when="):
+            return arg.split("=", 1)[1]
+    return DEFAULT_SCENARIO_WHEN
+
+
+def warn_if_past(when_iso: str) -> None:
+    try:
+        when = datetime.fromisoformat(when_iso[:19])
+    except ValueError:
+        print(f"Warning: could not parse --when {when_iso!r}", file=sys.stderr)
+        return
+    now = datetime.now()
+    if when < now - timedelta(minutes=5):
+        print(
+            f"Warning: anfrageZeitpunkt {when_iso} is in the past (now {now:%Y-%m-%dT%H:%M:%S}).\n"
+            "  bahn.de often returns HTTP 422 for past searches.\n"
+            "  For a live connectivity check use: --when with a near-future time.\n"
+            "  For ICE 603 / FLX 1247 logic use: ./scripts/verify-delay-scenarios.sh (fixtures).",
+            file=sys.stderr,
+        )
 
 
 def clock(iso: str | None) -> str:
@@ -298,6 +422,9 @@ def check_scenario(hit: dict | None, spec: dict) -> bool:
 
 
 def main() -> None:
+    when_iso = parse_when_arg(sys.argv)
+    warn_if_past(when_iso)
+
     run_gradle = "--gradle" in sys.argv
     if run_gradle:
         root = Path(__file__).resolve().parents[1]
@@ -308,38 +435,23 @@ def main() -> None:
             check=False,
         )
 
-    banner("PYTHON API TRACE: Hamburg → Berlin 2026-05-30")
-    stations = json.loads(
-        fetch(f"{API}/reiseloesung/orte?{urllib.parse.urlencode({'suchbegriff': 'Hamburg Hbf', 'typ': 'ALL', 'max': 5, 'locale': 'de'})}"),
-    )
-    hamburg = next((s for s in stations if s.get("extId") == HAMBURG_EVA), stations[0])
-    stations = json.loads(
-        fetch(f"{API}/reiseloesung/orte?{urllib.parse.urlencode({'suchbegriff': 'Berlin Hbf', 'typ': 'ALL', 'max': 5, 'locale': 'de'})}"),
-    )
-    berlin = next((s for s in stations if s.get("extId") == BERLIN_EVA), stations[0])
-    print(f"From: {hamburg.get('name')} ({hamburg.get('extId')})")
-    print(f"To:   {berlin.get('name')} ({berlin.get('extId')})")
+    banner(f"PYTHON API TRACE: Hamburg → Berlin (when={when_iso})")
+    hamburg = search_station("Hamburg Hbf", HAMBURG_EVA)
+    berlin = search_station("Berlin Hbf", BERLIN_EVA)
+    print(f"From: {hamburg.get('name')} ({hamburg.get('extId')}) id={str(hamburg.get('id', ''))[:48]}…")
+    print(f"To:   {berlin.get('name')} ({berlin.get('extId')}) id={str(berlin.get('id', ''))[:48]}…")
 
-    halt_from = hamburg.get("id") or f"A=1@L={HAMBURG_EVA}@"
-    halt_to = berlin.get("id") or f"A=1@L={BERLIN_EVA}@"
-    body = {
-        "abfahrtsHalt": halt_from,
-        "ankunftsHalt": halt_to,
-        "anfrageZeitpunkt": SEARCH_TIME,
-        "ankunftSuche": "ABFAHRT",
-        "klasse": "KLASSE_2",
-        "bikeCarriage": False,
-        "deutschlandTicketVorhanden": False,
-        "nurDeutschlandTicketVerbindungen": False,
-        "schnelleVerbindungen": True,
-        "sitzplatzOnly": False,
-        "reservierungsKontingenteVorhanden": False,
-        "reisende": [{"typ": "ERWACHSENER", "anzahl": 1, "alter": [], "ermaessigungen": []}],
-        "produktgattungen": ["ICE", "IC", "EC", "IR", "RE", "RB", "S", "BUS"],
-    }
+    body = build_fahrplan_body(hamburg, berlin, when_iso)
     banner("SEARCH /angebote/fahrplan")
+    print(f"  produktgattungen: {', '.join(PRODUKTGATTUNGEN)}")
     raw = fetch(f"{API}/angebote/fahrplan", data=json.dumps(body).encode())
+    if "OPS_BLOCKED" in raw:
+        print("FAIL: Deutsche Bahn blocked this IP (OPS_BLOCKED) on /fahrplan")
+        sys.exit(2)
     root = json.loads(raw)
+    if root.get("status") == "ERROR":
+        print(f"FAIL: API error code={root.get('code')} body={json.dumps(root)[:500]}")
+        sys.exit(1)
     connections = flatten_connections(root)
     print(f"Connections: {len(connections)}")
 
