@@ -34,4 +34,6 @@ keystorepass: ${storePassword}
 keypass: ${keyPassword}
 EOF
 
+chmod 600 "$CONFIG" "$FDROID/keystore.p12"
+
 echo "F-Droid repo signing configured (alias=${keyAlias})"
