@@ -218,6 +218,24 @@ def name_from_halt_id(halt_id: str | None) -> str | None:
     return m.group(1).replace("+", " ") if m else None
 
 
+def halt_object(section: dict, *keys: str) -> dict | None:
+    for key in keys:
+        val = section.get(key)
+        if isinstance(val, dict):
+            return val
+    return None
+
+
+def station_name_from_halt(halt: dict | None) -> str | None:
+    if not halt:
+        return None
+    return (
+        text_field(halt, "name")
+        or text_field(halt, "bezeichnung")
+        or name_from_halt_id(text_field(halt, "id"))
+    )
+
+
 def station_name(section: dict, ort_key: str, halt: dict | None) -> str | None:
     return (
         text_field(section, ort_key)
@@ -240,12 +258,22 @@ def map_abschnitt(section: dict) -> bool:
     halte = halte_array(section)
     first_halt = halte[0] if halte else None
     last_halt = halte[-1] if halte else None
-    dep_name = station_name(section, "abfahrtsOrt", first_halt) or station_name(section, "abgangsOrt", first_halt)
-    arr_name = station_name(section, "ankunftsOrt", last_halt)
-    dep_time = time_field(section, "abfahrtsZeitpunkt", "abgangsZeitpunkt", "abfahrtsZeit") or time_field(
+    start_halt = halt_object(section, "startHalt", "start", "abfahrtsHalt")
+    ziel_halt = halt_object(section, "zielHalt", "ziel", "ankunftsHalt")
+    dep_name = (
+        station_name(section, "abfahrtsOrt", first_halt)
+        or station_name(section, "abgangsOrt", first_halt)
+        or station_name_from_halt(start_halt)
+    )
+    arr_name = station_name(section, "ankunftsOrt", last_halt) or station_name_from_halt(ziel_halt)
+    dep_time = time_field(
+        section, "abfahrtsZeitpunkt", "abgangsZeitpunkt", "abfahrtsZeit", "abfahrt",
+    ) or time_field(start_halt, "abfahrtsZeitpunkt", "abfahrtsZeit", "zeitpunkt") or time_field(
         first_halt, "abfahrtsZeitpunkt", "abgangsDatum", "abfahrtsZeit",
     )
-    arr_time = time_field(section, "ankunftsZeitpunkt", "ankunftsDatum", "ankunftsZeit") or time_field(
+    arr_time = time_field(
+        section, "ankunftsZeitpunkt", "ankunftsDatum", "ankunftsZeit", "ankunft",
+    ) or time_field(ziel_halt, "ankunftsZeitpunkt", "ankunftsZeit", "zeitpunkt") or time_field(
         last_halt, "ankunftsZeitpunkt", "ankunftsDatum", "ankunftsZeit",
     )
     return bool(dep_name and arr_name and dep_time and arr_time)

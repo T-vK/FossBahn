@@ -74,7 +74,7 @@ Run e2e locally before pushing to avoid burning CI emulator minutes. You need AP
 
 ### Termux (on-device)
 
-Gradle live tests need **JDK 17** and the **Android SDK**, which is awkward on Termux. Use the smoke script first:
+Gradle live tests need **JDK 17** and the **Android SDK**, which is awkward on Termux. The smoke script runs the same station search and journey search as the app and checks that routes have parseable legs (not only raw `verbindungen` count):
 
 ```bash
 pkg update && pkg install -y curl python openjdk-17
