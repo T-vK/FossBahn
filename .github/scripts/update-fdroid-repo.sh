@@ -11,7 +11,7 @@ FDROID="$ROOT/fdroid"
 PAGES="$ROOT/fdroid-pages"
 APP_ID="de.openbahn.navigator.debug"
 OWNER_LC="$(echo "${GITHUB_REPOSITORY_OWNER:-T-vK}" | tr '[:upper:]' '[:lower:]')"
-REPO_NAME="${GITHUB_REPOSITORY_NAME:-OpenBahn-Navigator}"
+REPO_NAME="${GITHUB_REPOSITORY_NAME:-FossBahn}"
 REPO_URL="https://${OWNER_LC}.github.io/${REPO_NAME}/fdroid/repo"
 
 APK_ARG=""
@@ -71,14 +71,26 @@ VERSION_CODE="$(grep '^versionCode=' "$ROOT/version.properties" | cut -d= -f2)"
 DEST="repo/${APP_ID}_${VERSION_CODE}.apk"
 cp "$APK" "$DEST"
 echo "Published $DEST"
+
+# Stale index keeps the old repo address after a GitHub rename; F-Droid then 404s APK downloads.
+rm -f repo/index-v1.json repo/index-v2.json \
+  repo/index-v1.jar repo/index-v2.jar \
+  repo/index.css repo/entry.jar 2>/dev/null || true
+
 fdroid update --delete-unknown --verbose
+
+INDEX_ADDR="$(python3 -c "import json; print(json.load(open('repo/index-v2.json'))['repo']['address'])")"
+if [ "$INDEX_ADDR" != "$REPO_URL" ]; then
+  echo "ERROR: index-v2.json address is $INDEX_ADDR (expected $REPO_URL)" >&2
+  exit 1
+fi
 
 rm -rf "$PAGES"
 mkdir -p "$PAGES/fdroid"
 cp -a pages/site-index.html "$PAGES/index.html"
 cp -a pages/index.html "$PAGES/fdroid/index.html"
 sed -i "s|https://github.com/T-vK/FossBahn|https://github.com/${GITHUB_REPOSITORY_OWNER:-T-vK}/${REPO_NAME}|g" "$PAGES/index.html"
-sed -i "s|https://t-vk.github.io/OpenBahn-Navigator/fdroid/repo|${REPO_URL}|g" "$PAGES/fdroid/index.html"
+sed -i "s|https://t-vk.github.io/[^/]*/fdroid/repo|${REPO_URL}|g" "$PAGES/fdroid/index.html"
 cp -a repo "$PAGES/fdroid/repo"
 touch "$PAGES/.nojekyll"
 

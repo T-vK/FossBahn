@@ -2,11 +2,11 @@
 
 Technical documentation for building, testing, and publishing OpenBahn Navigator.
 
-**Repository:** [github.com/T-vK/OpenBahn-Navigator](https://github.com/T-vK/OpenBahn-Navigator)
+**Repository:** [github.com/T-vK/FossBahn](https://github.com/T-vK/FossBahn)
 
 ```bash
-git clone https://github.com/T-vK/OpenBahn-Navigator.git
-cd OpenBahn-Navigator
+git clone https://github.com/T-vK/FossBahn.git
+cd FossBahn
 ```
 
 ## Architecture
@@ -92,7 +92,7 @@ On push to `main`, [release.yml](../.github/workflows/release.yml) may bump the 
 | `BREAKING CHANGE` / `feat!:` | major |
 | `chore:`, `docs:`, `ci:` only | skip |
 
-Then it tags `vX.Y.Z`, builds the debug APK, publishes [GitHub Releases](https://github.com/T-vK/OpenBahn-Navigator/releases), and updates the F-Droid Pages repo.
+Then it tags `vX.Y.Z`, builds the debug APK, publishes [GitHub Releases](https://github.com/T-vK/FossBahn/releases), and updates the F-Droid Pages repo.
 
 Manual bump: Actions → **Version Bump (manual)**.
 
@@ -102,7 +102,7 @@ Manual bump: Actions → **Version Bump (manual)**.
 
 User-facing install URL:
 
-`https://t-vk.github.io/OpenBahn-Navigator/fdroid/repo`
+`https://t-vk.github.io/FossBahn/fdroid/repo`
 
 ### GitHub Pages (required)
 
@@ -129,7 +129,7 @@ Fastlane-style metadata: `metadata/en-US/`. The main catalog would build from so
 
 ## Contributing
 
-Issues and pull requests are welcome on [GitHub](https://github.com/T-vK/OpenBahn-Navigator). For journey parser changes, add a fixture under `core/api/src/test/resources/` and extend `JourneyUiContractTest`.
+Issues and pull requests are welcome on [GitHub](https://github.com/T-vK/FossBahn). For journey parser changes, add a fixture under `core/api/src/test/resources/` and extend `JourneyUiContractTest`.
 
 ## License
 

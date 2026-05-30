@@ -47,7 +47,14 @@ runs:
       shell: bash
       run: |
         test -f fdroid-pages/fdroid/repo/index-v1.jar || test -f fdroid-pages/fdroid/repo/index-v2.json
-        echo "F-Droid index present under fdroid-pages/fdroid/repo/"
+        OWNER_LC="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+        EXPECTED="https://${OWNER_LC}.github.io/${GITHUB_REPOSITORY#*/}/fdroid/repo"
+        ACTUAL="$(python3 -c "import json; print(json.load(open('fdroid-pages/fdroid/repo/index-v2.json'))['repo']['address'])")"
+        if [ "$ACTUAL" != "$EXPECTED" ]; then
+          echo "index address mismatch: got $ACTUAL, expected $EXPECTED" >&2
+          exit 1
+        fi
+        echo "F-Droid index OK ($ACTUAL)"
 
     - name: Upload GitHub Pages artifact
       uses: actions/upload-pages-artifact@v3

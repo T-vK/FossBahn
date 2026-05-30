@@ -122,7 +122,7 @@ jobs:
 
             Install the attached **`OpenBahnNavigator-v…-….apk`** (debug build, CI-signed for in-place upgrades).
 
-            **F-Droid custom repo:** [Add repository](https://t-vk.github.io/OpenBahn-Navigator/fdroid/) — URL `https://t-vk.github.io/OpenBahn-Navigator/fdroid/repo` (same debug APK, package `de.openbahn.navigator.debug`). Updated automatically on GitHub Pages after this release.
+            **F-Droid custom repo:** [Add repository](https://t-vk.github.io/FossBahn/fdroid/) — URL `https://t-vk.github.io/FossBahn/fdroid/repo` (same debug APK, package `de.openbahn.navigator.debug`). Updated automatically on GitHub Pages after this release.
 
             **One-time:** If you installed an older release built before stable CI signing, uninstall once, then install this APK. Later releases upgrade without uninstalling as long as `versionCode` increases.
 

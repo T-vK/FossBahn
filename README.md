@@ -19,7 +19,7 @@ A free, open-source Android app for planning journeys on German railways — wit
 2. **Settings → Repositories → +** and add this repository URL:
 
    ```
-   https://t-vk.github.io/OpenBahn-Navigator/fdroid/repo
+   https://t-vk.github.io/FossBahn/fdroid/repo
    ```
 
    Short instructions: [your Pages site](https://t-vk.github.io/FossBahn/fdroid/) (project root: `https://t-vk.github.io/<repo-name>/`)
@@ -28,11 +28,11 @@ A free, open-source Android app for planning journeys on German railways — wit
 
 The app will appear as **`de.openbahn.navigator.debug`** (same build as GitHub Releases) and receives updates through F-Droid when new versions are published.
 
-The repository is hosted on **GitHub Pages** and updated automatically whenever a new [GitHub release](https://github.com/T-vK/OpenBahn-Navigator/releases) is published (requires **Settings → Pages → Source: GitHub Actions**).
+The repository is hosted on **GitHub Pages** and updated automatically whenever a new [GitHub release](https://github.com/T-vK/FossBahn/releases) is published (requires **Settings → Pages → Source: GitHub Actions**).
 
 ### GitHub Releases (sideload)
 
-Download the latest APK from [GitHub Releases](https://github.com/T-vK/OpenBahn-Navigator/releases).
+Download the latest APK from [GitHub Releases](https://github.com/T-vK/FossBahn/releases).
 
 - Package: **`de.openbahn.navigator.debug`**
 - Same APK as the F-Droid custom repo above
