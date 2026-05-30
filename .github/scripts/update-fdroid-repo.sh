@@ -21,7 +21,7 @@ if [ -z "$ANDROID_HOME" ]; then
   exit 1
 fi
 
-# Keep config repo_url in sync with this GitHub repo's Pages URL.
+# Point index at this repo's GitHub Pages URL (cached config.yml may also hold repo_keysha256).
 if grep -q '^repo_url:' "$FDROID/config.yml"; then
   sed -i "s|^repo_url:.*|repo_url: ${REPO_URL}|" "$FDROID/config.yml"
 else
@@ -56,3 +56,6 @@ touch "$PAGES/.nojekyll"
 
 echo "Pages artifact ready at $PAGES"
 ls -la "$PAGES/fdroid/repo" | head -20
+echo ""
+echo "Add in F-Droid: ${REPO_URL}"
+echo "Landing page: ${REPO_URL%/repo}"

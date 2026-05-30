@@ -1,0 +1,42 @@
+name: Publish F-Droid Pages artifact
+description: Build release APK, update fdroid/repo index, stage fdroid-pages for GitHub Pages
+
+runs:
+  using: composite
+  steps:
+    - name: Install fdroid system dependencies
+      shell: bash
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq rsync
+
+    - name: Restore F-Droid repo state
+      uses: actions/cache@v4
+      with:
+        path: |
+          fdroid/keystore.p12
+          fdroid/config.yml
+          fdroid/repo
+          fdroid/archive
+        key: fdroid-repo-state-${{ github.repository }}
+        restore-keys: |
+          fdroid-repo-state-${{ github.repository }}-
+
+    - name: Build F-Droid repo and Pages site
+      shell: bash
+      env:
+        CI: true
+      run: |
+        chmod +x .github/scripts/update-fdroid-repo.sh
+        .github/scripts/update-fdroid-repo.sh
+
+    - name: Verify F-Droid index
+      shell: bash
+      run: |
+        test -f fdroid-pages/fdroid/repo/index-v1.jar || test -f fdroid-pages/fdroid/repo/index-v2.json
+        echo "F-Droid index present under fdroid-pages/fdroid/repo/"
+
+    - name: Upload GitHub Pages artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: fdroid-pages

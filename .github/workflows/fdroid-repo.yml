@@ -1,6 +1,7 @@
 name: F-Droid repo (manual)
 
-# Publish or refresh the GitHub Pages F-Droid repo without cutting a new release.
+# Refresh the GitHub Pages F-Droid repo without cutting a new semver release.
+# Normal updates run automatically in the Release workflow (publish-fdroid job).
 on:
   workflow_dispatch:
 
@@ -21,26 +22,12 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - uses: ./.github/actions/android-build-setup
 
-      - name: Cache F-Droid repo signing key
-        uses: actions/cache@v4
-        with:
-          path: fdroid/keystore.p12
-          key: fdroid-repo-keystore-${{ github.repository }}
-
-      - name: Build F-Droid repo and Pages site
-        env:
-          CI: true
-        run: |
-          chmod +x .github/scripts/update-fdroid-repo.sh
-          .github/scripts/update-fdroid-repo.sh
-
-      - name: Upload GitHub Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: fdroid-pages
+      - uses: ./.github/actions/publish-fdroid-pages
 
       - name: Deploy to GitHub Pages
         id: deployment

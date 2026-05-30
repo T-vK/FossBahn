@@ -17,8 +17,6 @@ concurrency:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 jobs:
   release:
@@ -28,6 +26,9 @@ jobs:
       !contains(github.event.head_commit.message, '[skip ci]') &&
       !startsWith(github.event.head_commit.message, 'chore: release v')
     runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.semver.outputs.skip }}
+      version: ${{ steps.semver.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -86,14 +87,13 @@ jobs:
           git tag "${{ steps.semver.outputs.version }}"
           git push origin "${{ steps.semver.outputs.version }}"
 
-      - name: Build APK
+      - name: Build debug APK (GitHub Release)
         if: steps.semver.outputs.skip == 'false'
         env:
           CI: true
         run: |
           chmod +x gradlew
           ./gradlew :app:assembleDebug --stacktrace
-          echo "Built APKs:"
           ls -la app/build/outputs/apk/debug/
 
       - name: Publish GitHub Release
@@ -115,35 +115,31 @@ jobs:
 
             Install the attached **`OpenBahnNavigator-v…-….apk`** (debug build, CI-signed for in-place upgrades).
 
-            **F-Droid custom repo:** [Add repository](https://t-vk.github.io/OpenBahn-Navigator/fdroid/) — URL `https://t-vk.github.io/OpenBahn-Navigator/fdroid/repo` (release APK, package `de.openbahn.navigator`).
+            **F-Droid custom repo:** [Add repository](https://t-vk.github.io/OpenBahn-Navigator/fdroid/) — URL `https://t-vk.github.io/OpenBahn-Navigator/fdroid/repo` (release APK, package `de.openbahn.navigator`). Updated automatically on GitHub Pages after this release.
 
             **One-time:** If you installed an older release built before stable CI signing, uninstall once, then install this APK. Later releases upgrade without uninstalling as long as `versionCode` increases.
 
-      - name: Cache F-Droid repo signing key
-        if: steps.semver.outputs.skip == 'false'
-        uses: actions/cache@v4
+  # Publishes https://<owner>.github.io/<repo>/fdroid/repo via GitHub Pages (requires Pages → Source: GitHub Actions).
+  publish-fdroid:
+    needs: release
+    if: needs.release.outputs.skip == 'false'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
         with:
-          path: fdroid/keystore.p12
-          key: fdroid-repo-keystore-${{ github.repository }}
+          ref: main
 
-      - name: Build F-Droid repo and Pages site
-        if: steps.semver.outputs.skip == 'false'
-        env:
-          CI: true
-        run: |
-          chmod +x .github/scripts/update-fdroid-repo.sh
-          .github/scripts/update-fdroid-repo.sh
+      - uses: ./.github/actions/android-build-setup
 
-      - name: Upload GitHub Pages artifact
-        if: steps.semver.outputs.skip == 'false'
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: fdroid-pages
+      - uses: ./.github/actions/publish-fdroid-pages
 
-      - name: Deploy F-Droid repo to GitHub Pages
-        if: steps.semver.outputs.skip == 'false'
-        id: fdroid_pages
+      - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
-        environment:
-          name: github-pages
-          url: ${{ steps.fdroid_pages.outputs.page_url }}

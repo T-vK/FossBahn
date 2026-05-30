@@ -28,6 +28,8 @@ A free, open-source Android app for planning journeys on German railways — wit
 
 The app will appear as **`de.openbahn.navigator`** and receives updates through F-Droid when new versions are published.
 
+The repository is hosted on **GitHub Pages** and updated automatically whenever a new [GitHub release](https://github.com/T-vK/OpenBahn-Navigator/releases) is published (requires **Settings → Pages → Source: GitHub Actions**).
+
 ### GitHub Releases (sideload)
 
 Download the latest APK from [GitHub Releases](https://github.com/T-vK/OpenBahn-Navigator/releases).

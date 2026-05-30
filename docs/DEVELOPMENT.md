@@ -101,19 +101,22 @@ User-facing install URL:
 
 `https://t-vk.github.io/OpenBahn-Navigator/fdroid/repo`
 
-### One-time GitHub setup
+### GitHub Pages (required)
 
 **Settings → Pages → Build and deployment → Source: GitHub Actions**
 
+Each semver release runs the `publish-fdroid` job in [release.yml](../.github/workflows/release.yml): it builds a **release** APK, runs `fdroid update`, and deploys to Pages at `fdroid/repo/`.
+
 ### Publish
 
-- Automatically on each semver **Release** workflow run
-- Manually: Actions → **F-Droid repo (manual)**
+| Trigger | Workflow |
+|---------|----------|
+| New version on `main` (automatic) | **Release** → job `publish-fdroid` |
+| First-time / refresh without release | **F-Droid repo (manual)** |
 
-Script: [.github/scripts/update-fdroid-repo.sh](../.github/scripts/update-fdroid-repo.sh)  
-Config: [`fdroid/`](../fdroid/)
+Implementation: [.github/actions/publish-fdroid-pages](../.github/actions/publish-fdroid-pages/action.yml), [.github/scripts/update-fdroid-repo.sh](../.github/scripts/update-fdroid-repo.sh), [`fdroid/`](../fdroid/).
 
-The repo signing key `fdroid/keystore.p12` is created on first `fdroid update` and cached in CI (`fdroid-repo-keystore-*`). Do not lose it without planning a repo key rotation.
+CI caches `fdroid/keystore.p12`, `fdroid/repo/`, and `fdroid/archive/` so older APKs stay available (`archive_older: 2`). Do not delete that cache without planning a repo key rotation.
 
 ### Main F-Droid.org catalog
 
