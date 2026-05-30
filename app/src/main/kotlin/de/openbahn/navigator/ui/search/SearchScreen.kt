@@ -85,173 +85,192 @@ fun SearchScreen(
             )
         },
     ) { padding ->
-        Column(
-            Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .testTag("search_results"),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            OutlinedTextField(
-                value = state.fromQuery,
-                onValueChange = viewModel::setFromQuery,
-                label = { Text(stringResource(R.string.from)) },
-                modifier = Modifier.fillMaxWidth().testTag("search_from"),
-                singleLine = true,
-                trailingIcon = {
-                    IconButton(onClick = {
-                        val from = state.from
-                        val to = state.to
-                        if (from != null && to != null) {
-                            viewModel.selectFrom(to)
-                            viewModel.selectTo(from)
-                        }
-                    }) { Icon(Icons.Default.SwapVert, contentDescription = stringResource(R.string.swap_stations)) }
-                },
-            )
-            SuggestionList(state.fromSuggestions, onSelect = viewModel::selectFrom)
-            OutlinedTextField(
-                value = state.toQuery,
-                onValueChange = viewModel::setToQuery,
-                label = { Text(stringResource(R.string.to)) },
-                modifier = Modifier.fillMaxWidth().testTag("search_to"),
-                singleLine = true,
-            )
-            SuggestionList(state.toSuggestions, onSelect = viewModel::selectTo)
-
-            Text(stringResource(R.string.search_when), style = MaterialTheme.typography.titleSmall)
-            Text(whenCaption, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("search_when_label"))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = { showDatePicker = true },
-                    modifier = Modifier.weight(1f).testTag("search_pick_date"),
-                ) {
-                    Text(stringResource(R.string.search_pick_date))
-                }
-                OutlinedButton(
-                    onClick = { showTimePicker = true },
-                    modifier = Modifier.weight(1f).testTag("search_pick_time"),
-                ) {
-                    Text(stringResource(R.string.search_pick_time))
-                }
-            }
-
-            if (showDatePicker) {
-                val zone = ZoneId.systemDefault()
-                val dateState = rememberDatePickerState(
-                    initialSelectedDateMillis = state.departureTime.atZone(zone).toInstant().toEpochMilli(),
-                )
-                DatePickerDialog(
-                    onDismissRequest = { showDatePicker = false },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                val millis = dateState.selectedDateMillis
-                                if (millis != null) {
-                                    val picked = Instant.ofEpochMilli(millis).atZone(zone).toLocalDate()
-                                    val current = state.departureTime
-                                    viewModel.setDepartureTime(
-                                        LocalDateTime.of(
-                                            picked,
-                                            current.toLocalTime(),
-                                        ),
-                                    )
-                                }
-                                showDatePicker = false
-                            },
-                        ) { Text(stringResource(android.R.string.ok)) }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showDatePicker = false }) {
-                            Text(stringResource(android.R.string.cancel))
+            item(key = "from_field") {
+                OutlinedTextField(
+                    value = state.fromQuery,
+                    onValueChange = viewModel::setFromQuery,
+                    label = { Text(stringResource(R.string.from)) },
+                    modifier = Modifier.fillMaxWidth().testTag("search_from"),
+                    singleLine = true,
+                    trailingIcon = {
+                        IconButton(onClick = {
+                            val from = state.from
+                            val to = state.to
+                            if (from != null && to != null) {
+                                viewModel.selectFrom(to)
+                                viewModel.selectTo(from)
+                            }
+                        }) {
+                            Icon(Icons.Default.SwapVert, contentDescription = stringResource(R.string.swap_stations))
                         }
                     },
-                ) {
-                    DatePicker(state = dateState)
-                }
-            }
-
-            if (showTimePicker) {
-                val timeState = rememberTimePickerState(
-                    initialHour = state.departureTime.hour,
-                    initialMinute = state.departureTime.minute,
-                    is24Hour = true,
-                )
-                androidx.compose.material3.AlertDialog(
-                    onDismissRequest = { showTimePicker = false },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                val current = state.departureTime
-                                viewModel.setDepartureTime(
-                                    LocalDateTime.of(
-                                        current.toLocalDate(),
-                                        java.time.LocalTime.of(timeState.hour, timeState.minute),
-                                    ),
-                                )
-                                showTimePicker = false
-                            },
-                        ) { Text(stringResource(android.R.string.ok)) }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showTimePicker = false }) {
-                            Text(stringResource(android.R.string.cancel))
-                        }
-                    },
-                    text = { TimePicker(state = timeState) },
                 )
             }
-
-            Button(
-                onClick = { viewModel.search() },
-                modifier = Modifier.fillMaxWidth().testTag("search_button"),
-                enabled = !state.isLoading,
-            ) {
-                Icon(Icons.Default.Search, contentDescription = null)
+            item(key = "from_suggestions") {
+                SuggestionList(state.fromSuggestions, onSelect = viewModel::selectFrom)
+            }
+            item(key = "to_field") {
+                OutlinedTextField(
+                    value = state.toQuery,
+                    onValueChange = viewModel::setToQuery,
+                    label = { Text(stringResource(R.string.to)) },
+                    modifier = Modifier.fillMaxWidth().testTag("search_to"),
+                    singleLine = true,
+                )
+            }
+            item(key = "to_suggestions") {
+                SuggestionList(state.toSuggestions, onSelect = viewModel::selectTo)
+            }
+            item(key = "when_header") {
+                Text(stringResource(R.string.search_when), style = MaterialTheme.typography.titleSmall)
                 Text(
-                    stringResource(R.string.search_connections),
-                    modifier = Modifier.padding(start = 8.dp),
+                    whenCaption,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.testTag("search_when_label"),
                 )
             }
-
-            state.error?.let { key ->
-                ErrorBanner(stringResource(errorStringRes(key)))
+            item(key = "when_pickers") {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { showDatePicker = true },
+                        modifier = Modifier.weight(1f).testTag("search_pick_date"),
+                    ) {
+                        Text(stringResource(R.string.search_pick_date))
+                    }
+                    OutlinedButton(
+                        onClick = { showTimePicker = true },
+                        modifier = Modifier.weight(1f).testTag("search_pick_time"),
+                    ) {
+                        Text(stringResource(R.string.search_pick_time))
+                    }
+                }
             }
-            state.info?.let { key ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            item(key = "search_button") {
+                Button(
+                    onClick = { viewModel.search() },
+                    modifier = Modifier.fillMaxWidth().testTag("search_button"),
+                    enabled = !state.isLoading,
                 ) {
+                    Icon(Icons.Default.Search, contentDescription = null)
                     Text(
-                        stringResource(infoStringRes(key)),
-                        modifier = Modifier.padding(12.dp),
-                        style = MaterialTheme.typography.bodyMedium,
+                        stringResource(R.string.search_connections),
+                        modifier = Modifier.padding(start = 8.dp),
                     )
                 }
             }
-            if (state.isLoading) LoadingIndicator()
-
-            LazyColumn(
-                modifier = Modifier.weight(1f).testTag("search_results"),
-                contentPadding = PaddingValues(bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                val rated = state.ratedJourneys
-                if (rated.isNotEmpty()) {
-                    items(rated, key = { it.journey.id }) { ratedJourney ->
-                        JourneyCard(
-                            journey = ratedJourney.journey,
-                            prediction = ratedJourney,
-                            onTrack = { viewModel.trackJourney(ratedJourney.journey, context) },
-                        )
-                    }
-                } else {
-                    items(state.journeys, key = { it.id }) { journey ->
-                        JourneyCard(
-                            journey = journey,
-                            onTrack = { viewModel.trackJourney(journey, context) },
+            state.error?.let { key ->
+                item(key = "error") {
+                    ErrorBanner(stringResource(errorStringRes(key)))
+                }
+            }
+            state.info?.let { key ->
+                item(key = "info") {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    ) {
+                        Text(
+                            stringResource(infoStringRes(key)),
+                            modifier = Modifier.padding(12.dp),
+                            style = MaterialTheme.typography.bodyMedium,
                         )
                     }
                 }
             }
+            if (state.isLoading) {
+                item(key = "loading") {
+                    LoadingIndicator()
+                }
+            }
+            val rated = state.ratedJourneys
+            if (rated.isNotEmpty()) {
+                items(rated, key = { it.journey.id }) { ratedJourney ->
+                    JourneyCard(
+                        journey = ratedJourney.journey,
+                        prediction = ratedJourney,
+                        onTrack = { viewModel.trackJourney(ratedJourney.journey, context) },
+                    )
+                }
+            } else {
+                items(state.journeys, key = { it.id }) { journey ->
+                    JourneyCard(
+                        journey = journey,
+                        onTrack = { viewModel.trackJourney(journey, context) },
+                    )
+                }
+            }
         }
+    }
+
+    if (showDatePicker) {
+        val zone = ZoneId.systemDefault()
+        val dateState = rememberDatePickerState(
+            initialSelectedDateMillis = state.departureTime.atZone(zone).toInstant().toEpochMilli(),
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val millis = dateState.selectedDateMillis
+                        if (millis != null) {
+                            val picked = Instant.ofEpochMilli(millis).atZone(zone).toLocalDate()
+                            val current = state.departureTime
+                            viewModel.setDepartureTime(
+                                LocalDateTime.of(picked, current.toLocalTime()),
+                            )
+                        }
+                        showDatePicker = false
+                    },
+                ) { Text(stringResource(android.R.string.ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+        ) {
+            DatePicker(state = dateState)
+        }
+    }
+
+    if (showTimePicker) {
+        val timeState = rememberTimePickerState(
+            initialHour = state.departureTime.hour,
+            initialMinute = state.departureTime.minute,
+            is24Hour = true,
+        )
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val current = state.departureTime
+                        viewModel.setDepartureTime(
+                            LocalDateTime.of(
+                                current.toLocalDate(),
+                                java.time.LocalTime.of(timeState.hour, timeState.minute),
+                            ),
+                        )
+                        showTimePicker = false
+                    },
+                ) { Text(stringResource(android.R.string.ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+            text = { TimePicker(state = timeState) },
+        )
     }
 }
 
@@ -260,17 +279,19 @@ private fun SuggestionList(
     suggestions: List<de.openbahn.model.Location>,
     onSelect: (de.openbahn.model.Location) -> Unit,
 ) {
-    suggestions.take(5).forEach { loc ->
-        Text(
-            loc.name,
-            Modifier
-                .fillMaxWidth()
-                .testTag("location_suggestion_${loc.evaNumber ?: loc.id}")
-                .clickable { onSelect(loc) }
-                .padding(vertical = 6.dp, horizontal = 4.dp),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.primary,
-        )
+    Column {
+        suggestions.take(5).forEach { loc ->
+            Text(
+                loc.name,
+                Modifier
+                    .fillMaxWidth()
+                    .testTag("location_suggestion_${loc.evaNumber ?: loc.id}")
+                    .clickable { onSelect(loc) }
+                    .padding(vertical = 6.dp, horizontal = 4.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
     }
 }
 

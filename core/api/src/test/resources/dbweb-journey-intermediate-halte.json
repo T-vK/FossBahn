@@ -1,0 +1,39 @@
+{
+  "verbindungen": [
+    {
+      "tripId": "intermediate_halte_1",
+      "verbindungsAbschnitte": [
+        {
+          "abfahrtsZeitpunkt": "2026-06-01T08:00:00",
+          "ankunftsZeitpunkt": "2026-06-01T11:00:00",
+          "gleis": "7",
+          "halte": [
+            {
+              "name": "Hamburg Hbf",
+              "extId": "8002549",
+              "abfahrtsZeitpunkt": "2026-06-01T08:00:00",
+              "gleis": "7"
+            },
+            {
+              "name": "Hannover Hbf",
+              "extId": "8000152",
+              "ankunftsZeitpunkt": "2026-06-01T09:15:00",
+              "abfahrtsZeitpunkt": "2026-06-01T09:20:00",
+              "gleis": "3"
+            },
+            {
+              "name": "Berlin Hbf",
+              "extId": "8011160",
+              "ankunftsZeitpunkt": "2026-06-01T11:00:00",
+              "gleis": "12"
+            }
+          ],
+          "verkehrsmittel": {
+            "name": "ICE 701",
+            "produktGattung": "ICE"
+          }
+        }
+      ]
+    }
+  ]
+}

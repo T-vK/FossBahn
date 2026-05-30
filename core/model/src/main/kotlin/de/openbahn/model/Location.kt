@@ -35,6 +35,8 @@ data class StopEvent(
 data class Leg(
     val origin: StopEvent,
     val destination: StopEvent,
+    /** Stations between origin and destination (excluding endpoints). */
+    val intermediateStops: List<StopEvent> = emptyList(),
     val lineName: String? = null,
     val product: TransportProduct? = null,
     val operator: String? = null,

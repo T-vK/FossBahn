@@ -255,20 +255,30 @@ internal object JourneyResponseParser {
             ?: return null
         val depTime = sectionDepartureTime(a, firstHalt, startHalt) ?: return null
         val arrTime = sectionArrivalTime(a, lastHalt, zielHalt) ?: return null
+        val depPlatform = text(a, "gleis")
+            ?: text(a, "abfahrtsGleis")
+            ?: text(firstHalt, "gleis")
+            ?: text(startHalt, "gleis")
+        val arrPlatform = text(a, "ankunftsGleis")
+            ?: text(a, "zielGleis")
+            ?: text(lastHalt, "gleis")
+            ?: text(zielHalt, "gleis")
         return Leg(
             origin = StopEvent(
                 name = depName,
                 id = stationExtId(a, "abfahrtsOrt", "abfahrtsOrtExtId", firstHalt)
                     ?: stationExtIdFromHalt(startHalt),
-                platform = text(a, "gleis") ?: text(firstHalt, "gleis") ?: text(startHalt, "gleis"),
+                platform = depPlatform,
                 scheduledTime = depTime,
             ),
             destination = StopEvent(
                 name = arrName,
                 id = stationExtId(a, "ankunftsOrt", "ankunftsOrtExtId", lastHalt)
                     ?: stationExtIdFromHalt(zielHalt),
+                platform = arrPlatform,
                 scheduledTime = arrTime,
             ),
+            intermediateStops = mapIntermediateStops(halte, depName, arrName),
             lineName = lineLabel(vm),
             product = text(vm, "produktGattung")?.let(::mapProduct),
             operator = text(vm, "betreiber"),
@@ -276,6 +286,28 @@ internal object JourneyResponseParser {
             bikeAllowed = bool(vm, "fahrradErlaubt"),
             tripId = text(a, "journeyId"),
         )
+    }
+
+    private fun mapIntermediateStops(
+        halte: List<JsonObject>,
+        depName: String,
+        arrName: String,
+    ): List<StopEvent> {
+        if (halte.size <= 2) return emptyList()
+        return halte.drop(1).dropLast(1).mapNotNull { halt ->
+            val name = stationNameFromHalt(halt) ?: return@mapNotNull null
+            if (name.equals(depName, ignoreCase = true) || name.equals(arrName, ignoreCase = true)) {
+                return@mapNotNull null
+            }
+            StopEvent(
+                name = name,
+                id = stationExtIdFromHalt(halt),
+                platform = text(halt, "gleis"),
+                scheduledTime = timeText(halt, "abfahrtsZeitpunkt", "ankunftsZeitpunkt", "ankunftsZeit")
+                    ?: timeText(halt, "abfahrtsZeit", "ankunft")
+                    ?: "",
+            )
+        }
     }
 
     private fun halteArray(section: JsonObject): List<JsonObject> =

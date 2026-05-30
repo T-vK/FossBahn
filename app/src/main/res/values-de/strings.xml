@@ -39,6 +39,15 @@
     <string name="transfers_count">%d Umstiege</string>
     <string name="dticket_valid">Mit Deutschland-Ticket gültig</string>
     <string name="transfer_probability">Anschlusswahrscheinlichkeit: %d%%</string>
+    <string name="prediction_unavailable">Bahn-Vorhersage: keine Prognose für diesen Umstieg</string>
+    <string name="transfer_at">Umstieg in %1$s</string>
+    <string name="departure">Abfahrt</string>
+    <string name="arrival">Ankunft</string>
+    <string name="platform_label">Gleis %1$s</string>
+    <string name="platform_arrival_short">Ank. Gl. %1$s</string>
+    <string name="platform_departure_short">Abf. Gl. %1$s</string>
+    <string name="show_intermediate_stations">%d Zwischenstationen anzeigen</string>
+    <string name="hide_intermediate_stations">Zwischenstationen ausblenden</string>
     <string name="delay_minutes">+%d Min. Verspätung</string>
     <string name="filter_transport">Verkehrsmittel</string>
     <string name="filter_bike">Fahrradmitnahme</string>

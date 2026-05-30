@@ -1,6 +1,7 @@
 package de.openbahn.api
 
 import de.openbahn.api.mapper.JourneyResponseParser
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -95,6 +96,18 @@ class JourneyUiContractTest {
         val text = javaClass.getResource("/dbweb-journey-nested-ort-abschnitt.json")!!.readText()
         val journeys = JourneyResponseParser.parse(text)
         assertUiContract(journeys, "nested ort abschnitt")
+    }
+
+    @Test
+    fun intermediateHalteFixture_mapsZwischenstationen() {
+        val text = javaClass.getResource("/dbweb-journey-intermediate-halte.json")!!.readText()
+        val journeys = JourneyResponseParser.parse(text)
+        assertUiContract(journeys, "intermediate halte")
+        val leg = journeys.first().legs.first()
+        assertEquals(1, leg.intermediateStops.size)
+        assertTrue(leg.intermediateStops.first().name.contains("Hannover"))
+        assertEquals("7", leg.origin.platform)
+        assertEquals("12", leg.destination.platform)
     }
 
     @Test
