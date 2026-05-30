@@ -1,0 +1,8 @@
+keystore.p12
+repo/
+archive/
+tmp/
+*.apk
+*.jar
+*.sig
+entry.json

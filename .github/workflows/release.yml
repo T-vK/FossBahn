@@ -17,6 +17,8 @@ concurrency:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   release:
@@ -113,4 +115,35 @@ jobs:
 
             Install the attached **`OpenBahnNavigator-v…-….apk`** (debug build, CI-signed for in-place upgrades).
 
+            **F-Droid custom repo:** [Add repository](https://t-vk.github.io/OpenBahn-Navigator/fdroid/) — URL `https://t-vk.github.io/OpenBahn-Navigator/fdroid/repo` (release APK, package `de.openbahn.navigator`).
+
             **One-time:** If you installed an older release built before stable CI signing, uninstall once, then install this APK. Later releases upgrade without uninstalling as long as `versionCode` increases.
+
+      - name: Cache F-Droid repo signing key
+        if: steps.semver.outputs.skip == 'false'
+        uses: actions/cache@v4
+        with:
+          path: fdroid/keystore.p12
+          key: fdroid-repo-keystore-${{ github.repository }}
+
+      - name: Build F-Droid repo and Pages site
+        if: steps.semver.outputs.skip == 'false'
+        env:
+          CI: true
+        run: |
+          chmod +x .github/scripts/update-fdroid-repo.sh
+          .github/scripts/update-fdroid-repo.sh
+
+      - name: Upload GitHub Pages artifact
+        if: steps.semver.outputs.skip == 'false'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: fdroid-pages
+
+      - name: Deploy F-Droid repo to GitHub Pages
+        if: steps.semver.outputs.skip == 'false'
+        id: fdroid_pages
+        uses: actions/deploy-pages@v4
+        environment:
+          name: github-pages
+          url: ${{ steps.fdroid_pages.outputs.page_url }}

@@ -1,0 +1,10 @@
+# F-Droid custom repository (binary APKs from CI). Published via GitHub Pages.
+# Repo URL is overridden in CI from GITHUB_REPOSITORY; default matches OpenBahn-Navigator.
+repo_url: https://t-vk.github.io/OpenBahn-Navigator/fdroid/repo
+repo_name: OpenBahn Navigator
+repo_description: Official OpenBahn Navigator APK repository (FOSS, CI-signed release builds)
+repo_maxage: 366
+archive_older: 2
+
+# Repo signing key: fdroid/keystore.p12 (created on first update, cached in CI).
+# repo_keysha256: added automatically

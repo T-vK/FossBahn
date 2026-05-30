@@ -126,7 +126,30 @@ The [Release](.github/workflows/release.yml) workflow then:
 
 ## F-Droid
 
-Metadata draft in `metadata/en-US/`. The app uses only FOSS libraries and communicates with Deutsche Bahn and Bahn-Vorhersage public endpoints (network access anti-feature applies).
+### Custom repository (GitHub Pages)
+
+Pre-built **release** APKs (`de.openbahn.navigator`, not the `.debug` GitHub sideload package) are published as an [F-Droid](https://f-droid.org/) binary repo on GitHub Pages after each [release](.github/workflows/release.yml).
+
+1. In the repo: **Settings → Pages → Build and deployment → Source: GitHub Actions** (one-time).
+2. On your phone in F-Droid: **Settings → Repositories → +** and add:
+
+   `https://t-vk.github.io/OpenBahn-Navigator/fdroid/repo`
+
+   (Forks: replace with `https://<user>.github.io/<repo>/fdroid/repo` — see `fdroid/config.yml`.)
+
+3. Install **OpenBahn Navigator** from that repo.
+
+Landing page: [t-vk.github.io/OpenBahn-Navigator/fdroid/](https://t-vk.github.io/OpenBahn-Navigator/fdroid/)
+
+To publish without a semver release (e.g. first setup): **Actions → F-Droid repo (manual) → Run workflow**.
+
+Config and app metadata live in [`fdroid/`](fdroid/). The update script is [`.github/scripts/update-fdroid-repo.sh`](.github/scripts/update-fdroid-repo.sh).
+
+### Main F-Droid catalog
+
+Fastlane-style metadata draft in `metadata/en-US/` for submitting to [f-droid.org](https://f-droid.org/). The main catalog builds and signs from source; this custom repo ships CI release APKs for faster updates.
+
+The app uses only FOSS libraries and communicates with Deutsche Bahn and Bahn-Vorhersage public endpoints (NonFreeNet anti-feature applies).
 
 ## Legal
 

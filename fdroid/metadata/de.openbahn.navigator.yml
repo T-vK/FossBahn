@@ -1,0 +1,35 @@
+Categories:
+  - Navigation
+License: GPL-3.0-or-later
+AuthorName: OpenBahn contributors
+SourceCode: https://github.com/T-vK/OpenBahn-Navigator
+IssueTracker: https://github.com/T-vK/OpenBahn-Navigator/issues
+WebSite: https://github.com/T-vK/OpenBahn-Navigator
+Changelog: https://github.com/T-vK/OpenBahn-Navigator/releases
+
+AutoName: OpenBahn Navigator
+
+Summary:
+  en-US: FOSS DB journey planner with live delays, predictions, and ticket wallet
+
+Description:
+  en-US: |
+    OpenBahn Navigator is a privacy-friendly, open-source journey planner for German railways.
+
+    • Search connections without an account or API key
+    • Filter by transport mode, bike, Deutschland-Ticket, transfer time, and more
+    • Station departure and arrival boards
+    • ML-based connection predictions (Bahn-Vorhersage)
+    • Track journeys and get delay notifications
+    • Import tickets including Deutschland-Ticket with photo
+
+    Uses public bahn.de APIs. English and German supported.
+
+    This custom F-Droid repository distributes release APKs built from the public source tree on GitHub. The main F-Droid.org catalog may also ship the app built reproducibly from source.
+
+AntiFeatures:
+  NonFreeNet:
+    en-US: |
+      The app queries public Deutsche Bahn and Bahn-Vorhersage endpoints for timetables and predictions.
+
+# APKs are published by CI (release builds); no fdroidserver build recipes in this repo.

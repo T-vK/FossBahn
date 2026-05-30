@@ -12,4 +12,5 @@ captures/
 *.keystore
 keystore.properties
 .github/scripts/__pycache__/
+fdroid-pages/
 .kotlin/
