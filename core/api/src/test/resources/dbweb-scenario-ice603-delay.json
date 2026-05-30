@@ -1,0 +1,45 @@
+{
+  "verbindungen": [
+    {
+      "tripId": "ice603_may30",
+      "ctxRecon": "ctx-ice603-test",
+      "verbindungsAbschnitte": [
+        {
+          "abfahrtsOrt": "Hamburg Hbf",
+          "abfahrtsOrtExtId": "8002549",
+          "ankunftsOrt": "Berlin Hbf",
+          "ankunftsOrtExtId": "8011160",
+          "abfahrt": {
+            "sollzeit": "2026-05-30T13:49:00",
+            "prognosezeit": "2026-05-30T13:56:00",
+            "verspaetung": 7
+          },
+          "ankunft": {
+            "sollzeit": "2026-05-30T16:20:00",
+            "prognosezeit": "2026-05-30T16:42:00",
+            "verspaetung": 22
+          },
+          "halte": [
+            {
+              "name": "Hamburg Hbf",
+              "extId": "8002549",
+              "abfahrtsZeitpunkt": "2026-05-30T13:49:00",
+              "gleis": "11"
+            },
+            {
+              "name": "Berlin Hbf",
+              "extId": "8011160",
+              "ankunftsZeitpunkt": "2026-05-30T16:20:00",
+              "gleis": "3"
+            }
+          ],
+          "verkehrsmittel": {
+            "name": "ICE 603",
+            "produktGattung": "ICE"
+          },
+          "journeyId": "ice603-journey-id"
+        }
+      ]
+    }
+  ]
+}

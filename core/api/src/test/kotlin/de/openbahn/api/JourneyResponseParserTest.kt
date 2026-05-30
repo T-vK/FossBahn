@@ -85,4 +85,12 @@ class JourneyResponseParserTest {
         assertEquals(7, leg.origin.delayMinutes)
         assertEquals(11, leg.destination.delayMinutes)
     }
+
+    @Test
+    fun parsesFlx1247CancellationFixture() {
+        val text = javaClass.getResource("/dbweb-scenario-flx1247-cancelled.json")!!.readText()
+        val leg = JourneyResponseParser.parse(text).journeys.single().legs.single()
+        assertTrue(leg.origin.cancelled)
+        assertEquals("FLX 1247", leg.lineName)
+    }
 }

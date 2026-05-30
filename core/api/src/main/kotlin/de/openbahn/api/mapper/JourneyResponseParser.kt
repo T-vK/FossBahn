@@ -260,6 +260,7 @@ internal object JourneyResponseParser {
         id: String?,
         platform: String?,
         times: ParsedStopTimes,
+        cancelled: Boolean = false,
     ) = StopEvent(
         name = name,
         id = id,
@@ -267,7 +268,42 @@ internal object JourneyResponseParser {
         scheduledTime = times.scheduled,
         prognosedTime = times.prognosed,
         delayMinutes = times.delayMinutes,
+        cancelled = cancelled,
     )
+
+    private fun isCancelled(section: JsonObject, halt: JsonObject?, forDeparture: Boolean): Boolean {
+        val sectionFlags = if (forDeparture) {
+            arrayOf("originCancelled", "abfahrtsAusfall", "abgangsAusfall")
+        } else {
+            arrayOf("destinationCancelled", "ankunftsAusfall", "ankunftAusfall")
+        }
+        for (key in sectionFlags) {
+            if (bool(section, key) == true) return true
+        }
+        if (bool(section, "cancelled") == true || bool(section, "canceled") == true) return true
+        if (halt != null && hasCancellationSignal(halt)) return true
+        return false
+    }
+
+    private fun hasCancellationSignal(obj: JsonObject): Boolean {
+        if (bool(obj, "cancelled") == true || bool(obj, "canceled") == true || bool(obj, "ausfall") == true) {
+            return true
+        }
+        val notes = obj["risNotizen"]?.jsonArray
+            ?: obj["echtzeitNotizen"]?.jsonArray
+            ?: obj["meldungen"]?.jsonArray
+            ?: return false
+        return notes.any { element ->
+            val note = runCatching { element.jsonObject }.getOrNull() ?: return@any false
+            val key = text(note, "key").orEmpty()
+            val value = (text(note, "value") ?: text(note, "text") ?: "").lowercase()
+            key == "text.realtime.stop.cancelled" ||
+                key.contains("AUSFALL", ignoreCase = true) ||
+                value.contains("entfällt") ||
+                value.contains("fällt aus") ||
+                value.contains("cancelled")
+        }
+    }
 
     private fun extractVerbindungElements(root: JsonObject): Pair<List<JsonElement>, String> {
         root["verbindungen"]?.jsonArray?.let { top ->
@@ -434,6 +470,7 @@ internal object JourneyResponseParser {
                     ?: text(firstHalt, "id"),
                 platform = depPlatform,
                 times = depTimes,
+                cancelled = isCancelled(a, firstHalt ?: startHalt, forDeparture = true),
             ),
             destination = stopEventFromParsed(
                 name = arrName,
@@ -442,6 +479,7 @@ internal object JourneyResponseParser {
                     ?: text(lastHalt, "id"),
                 platform = arrPlatform,
                 times = arrTimes,
+                cancelled = isCancelled(a, lastHalt ?: zielHalt, forDeparture = false),
             ),
             intermediateStops = mapIntermediateStops(halte, depName, arrName),
             lineName = lineLabel(vm),
@@ -477,6 +515,7 @@ internal object JourneyResponseParser {
                     id = stationExtIdFromHalt(halt) ?: text(halt, "id"),
                     platform = text(halt, "gleis"),
                     times = times,
+                    cancelled = hasCancellationSignal(halt),
                 )
             }
         }

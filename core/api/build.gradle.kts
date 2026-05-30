@@ -46,3 +46,21 @@ dependencies {
 tasks.withType<Test> {
     useJUnitPlatform()
 }
+
+/** Offline + optional live verification for ICE 603 / FLX 1247 delay scenarios. */
+afterEvaluate {
+    tasks.register<Test>("verifyDelayScenarios") {
+        description = "Verify Verspätung/cancellation for ICE 603 and FLX 1247 (2026-05-30 scenarios)"
+        group = "verification"
+        val unitTest = tasks.named<Test>("testDebugUnitTest").get()
+        testClassesDirs = unitTest.testClassesDirs
+        classpath = unitTest.classpath
+        useJUnitPlatform {
+            includeTags("delay-scenario")
+        }
+        testLogging {
+            events("passed", "failed", "skipped")
+            showStandardStreams = true
+        }
+    }
+}
