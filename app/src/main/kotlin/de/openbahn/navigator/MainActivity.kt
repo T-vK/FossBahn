@@ -15,7 +15,9 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -64,8 +66,12 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     },
-                ) { _ ->
-                    NavHost(navController, startDestination = Routes.SEARCH) {
+                ) { padding ->
+                    NavHost(
+                        navController = navController,
+                        startDestination = Routes.SEARCH,
+                        modifier = Modifier.padding(padding),
+                    ) {
                         composable(Routes.SEARCH) {
                             SearchScreen(onOpenFilters = { navController.navigate(Routes.FILTERS) })
                         }

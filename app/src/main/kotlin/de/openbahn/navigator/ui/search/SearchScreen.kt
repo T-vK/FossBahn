@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -90,7 +91,7 @@ fun SearchScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .testTag("search_results"),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 32.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item(key = "from_field") {
@@ -245,6 +246,9 @@ fun SearchScreen(
                         Text(stringResource(R.string.load_later_connections))
                     }
                 }
+            }
+            item(key = "list_bottom_spacer") {
+                Spacer(Modifier.padding(bottom = 8.dp))
             }
         }
     }
