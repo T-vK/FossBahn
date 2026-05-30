@@ -39,7 +39,7 @@ class JourneySearchUseCase(
         pagingReference: String?,
     ): JourneySearchResult {
         val result = dbClient.searchJourneys(from, to, options, whenTime, pagingReference)
-        val withDelays = dbClient.enrichJourneysWithRealtime(result.journeys)
+        val withDelays = dbClient.enrichJourneysWithRealtime(result.journeys, from, to)
         return result.copy(journeys = withDelays)
     }
 

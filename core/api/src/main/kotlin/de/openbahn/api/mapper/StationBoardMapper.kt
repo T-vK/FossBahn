@@ -5,6 +5,7 @@ import de.openbahn.api.dto.DbStationBoardResponse
 import de.openbahn.api.dto.DbVerkehrsmittel
 import de.openbahn.model.BoardEntry
 import de.openbahn.model.TransportProduct
+import de.openbahn.model.delayMinutesFromTimes
 
 internal object StationBoardMapper {
     fun mapDepartures(response: DbStationBoardResponse): List<BoardEntry> {
@@ -22,6 +23,9 @@ internal object StationBoardMapper {
         val time: String = item.zeit
             ?: (if (isDeparture) item.abfahrtsZeit else item.ankunftsZeit)
             ?: return null
+        val prognosed = item.ezZeit ?: item.prognoseZeit
+        val delay = item.verspaetung?.takeIf { it > 0 }
+            ?: delayMinutesFromTimes(time, prognosed)
         val direction = item.richtung
             ?: item.ueber?.lastOrNull()
             ?: item.ueber?.joinToString(" – ")
@@ -30,9 +34,9 @@ internal object StationBoardMapper {
             line = lineLabel(vm),
             direction = direction,
             scheduledTime = time,
-            prognosedTime = item.ezZeit ?: item.prognoseZeit,
+            prognosedTime = prognosed,
             platform = item.gleis,
-            delayMinutes = item.verspaetung,
+            delayMinutes = delay,
             cancelled = item.ausfall == true,
             product = vm.produktGattung?.let { code ->
                 TransportProduct.entries.find { p -> p.vendoCode.equals(code, true) }

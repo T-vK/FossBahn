@@ -10,6 +10,7 @@ import de.openbahn.api.mapper.JourneyMapper
 import de.openbahn.api.mapper.JourneyResponseParser
 import de.openbahn.api.mapper.LocationMapper
 import de.openbahn.api.mapper.StationBoardMapper
+import de.openbahn.api.mapper.JourneyBoardMatcher
 import de.openbahn.model.BoardEntry
 import de.openbahn.model.Journey
 import de.openbahn.model.JourneySearchOptions
@@ -17,6 +18,9 @@ import de.openbahn.model.JourneySearchResult
 import de.openbahn.model.Location
 import de.openbahn.model.StationBoard
 import de.openbahn.model.TransportProduct
+import de.openbahn.model.maxDelayMinutes
+import de.openbahn.model.withBoardRealtime
+import de.openbahn.model.withRealtimeFrom
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
@@ -161,21 +165,98 @@ class DbVendoClient(
         return JourneyMapper.mapRefresh(root)
     }
 
-    /** Fetches up-to-date delays via `/reiseloesung/verbindung` (search often omits verspaetung). */
-    suspend fun enrichJourneysWithRealtime(journeys: List<Journey>): List<Journey> {
+    /**
+     * Loads realtime delays: refresh via ctxRecon, then station boards (abfahrten/ankünfte with ezZeit).
+     * Search/refresh JSON often omits verspaetung; boards are the reliable source for near-term legs.
+     */
+    suspend fun enrichJourneysWithRealtime(
+        journeys: List<Journey>,
+        from: Location? = null,
+        to: Location? = null,
+    ): List<Journey> {
         if (journeys.isEmpty()) return journeys
         return coroutineScope {
             val semaphore = Semaphore(MAX_CONCURRENT_JOURNEY_REFRESH)
+            val departureCache = mutableMapOf<String, List<BoardEntry>>()
+            val arrivalCache = mutableMapOf<String, List<BoardEntry>>()
             journeys.map { journey ->
                 async {
-                    val token = journey.refreshToken?.takeIf { it.isNotBlank() } ?: return@async journey
-                    semaphore.withPermit {
-                        runCatching { refreshJourney(token) }.getOrNull() ?: journey
+                    val afterRefresh = journey.refreshToken?.takeIf { it.isNotBlank() }?.let { token ->
+                        semaphore.withPermit {
+                            runCatching { refreshJourney(token) }.getOrNull()
+                        }
+                    }?.let { refreshed -> journey.withRealtimeFrom(refreshed) } ?: journey
+
+                    if (afterRefresh.maxDelayMinutes() > 0) {
+                        afterRefresh
+                    } else {
+                        enrichDelaysFromStationBoards(afterRefresh, from, to, departureCache, arrivalCache)
                     }
                 }
             }.map { it.await() }
         }
     }
+
+    private suspend fun enrichDelaysFromStationBoards(
+        journey: Journey,
+        from: Location?,
+        to: Location?,
+        departureCache: MutableMap<String, List<BoardEntry>>,
+        arrivalCache: MutableMap<String, List<BoardEntry>>,
+    ): Journey {
+        var result = journey
+        if (from != null && journey.legs.isNotEmpty()) {
+            val leg = journey.legs.first()
+            val whenTime = parseLocalDateTime(leg.origin.scheduledTime)
+            if (whenTime != null) {
+            val cacheKey = boardCacheKey(from, whenTime)
+            val entries = departureCache.getOrPut(cacheKey) {
+                runCatching { departures(from, whenTime, durationMinutes = BOARD_LOOKUP_MINUTES) }
+                    .getOrDefault(emptyList())
+            }
+            JourneyBoardMatcher.findDepartureMatch(entries, leg)?.let { match ->
+                val delay = JourneyBoardMatcher.boardDelayMinutes(match) ?: return@let
+                val origin = leg.origin.withBoardRealtime(match.scheduledTime, match.prognosedTime, delay)
+                result = result.copy(
+                    legs = result.legs.mapIndexed { i, l -> if (i == 0) l.copy(origin = origin) else l },
+                    departure = origin.prognosedTime ?: origin.scheduledTime,
+                )
+            }
+            }
+        }
+        if (to != null && result.legs.isNotEmpty()) {
+            val legIndex = result.legs.lastIndex
+            val leg = result.legs[legIndex]
+            val whenTime = parseLocalDateTime(leg.destination.scheduledTime) ?: return result
+            val cacheKey = boardCacheKey(to, whenTime)
+            val entries = arrivalCache.getOrPut(cacheKey) {
+                runCatching { arrivals(to, whenTime, durationMinutes = BOARD_LOOKUP_MINUTES) }
+                    .getOrDefault(emptyList())
+            }
+            JourneyBoardMatcher.findArrivalMatch(entries, leg)?.let { match ->
+                val delay = JourneyBoardMatcher.boardDelayMinutes(match) ?: return@let
+                val destination = leg.destination.withBoardRealtime(
+                    match.scheduledTime,
+                    match.prognosedTime,
+                    delay,
+                )
+                result = result.copy(
+                    legs = result.legs.mapIndexed { i, l ->
+                        if (i == legIndex) l.copy(destination = destination) else l
+                    },
+                    arrival = destination.prognosedTime ?: destination.scheduledTime,
+                )
+            }
+        }
+        return result
+    }
+
+    private fun boardCacheKey(station: Location, whenTime: LocalDateTime): String =
+        "${station.evaNumber ?: station.id}|${whenTime.toLocalDate()}|${whenTime.hour}"
+
+    private fun parseLocalDateTime(iso: String): LocalDateTime? = runCatching {
+        LocalDateTime.parse(iso.take(19), DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"))
+    }.getOrNull()
 
     suspend fun departures(
         station: Location,
@@ -235,6 +316,7 @@ class DbVendoClient(
 
     companion object {
         private const val MAX_CONCURRENT_JOURNEY_REFRESH = 4
+        private const val BOARD_LOOKUP_MINUTES = 180
 
         const val DEFAULT_BASE_URL = "https://int.bahn.de/web/api"
 

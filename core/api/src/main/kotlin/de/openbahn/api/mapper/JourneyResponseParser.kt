@@ -57,7 +57,7 @@ internal object JourneyResponseParser {
         val element = when {
             response["verbindung"] != null -> response["verbindung"]!!
             response["verbindungen"]?.jsonArray?.isNotEmpty() == true ->
-                response["verbindungen"]!!.jsonArray.first()
+                flattenVerbindungElement(response["verbindungen"]!!.jsonArray.first())
             abschnitteArray(response) != null -> response
             else -> null
         } ?: return null
@@ -416,8 +416,8 @@ internal object JourneyResponseParser {
             ?: stationName(a, "ankunftsBahnhof", lastHalt)
             ?: stationNameFromHalt(zielHalt)
             ?: return null
-        val depTimes = sectionDepartureTimes(a, firstHalt, startHalt) ?: return null
-        val arrTimes = sectionArrivalTimes(a, lastHalt, zielHalt) ?: return null
+        val depTimes = sectionDepartureTimes(a, halte, depName, firstHalt, startHalt) ?: return null
+        val arrTimes = sectionArrivalTimes(a, halte, arrName, lastHalt, zielHalt) ?: return null
         val depPlatform = text(a, "gleis")
             ?: text(a, "abfahrtsGleis")
             ?: text(firstHalt, "gleis")
@@ -488,13 +488,21 @@ internal object JourneyResponseParser {
             ?: section["stops"]?.jsonArray?.mapNotNull { runCatching { it.jsonObject }.getOrNull() }
             ?: emptyList()
 
+    private fun haltMatchingName(halte: List<JsonObject>, name: String): JsonObject? =
+        halte.firstOrNull { halt ->
+            stationNameFromHalt(halt)?.equals(name, ignoreCase = true) == true
+        }
+
     private fun sectionDepartureTimes(
         section: JsonObject,
+        halte: List<JsonObject>,
+        depName: String,
         firstHalt: JsonObject?,
         startHalt: JsonObject?,
     ): ParsedStopTimes? = bestStopTimes(
         parseStopTimes(section["abfahrt"]?.jsonObject, HaltTimeRole.DEPARTURE),
         parseStopTimes(startHalt, HaltTimeRole.DEPARTURE),
+        haltMatchingName(halte, depName)?.let { parseStopTimes(it, HaltTimeRole.DEPARTURE) },
         parseStopTimes(firstHalt, HaltTimeRole.DEPARTURE),
         timeText(section, "abfahrtsZeitpunkt", "abgangsZeitpunkt", "abfahrtsZeit", "abgangsZeit", "abfahrt")
             ?.let { scheduled ->
@@ -511,11 +519,14 @@ internal object JourneyResponseParser {
 
     private fun sectionArrivalTimes(
         section: JsonObject,
+        halte: List<JsonObject>,
+        arrName: String,
         lastHalt: JsonObject?,
         zielHalt: JsonObject?,
     ): ParsedStopTimes? = bestStopTimes(
         parseStopTimes(section["ankunft"]?.jsonObject, HaltTimeRole.ARRIVAL),
         parseStopTimes(zielHalt, HaltTimeRole.ARRIVAL),
+        haltMatchingName(halte, arrName)?.let { parseStopTimes(it, HaltTimeRole.ARRIVAL) },
         parseStopTimes(lastHalt, HaltTimeRole.ARRIVAL),
         timeText(section, "ankunftsZeitpunkt", "ankunftsDatum", "ankunftsZeit", "ankunft")
             ?.let { scheduled ->

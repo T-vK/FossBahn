@@ -39,6 +39,7 @@ import de.openbahn.model.Journey
 import de.openbahn.model.Leg
 import de.openbahn.model.RatedJourney
 import de.openbahn.model.StopEvent
+import de.openbahn.model.delayMinutesFromTimes
 import de.openbahn.navigator.R
 import de.openbahn.navigator.ui.util.formatDurationMinutes
 import de.openbahn.navigator.ui.util.formatJourneyClock
@@ -255,15 +256,17 @@ private fun JourneyTimeRangeHeader(journey: Journey) {
     val last = journey.legs.lastOrNull()?.destination
     val depScheduled = first?.scheduledTime ?: journey.departure
     val arrScheduled = last?.scheduledTime ?: journey.arrival
-    val depDisplay = first?.prognosedTime ?: depScheduled
-    val arrDisplay = last?.prognosedTime ?: arrScheduled
-    val depDelay = first?.delayMinutes ?: 0
-    val arrDelay = last?.delayMinutes ?: 0
+    val depDelay = first?.delayMinutes
+        ?: delayMinutesFromTimes(depScheduled, first?.prognosedTime)
+        ?: 0
+    val arrDelay = last?.delayMinutes
+        ?: delayMinutesFromTimes(arrScheduled, last?.prognosedTime)
+        ?: 0
     Column {
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             StopTimeText(
                 scheduled = depScheduled,
-                prognosed = depDisplay,
+                prognosed = first?.prognosedTime,
                 delayMinutes = depDelay,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
@@ -271,7 +274,7 @@ private fun JourneyTimeRangeHeader(journey: Journey) {
             Text("–", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             StopTimeText(
                 scheduled = arrScheduled,
-                prognosed = arrDisplay,
+                prognosed = last?.prognosedTime,
                 delayMinutes = arrDelay,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
@@ -299,7 +302,9 @@ private fun StopRow(
             StopTimeText(
                 scheduled = stop.scheduledTime,
                 prognosed = stop.prognosedTime,
-                delayMinutes = stop.delayMinutes ?: 0,
+                delayMinutes = stop.delayMinutes
+                    ?: delayMinutesFromTimes(stop.scheduledTime, stop.prognosedTime)
+                    ?: 0,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
             )
@@ -490,6 +495,9 @@ private fun StopTimeText(
     style: androidx.compose.ui.text.TextStyle,
     fontWeight: FontWeight? = null,
 ) {
+    val effectiveDelay = delayMinutes.takeIf { it > 0 }
+        ?: delayMinutesFromTimes(scheduled, prognosed)
+        ?: 0
     val display = prognosed?.takeIf { it.isNotBlank() } ?: scheduled
     val showScheduledStruck = prognosed != null && prognosed != scheduled
     Column(horizontalAlignment = Alignment.End) {
@@ -505,11 +513,11 @@ private fun StopTimeText(
             formatJourneyClock(display),
             style = style,
             fontWeight = fontWeight,
-            color = if (delayMinutes > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+            color = if (effectiveDelay > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
         )
-        if (delayMinutes > 0) {
+        if (effectiveDelay > 0) {
             Text(
-                stringResource(R.string.delay_minutes, delayMinutes),
+                stringResource(R.string.delay_minutes, effectiveDelay),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.error,
             )
