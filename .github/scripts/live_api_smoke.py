@@ -172,6 +172,8 @@ def text_field(obj: dict | None, key: str) -> str | None:
     if not obj:
         return None
     el = obj.get(key)
+    if isinstance(el, bool):
+        return None
     if isinstance(el, str):
         return el
     if isinstance(el, (int, float)) and key.lower().endswith("zeit"):
@@ -204,10 +206,20 @@ def time_field(obj: dict | None, *keys: str) -> str | None:
             if formatted:
                 return formatted
         if isinstance(el, dict):
-            for sub in ("zeitpunkt", "zeit", "value"):
-                t = text_field(el, sub)
-                if t:
-                    return t
+            nested = time_field(
+                el,
+                "zeitpunkt",
+                "zeit",
+                "abfahrtsZeitpunkt",
+                "ankunftsZeitpunkt",
+                "abfahrtszeit",
+                "ankunftszeit",
+                "abgangsZeitpunkt",
+                "dateTime",
+                "value",
+            )
+            if nested:
+                return nested
     return None
 
 
@@ -268,15 +280,38 @@ def map_abschnitt(section: dict) -> bool:
     arr_name = station_name(section, "ankunftsOrt", last_halt) or station_name_from_halt(ziel_halt)
     dep_time = time_field(
         section, "abfahrtsZeitpunkt", "abgangsZeitpunkt", "abfahrtsZeit", "abfahrt",
-    ) or time_field(start_halt, "abfahrtsZeitpunkt", "abfahrtsZeit", "zeitpunkt") or time_field(
+    ) or time_field(start_halt, "abfahrtsZeitpunkt", "abfahrtsZeit", "zeitpunkt", "abfahrt") or time_field(
         first_halt, "abfahrtsZeitpunkt", "abgangsDatum", "abfahrtsZeit",
     )
     arr_time = time_field(
         section, "ankunftsZeitpunkt", "ankunftsDatum", "ankunftsZeit", "ankunft",
-    ) or time_field(ziel_halt, "ankunftsZeitpunkt", "ankunftsZeit", "zeitpunkt") or time_field(
+    ) or time_field(ziel_halt, "ankunftsZeitpunkt", "ankunftsZeit", "zeitpunkt", "ankunft") or time_field(
         last_halt, "ankunftsZeitpunkt", "ankunftsDatum", "ankunftsZeit",
     )
     return bool(dep_name and arr_name and dep_time and arr_time)
+
+
+def abschnitt_parse_debug(section: dict) -> str:
+    halte = halte_array(section)
+    first_halt = halte[0] if halte else None
+    last_halt = halte[-1] if halte else None
+    start_halt = halt_object(section, "startHalt", "start", "abfahrtsHalt")
+    ziel_halt = halt_object(section, "zielHalt", "ziel", "ankunftsHalt")
+    dep_name = (
+        station_name(section, "abfahrtsOrt", first_halt)
+        or station_name(section, "abgangsOrt", first_halt)
+        or station_name_from_halt(start_halt)
+    )
+    arr_name = station_name(section, "ankunftsOrt", last_halt) or station_name_from_halt(ziel_halt)
+    dep_time = time_field(
+        section, "abfahrtsZeitpunkt", "abgangsZeitpunkt", "abfahrtsZeit", "abfahrt",
+    ) or time_field(start_halt, "abfahrtsZeitpunkt", "abfahrtsZeit", "zeitpunkt", "abfahrt")
+    arr_time = time_field(
+        section, "ankunftsZeitpunkt", "ankunftsDatum", "ankunftsZeit", "ankunft",
+    ) or time_field(ziel_halt, "ankunftsZeitpunkt", "ankunftsZeit", "zeitpunkt", "ankunft")
+    missing = [k for k, v in (("depName", dep_name), ("arrName", arr_name), ("depTime", dep_time), ("arrTime", arr_time)) if not v]
+    abfahrt_keys = list(section.get("abfahrt").keys()) if isinstance(section.get("abfahrt"), dict) else []
+    return f"missing={missing} abfahrtKeys={abfahrt_keys} sectionKeys={sorted(section.keys())[:16]}"
 
 
 def map_summary_leg(connection: dict) -> bool:
@@ -352,6 +387,11 @@ def main() -> None:
             "FAIL: API returned connections but none have parseable legs — "
             'app would show "No connections found" (parser/schema issue)',
         )
+        conns, _ = extract_connection_elements(data)
+        if conns:
+            sample = flatten_abschnitte(conns[0])
+            sec = sample[0] if sample else conns[0]
+            print(f"hint: {abschnitt_parse_debug(sec)}", file=sys.stderr)
         sys.exit(1)
 
     first = merge_connection((data.get("verbindungen") or [{}])[0])

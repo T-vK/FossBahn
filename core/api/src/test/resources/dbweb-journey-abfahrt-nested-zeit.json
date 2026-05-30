@@ -1,0 +1,36 @@
+{
+  "verbindungen": [
+    {
+      "tripId": "abfahrt_nested_zeit_1",
+      "verbindungsAbschnitte": [
+        {
+          "abfahrtsOrt": "Hamburg Hbf",
+          "abfahrtsOrtExtId": "8002549",
+          "ankunftsOrt": "Berlin Hbf",
+          "ankunftsOrtExtId": "8011160",
+          "originCancelled": false,
+          "destinationCancelled": false,
+          "startHalt": {
+            "name": "Hamburg Hbf",
+            "extId": "8002549"
+          },
+          "zielHalt": {
+            "name": "Berlin Hbf",
+            "extId": "8011160"
+          },
+          "abfahrt": {
+            "abfahrtsZeitpunkt": 1748599200000
+          },
+          "ankunft": {
+            "ankunftsZeitpunkt": 1748606400000
+          },
+          "halte": [],
+          "verkehrsmittel": {
+            "name": "ICE 100",
+            "produktGattung": "ICE"
+          }
+        }
+      ]
+    }
+  ]
+}
