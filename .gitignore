@@ -11,3 +11,5 @@ captures/
 *.aab
 *.keystore
 keystore.properties
+.github/scripts/__pycache__/
+.kotlin/

@@ -1,0 +1,19 @@
+{
+  "verbindungen": [
+    {
+      "tripId": "epoch_millis_1",
+      "verbindungsDauerInSeconds": 7200,
+      "verbindungsAbschnitte": [
+        {
+          "abfahrtsOrt": "Hamburg Hbf",
+          "abfahrtsOrtExtId": "8002549",
+          "abfahrtsZeitpunkt": 1748599200000,
+          "ankunftsOrt": "Berlin Hbf",
+          "ankunftsOrtExtId": "8011160",
+          "ankunftsZeitpunkt": 1748606400000,
+          "verkehrsmittel": { "name": "ICE 701", "produktGattung": "ICE" }
+        }
+      ]
+    }
+  ]
+}
