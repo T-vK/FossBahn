@@ -144,17 +144,13 @@ class SearchViewModel(
     }
 
     fun selectFrom(location: Location) {
-        viewModelScope.launch {
-            locationHistory.recordUsed(location)
-            _state.update { it.copy(from = location, fromQuery = location.name, fromSuggestions = emptyList()) }
-        }
+        _state.update { it.copy(from = location, fromQuery = location.name, fromSuggestions = emptyList()) }
+        viewModelScope.launch { locationHistory.recordUsed(location) }
     }
 
     fun selectTo(location: Location) {
-        viewModelScope.launch {
-            locationHistory.recordUsed(location)
-            _state.update { it.copy(to = location, toQuery = location.name, toSuggestions = emptyList()) }
-        }
+        _state.update { it.copy(to = location, toQuery = location.name, toSuggestions = emptyList()) }
+        viewModelScope.launch { locationHistory.recordUsed(location) }
     }
 
     fun updateOptions(options: JourneySearchOptions) {
