@@ -112,6 +112,13 @@ fun JourneyCard(
                 }
             }
 
+            if (journey.transfers == 0 && predictionsRequested) {
+                PunctualityBlock(
+                    probability = prediction?.punctualityProbability,
+                    isEstimate = prediction?.punctualityIsEstimate == true,
+                )
+            }
+
             onTrack?.let {
                 TextButton(onClick = it, modifier = Modifier.align(Alignment.End)) {
                     Text(stringResource(R.string.track_journey))
@@ -259,6 +266,56 @@ private fun IntermediateStopsBlock(stops: List<StopEvent>, legIndex: Int) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun PunctualityBlock(
+    probability: Double?,
+    isEstimate: Boolean,
+) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        HorizontalDivider()
+        Text(
+            stringResource(R.string.direct_connection),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Medium,
+        )
+        val probabilityPercent = probability
+        when {
+            probabilityPercent != null -> {
+                val labelRes = if (isEstimate) {
+                    R.string.punctuality_probability_estimate
+                } else {
+                    R.string.punctuality_probability
+                }
+                Text(
+                    stringResource(labelRes, (probabilityPercent * 100).toInt().coerceIn(0, 100)),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = when {
+                        probabilityPercent >= 0.8 -> MaterialTheme.colorScheme.tertiary
+                        probabilityPercent >= 0.5 -> MaterialTheme.colorScheme.primary
+                        else -> MaterialTheme.colorScheme.error
+                    },
+                    modifier = Modifier.testTag("journey_punctuality"),
+                )
+            }
+            else -> {
+                Text(
+                    stringResource(R.string.prediction_unavailable),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("journey_punctuality"),
+                )
+            }
+        }
+        HorizontalDivider()
     }
 }
 

@@ -44,6 +44,8 @@ class FakeJourneySearchRepository : JourneySearchRepository {
                 predictions = List(journey.transfers.coerceAtLeast(0)) { index ->
                     TransferPrediction(legIndex = index, successProbability = 0.85)
                 },
+                punctualityProbability = if (journey.transfers == 0) 0.9 else null,
+                punctualityIsEstimate = journey.transfers == 0,
             )
         }
 

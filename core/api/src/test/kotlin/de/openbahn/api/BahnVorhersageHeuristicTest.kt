@@ -34,4 +34,24 @@ class BahnVorhersageHeuristicTest {
         assertTrue(predictions[0].isEstimate)
         assertTrue((predictions[0].successProbability ?: 0.0) > 0.5)
     }
+
+    @Test
+    fun estimatePunctuality_forDirectJourney_returnsHighScoreWhenOnTime() {
+        val journey = Journey(
+            id = "direct",
+            legs = listOf(
+                Leg(
+                    origin = StopEvent("Hamburg Hbf", scheduledTime = "2026-05-30T10:00:00"),
+                    destination = StopEvent("Berlin Hbf", scheduledTime = "2026-05-30T12:00:00"),
+                    lineName = "ICE 701",
+                ),
+            ),
+            durationMinutes = 120,
+            transfers = 0,
+            departure = "2026-05-30T10:00:00",
+            arrival = "2026-05-30T12:00:00",
+        )
+        val score = BahnVorhersageHeuristic.estimatePunctuality(journey)
+        assertTrue((score ?: 0.0) > 0.7)
+    }
 }

@@ -20,9 +20,8 @@
     <string name="info_no_connections">No connections found for this route and time. Try different options or a later departure.</string>
     <string name="filters">Options</string>
     <string name="nav_search">Search</string>
-    <string name="nav_board">Departures</string>
     <string name="nav_tickets">Tickets</string>
-    <string name="nav_tracking">Tracking</string>
+    <string name="nav_tracking">Live Updates</string>
     <string name="board_title">Station board</string>
     <string name="station">Station</string>
     <string name="departures">Departures</string>
@@ -32,7 +31,7 @@
     <string name="import_dticket_photo">Import Deutschland-Ticket (incl. photo)</string>
     <string name="dticket_import_hint">Import PDF tickets from DB Navigator or add your Deutschland-Ticket with photo (Lichtbild) for inspection.</string>
     <string name="dticket_photo">Ticket photo</string>
-    <string name="tracking_title">Live tracking</string>
+    <string name="tracking_title">Live Updates</string>
     <string name="tracking_description">Tracked journeys are checked every 15 minutes. You receive a notification when delays exceed your threshold.</string>
     <string name="stop_tracking">Stop tracking</string>
     <string name="track_journey">Track journey</string>
@@ -40,6 +39,9 @@
     <string name="dticket_valid">Valid with Deutschland-Ticket</string>
     <string name="transfer_probability">Connection probability: %d%%</string>
     <string name="transfer_probability_estimate">Estimated connection chance: %d%% (transfer time)</string>
+    <string name="direct_connection">Direct connection</string>
+    <string name="punctuality_probability">On-time probability: %d%%</string>
+    <string name="punctuality_probability_estimate">Estimated on-time chance: %d%%</string>
     <string name="prediction_unavailable">Bahn-Vorhersage: no prediction for this transfer</string>
     <string name="transfer_at">Transfer at %1$s</string>
     <string name="departure">Departure</string>

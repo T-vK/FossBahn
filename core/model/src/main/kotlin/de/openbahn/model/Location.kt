@@ -94,4 +94,10 @@ data class TransferPrediction(
 data class RatedJourney(
     val journey: Journey,
     val predictions: List<TransferPrediction> = emptyList(),
+    /**
+     * For direct connections: probability the final train arrives with at most ~10 min
+     * additional delay (Bahn-Vorhersage “Pünktlichkeit”).
+     */
+    val punctualityProbability: Double? = null,
+    val punctualityIsEstimate: Boolean = false,
 )

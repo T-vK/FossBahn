@@ -20,9 +20,8 @@
     <string name="info_no_connections">Keine Verbindungen für diese Route und Zeit gefunden. Andere Optionen oder Abfahrtszeit wählen.</string>
     <string name="filters">Optionen</string>
     <string name="nav_search">Suche</string>
-    <string name="nav_board">Abfahrten</string>
     <string name="nav_tickets">Tickets</string>
-    <string name="nav_tracking">Live</string>
+    <string name="nav_tracking">Live-Updates</string>
     <string name="board_title">Bahnhofstafel</string>
     <string name="station">Bahnhof</string>
     <string name="departures">Abfahrten</string>
@@ -32,7 +31,7 @@
     <string name="import_dticket_photo">Deutschland-Ticket importieren (inkl. Lichtbild)</string>
     <string name="dticket_import_hint">Importieren Sie PDF-Tickets aus dem DB Navigator oder fügen Sie Ihr Deutschland-Ticket mit Lichtbild zur Kontrolle hinzu.</string>
     <string name="dticket_photo">Ticket-Foto</string>
-    <string name="tracking_title">Live-Verfolgung</string>
+    <string name="tracking_title">Live-Updates</string>
     <string name="tracking_description">Verfolgte Verbindungen werden alle 15 Minuten geprüft. Bei Verspätungen erhalten Sie eine Benachrichtigung.</string>
     <string name="stop_tracking">Verfolgung beenden</string>
     <string name="track_journey">Verbindung verfolgen</string>
@@ -40,6 +39,9 @@
     <string name="dticket_valid">Mit Deutschland-Ticket gültig</string>
     <string name="transfer_probability">Anschlusswahrscheinlichkeit: %d%%</string>
     <string name="transfer_probability_estimate">Geschätzte Anschlusschance: %d%% (Umsteigezeit)</string>
+    <string name="direct_connection">Direktverbindung</string>
+    <string name="punctuality_probability">Pünktlichkeitswahrscheinlichkeit: %d%%</string>
+    <string name="punctuality_probability_estimate">Geschätzte Pünktlichkeit: %d%%</string>
     <string name="prediction_unavailable">Bahn-Vorhersage: keine Prognose für diesen Umstieg</string>
     <string name="transfer_at">Umstieg in %1$s</string>
     <string name="departure">Abfahrt</string>
