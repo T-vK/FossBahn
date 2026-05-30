@@ -4,6 +4,8 @@ import de.openbahn.api.dto.DbJourneyResponse
 import de.openbahn.api.dto.DbLocationResponse
 import de.openbahn.api.dto.DbOrt
 import de.openbahn.api.dto.DbStationBoardResponse
+import de.openbahn.api.debug.FahrplanDiagnostics
+import de.openbahn.api.debug.OpenBahnDebugLog
 import de.openbahn.api.mapper.JourneyMapper
 import de.openbahn.api.mapper.JourneyResponseParser
 import de.openbahn.api.mapper.LocationMapper
@@ -53,6 +55,7 @@ class DbVendoClient(
     }
 
     suspend fun searchLocations(query: String, locale: String = "de"): List<Location> {
+        OpenBahnDebugLog.d("DbVendo", "searchLocations q=\"$query\" locale=$locale")
         val raw = httpClient.get("$baseUrl/reiseloesung/orte") {
             parameter("suchbegriff", query)
             parameter("typ", "ALL")
@@ -61,13 +64,19 @@ class DbVendoClient(
         }
         val text = raw.body<String>()
         if (text.contains("OPS_BLOCKED")) throw DbApiBlockedException("Location search blocked")
-        return try {
+        val locations = try {
             val asList = json.decodeFromString<List<DbOrt>>(text)
             LocationMapper.mapOrtList(asList)
         } catch (_: Exception) {
             val wrapped = json.decodeFromString<DbLocationResponse>(text)
             LocationMapper.mapLocations(wrapped)
         }
+        OpenBahnDebugLog.d(
+            "DbVendo",
+            "searchLocations q=\"$query\" -> ${locations.size} hit(s): " +
+                locations.take(4).joinToString { FahrplanDiagnostics.describeLocation(it) },
+        )
+        return locations
     }
 
     suspend fun searchJourneys(
@@ -75,7 +84,15 @@ class DbVendoClient(
         to: Location,
         options: JourneySearchOptions = JourneySearchOptions(),
         whenTime: LocalDateTime = LocalDateTime.now(),
-    ): List<Journey> = parseJourneyResponse(postFahrplan(from, to, options, whenTime))
+    ): List<Journey> {
+        val raw = postFahrplan(from, to, options, whenTime)
+        val journeys = parseJourneyResponse(raw)
+        OpenBahnDebugLog.d(
+            "DbVendo",
+            "searchJourneys ${from.name} -> ${to.name} at $whenTime -> ${journeys.size} journey(s)",
+        )
+        return journeys
+    }
 
     /** Raw POST /angebote/fahrplan body (for live integration diagnostics). */
     internal suspend fun postFahrplan(
@@ -85,16 +102,28 @@ class DbVendoClient(
         whenTime: LocalDateTime,
     ): String {
         val body = JourneyRequestBuilder.build(from, to, options, whenTime)
+        OpenBahnDebugLog.d(
+            "DbVendo",
+            "postFahrplan ${FahrplanDiagnostics.describeLocation(from)} -> " +
+                "${FahrplanDiagnostics.describeLocation(to)} anfrageZeitpunkt=$whenTime",
+        )
         return try {
-            httpClient.post("$baseUrl/angebote/fahrplan") {
+            val text = httpClient.post("$baseUrl/angebote/fahrplan") {
                 contentType(ContentType.Application.Json)
                 setBody(body)
             }.bodyAsText()
+            OpenBahnDebugLog.d("DbVendo", "postFahrplan response ${FahrplanDiagnostics.summarizeFahrplanBody(text)}")
+            text
         } catch (e: ClientRequestException) {
             val errorBody = runCatching { e.response.bodyAsText() }.getOrDefault("")
+            OpenBahnDebugLog.w(
+                "DbVendo",
+                "postFahrplan HTTP ${e.response.status.value} ${FahrplanDiagnostics.summarizeFahrplanBody(errorBody)}",
+            )
             if (errorBody.contains("OPS_BLOCKED")) throw DbApiBlockedException("Journey search blocked")
             throw DbApiException("HTTP_${e.response.status.value}")
         } catch (e: ServerResponseException) {
+            OpenBahnDebugLog.w("DbVendo", "postFahrplan HTTP ${e.response.status.value}")
             throw DbApiException("HTTP_${e.response.status.value}")
         }
     }

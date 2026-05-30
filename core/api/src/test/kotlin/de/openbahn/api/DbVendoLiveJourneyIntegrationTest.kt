@@ -2,9 +2,10 @@ package de.openbahn.api
 
 import de.openbahn.api.LiveApiTestSupport.apiCall
 import de.openbahn.api.LiveApiTestSupport.assertJourneysNotEmpty
+import de.openbahn.api.LiveApiTestSupport.assumeBlockedByResponseBody
 import de.openbahn.api.LiveApiTestSupport.findStation
+import de.openbahn.api.LiveApiTestSupport.parseFahrplanResponse
 import de.openbahn.api.LiveApiTestSupport.requireFullBahnId
-import de.openbahn.api.mapper.JourneyResponseParser
 import de.openbahn.model.JourneySearchOptions
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -41,7 +42,8 @@ class DbVendoLiveJourneyIntegrationTest {
         val raw = apiCall {
             client.postFahrplan(hamburg, berlin, JourneySearchOptions(), whenTime)
         }
-        val journeys = JourneyResponseParser.parse(raw)
+        assumeBlockedByResponseBody(raw)
+        val journeys = parseFahrplanResponse(raw)
         assertJourneysNotEmpty(journeys, hamburg, berlin, raw)
 
         val stopNames = journeys.first().legs.flatMap { listOf(it.origin.name, it.destination.name) }

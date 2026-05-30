@@ -3,6 +3,7 @@ package de.openbahn.navigator
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import de.openbahn.api.debug.OpenBahnDebugLog
 import de.openbahn.navigator.di.appModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
@@ -10,6 +11,7 @@ import org.koin.core.context.startKoin
 class OpenBahnApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        OpenBahnDebugLog.isEnabled = BuildConfig.DEBUG
         createNotificationChannels()
         startKoin {
             androidContext(this@OpenBahnApplication)

@@ -1,12 +1,9 @@
 package de.openbahn.api
 
+import de.openbahn.api.debug.FahrplanDiagnostics
 import de.openbahn.api.mapper.JourneyResponseParser
+import de.openbahn.model.Journey
 import de.openbahn.model.Location
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import java.time.LocalDateTime
@@ -36,8 +33,24 @@ internal object LiveApiTestSupport {
     suspend fun <T> apiCall(block: suspend () -> T): T = try {
         block()
     } catch (e: DbApiBlockedException) {
-        assumeTrue(false, "Deutsche Bahn blocked this IP (OPS_BLOCKED): ${e.message}")
+        assumeBlocked(e)
         error("unreachable")
+    }
+
+    /** Parse fahrplan JSON with OPS_BLOCKED → skipped test (not failed). */
+    suspend fun parseFahrplanResponse(raw: String): List<Journey> = apiCall {
+        JourneyResponseParser.parse(raw)
+    }
+
+    fun assumeBlockedByResponseBody(raw: String) {
+        if (raw.contains("OPS_BLOCKED")) {
+            assumeTrue(false, "Deutsche Bahn blocked this IP (OPS_BLOCKED) in response body")
+        }
+    }
+
+    private fun assumeBlocked(e: DbApiBlockedException): Nothing {
+        assumeTrue(false, "Deutsche Bahn blocked this IP (OPS_BLOCKED): ${e.message}")
+        throw AssertionError("unreachable")
     }
 
     fun requireFullBahnId(location: Location, label: String) {
@@ -60,20 +73,5 @@ internal object LiveApiTestSupport {
         )
     }
 
-    fun summarizeFahrplanResponse(raw: String): String {
-        if (raw.contains("OPS_BLOCKED")) return "Response was OPS_BLOCKED."
-        return try {
-            val root = Json.parseToJsonElement(raw).jsonObject
-            val top = root["verbindungen"]?.jsonArray?.size ?: 0
-            val intervalle = root["intervalle"]?.jsonArray?.size ?: 0
-            val intervalConnections = root["intervalle"]?.jsonArray.orEmpty().sumOf {
-                it.jsonObject["verbindungen"]?.jsonArray?.size ?: 0
-            }
-            val status = root["status"]?.jsonPrimitive?.content
-            "API summary: status=$status top-level verbindungen=$top intervalle=$intervalle " +
-                "connectionsInIntervalle=$intervalConnections bodyLength=${raw.length}"
-        } catch (_: Exception) {
-            "Could not summarize response (length=${raw.length})."
-        }
-    }
+    fun summarizeFahrplanResponse(raw: String): String = FahrplanDiagnostics.summarizeFahrplanBody(raw)
 }
