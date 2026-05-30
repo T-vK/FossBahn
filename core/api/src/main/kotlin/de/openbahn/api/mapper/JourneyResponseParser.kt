@@ -397,14 +397,19 @@ internal object JourneyResponseParser {
         for (key in keys) {
             when (val el = obj[key] ?: continue) {
                 is JsonPrimitive -> parseTimePrimitive(el)?.let { return it }
-                is JsonObject -> {
-                    text(el, "zeitpunkt")?.let { return it }
-                    text(el, "zeit")?.let { return it }
-                    text(el, "abfahrtszeit")?.let { return it }
-                    text(el, "ankunftszeit")?.let { return it }
-                    text(el, "dateTime")?.let { return it }
-                    text(el, "value")?.let { return it }
-                }
+                is JsonObject ->
+                    timeText(
+                        el,
+                        "zeitpunkt",
+                        "zeit",
+                        "abfahrtsZeitpunkt",
+                        "ankunftsZeitpunkt",
+                        "abfahrtszeit",
+                        "ankunftszeit",
+                        "abgangsZeitpunkt",
+                        "dateTime",
+                        "value",
+                    )?.let { return it }
                 else -> Unit
             }
         }

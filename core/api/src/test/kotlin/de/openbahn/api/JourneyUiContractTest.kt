@@ -65,6 +65,15 @@ class JourneyUiContractTest {
     }
 
     @Test
+    fun abfahrtNestedAbfahrtsZeitpunktFixture_yieldsJourneysForUi() {
+        val text = javaClass.getResource("/dbweb-journey-abfahrt-nested-zeit.json")!!.readText()
+        val journeys = JourneyResponseParser.parse(text)
+        assertUiContract(journeys, "abfahrt/ankunft with nested abfahrtsZeitpunkt")
+        assertTrue(journeys.first().legs.first().origin.name.contains("Hamburg"))
+        assertTrue(journeys.first().legs.first().destination.name.contains("Berlin"))
+    }
+
+    @Test
     fun startHaltAbfahrtFixture_yieldsJourneysForUi() {
         val text = javaClass.getResource("/dbweb-journey-starthalt-abfahrt.json")!!.readText()
         val journeys = JourneyResponseParser.parse(text)
