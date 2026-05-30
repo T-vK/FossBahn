@@ -73,6 +73,32 @@ chmod +x .github/scripts/run-live-api-smoke.sh
 
 Expect `parseableRoutes > 0` when the parser matches the live API.
 
+### Termux: delay scenario verification (ICE 603 / FLX 1247)
+
+Without Java (offline fixtures only):
+
+```bash
+python3 scripts/verify-delay-scenarios.py --fixtures
+# or (auto-falls back when java is missing):
+./scripts/verify-delay-scenarios.sh
+```
+
+With JDK 17 (same as Gradle on desktop):
+
+```bash
+pkg install -y openjdk-17
+export JAVA_HOME=$PREFIX/lib/jvm/java-17-openjdk
+export PATH="$JAVA_HOME/bin:$PATH"
+./scripts/verify-delay-scenarios.sh
+```
+
+Live API trace (evening runs may skip ICE delays — API clears old `verspaetung`):
+
+```bash
+python3 scripts/verify-delay-scenarios.py --when 2026-05-30T12:00:00
+python3 scripts/verify-delay-scenarios.py --strict   # fail if historical delays missing
+```
+
 ### Debug logs (debug APK)
 
 ```bash
