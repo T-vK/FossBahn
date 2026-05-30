@@ -2,6 +2,13 @@
 
 Technical documentation for building, testing, and publishing OpenBahn Navigator.
 
+**Repository:** [github.com/T-vK/OpenBahn-Navigator](https://github.com/T-vK/OpenBahn-Navigator)
+
+```bash
+git clone https://github.com/T-vK/OpenBahn-Navigator.git
+cd OpenBahn-Navigator
+```
+
 ## Architecture
 
 ```
