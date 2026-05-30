@@ -15,6 +15,11 @@ val versionProps = Properties().apply {
 val appVersionName = versionProps.getProperty("versionName", "0.1.0")
 val appVersionCode = versionProps.getProperty("versionCode", "1").toInt()
 
+val ciKeystore = rootProject.file(".github/signing/openbahn-ci.jks")
+val ciKeystoreProps = rootProject.file(".github/signing/ci.properties")
+val useCiSigning = ciKeystore.exists() && ciKeystoreProps.exists() &&
+    (System.getenv("CI") == "true" || project.hasProperty("useCiSigning"))
+
 android {
     namespace = "de.openbahn.navigator"
     compileSdk = 35
@@ -29,6 +34,18 @@ android {
         vectorDrawables { useSupportLibrary = true }
     }
 
+    signingConfigs {
+        if (useCiSigning) {
+            val ciProps = Properties().apply { ciKeystoreProps.inputStream().use { load(it) } }
+            create("ci") {
+                storeFile = ciKeystore
+                storePassword = ciProps.getProperty("storePassword")
+                keyAlias = ciProps.getProperty("keyAlias")
+                keyPassword = ciProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -36,9 +53,15 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            if (useCiSigning) {
+                signingConfig = signingConfigs.getByName("ci")
+            }
         }
         debug {
             applicationIdSuffix = ".debug"
+            if (useCiSigning) {
+                signingConfig = signingConfigs.getByName("ci")
+            }
         }
     }
 
@@ -65,6 +88,17 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
         unitTests.all { it.useJUnitPlatform() }
+    }
+}
+
+@Suppress("DEPRECATION")
+android.applicationVariants.configureEach {
+    val vn = versionName
+    val vc = versionCode
+    val variantName = name
+    outputs.configureEach {
+        (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl).outputFileName =
+            "OpenBahnNavigator-v${vn}-${vc}-${variantName}.apk"
     }
 }
 
