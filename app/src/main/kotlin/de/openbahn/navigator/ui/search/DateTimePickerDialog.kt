@@ -5,8 +5,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
@@ -38,9 +40,9 @@ fun DateTimePickerDialog(
     onConfirm: (LocalDateTime, arrivalSearch: Boolean) -> Unit,
 ) {
     if (!visible) return
+
     val zone = ZoneId.systemDefault()
-    var arrivalMode by remember(visible) { mutableStateOf(arrivalSearch) }
-    var step by remember(visible) { mutableStateOf(PickerStep.DATE) }
+    var arrivalMode by remember(selected, arrivalSearch) { mutableStateOf(arrivalSearch) }
     val dateState = rememberDatePickerState(
         initialSelectedDateMillis = localDateTimeToEpochMillis(selected, zone),
     )
@@ -50,87 +52,59 @@ fun DateTimePickerDialog(
         is24Hour = true,
     )
 
-    when (step) {
-        PickerStep.DATE -> {
-            DatePickerDialog(
-                onDismissRequest = onDismiss,
-                confirmButton = {
-                    TextButton(onClick = { step = PickerStep.TIME }) {
-                        Text(stringResource(android.R.string.ok))
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = onDismiss) {
-                        Text(stringResource(android.R.string.cancel))
-                    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.search_when)) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    FilterChip(
+                        selected = !arrivalMode,
+                        onClick = { arrivalMode = false },
+                        label = { Text(stringResource(R.string.search_time_departure)) },
+                    )
+                    FilterChip(
+                        selected = arrivalMode,
+                        onClick = { arrivalMode = true },
+                        label = { Text(stringResource(R.string.search_time_arrival)) },
+                    )
+                }
+                DatePicker(state = dateState)
+                TimePicker(state = timeState)
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val millis = dateState.selectedDateMillis
+                        ?: localDateTimeToEpochMillis(selected, zone)
+                    val date = epochMillisToLocalDateTime(millis, zone).toLocalDate()
+                    val time = java.time.LocalTime.of(timeState.hour, timeState.minute)
+                    onConfirm(LocalDateTime.of(date, time), arrivalMode)
                 },
             ) {
-                Column(Modifier.padding(horizontal = 12.dp)) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        FilterChip(
-                            selected = !arrivalMode,
-                            onClick = { arrivalMode = false },
-                            label = { Text(stringResource(R.string.search_time_departure)) },
-                        )
-                        FilterChip(
-                            selected = arrivalMode,
-                            onClick = { arrivalMode = true },
-                            label = { Text(stringResource(R.string.search_time_arrival)) },
-                        )
-                    }
-                    DatePicker(state = dateState)
+                Text(stringResource(android.R.string.ok))
+            }
+        },
+        dismissButton = {
+            Row {
+                TextButton(
+                    onClick = {
+                        onConfirm(LocalDateTime.now(), arrivalMode)
+                    },
+                ) {
+                    Text(stringResource(R.string.search_time_now))
+                }
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(android.R.string.cancel))
                 }
             }
-        }
-        PickerStep.TIME -> {
-            androidx.compose.material3.AlertDialog(
-                onDismissRequest = onDismiss,
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            val millis = dateState.selectedDateMillis
-                                ?: localDateTimeToEpochMillis(selected, zone)
-                            val date = epochMillisToLocalDateTime(millis, zone).toLocalDate()
-                            val time = java.time.LocalTime.of(timeState.hour, timeState.minute)
-                            onConfirm(LocalDateTime.of(date, time), arrivalMode)
-                            onDismiss()
-                        },
-                    ) {
-                        Text(stringResource(android.R.string.ok))
-                    }
-                },
-                dismissButton = {
-                    Row {
-                        TextButton(
-                            onClick = {
-                                onConfirm(LocalDateTime.now(), arrivalMode)
-                                onDismiss()
-                            },
-                        ) {
-                            Text(stringResource(R.string.search_time_now))
-                        }
-                        TextButton(onClick = { step = PickerStep.DATE }) {
-                            Text(stringResource(R.string.search_pick_date))
-                        }
-                        TextButton(onClick = onDismiss) {
-                            Text(stringResource(android.R.string.cancel))
-                        }
-                    }
-                },
-                text = {
-                    Column {
-                        TimePicker(state = timeState)
-                    }
-                },
-            )
-        }
-    }
-}
-
-private enum class PickerStep {
-    DATE,
-    TIME,
+        },
+    )
 }

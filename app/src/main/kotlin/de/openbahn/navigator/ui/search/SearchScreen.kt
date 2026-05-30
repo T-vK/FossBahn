@@ -1,8 +1,8 @@
 package de.openbahn.navigator.ui.search
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -27,6 +27,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -184,21 +185,31 @@ fun SearchScreen(
                 }
             }
             item(key = "when_field") {
-                val whenInteraction = remember { MutableInteractionSource() }
-                OutlinedTextField(
-                    value = whenCaption,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text(stringResource(R.string.search_when)) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("search_when_field")
-                        .clickable(
-                            interactionSource = whenInteraction,
-                            indication = null,
-                        ) { showDateTimePicker = true },
-                    interactionSource = whenInteraction,
+                val fieldColors = OutlinedTextFieldDefaults.colors(
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledContainerColor = MaterialTheme.colorScheme.surface,
+                    disabledBorderColor = MaterialTheme.colorScheme.outline,
+                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = whenCaption,
+                        onValueChange = {},
+                        readOnly = true,
+                        enabled = false,
+                        label = { Text(stringResource(R.string.search_when)) },
+                        colors = fieldColors,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("search_when_field"),
+                    )
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable { showDateTimePicker = true }
+                            .testTag("search_when_open"),
+                    )
+                }
             }
             item(key = "search_button") {
                 Button(
