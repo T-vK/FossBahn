@@ -1,7 +1,7 @@
 name: F-Droid repo (manual)
 
 # Refresh the GitHub Pages F-Droid repo without cutting a new semver release.
-# Normal updates run automatically in the Release workflow (publish-fdroid job).
+# Normal updates run automatically in the Release workflow (deploy-fdroid-pages job).
 on:
   workflow_dispatch:
 

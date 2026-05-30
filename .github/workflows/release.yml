@@ -20,13 +20,17 @@ permissions:
 
 jobs:
   release:
-    # Avoid infinite loop when we push the version-bump commit
+    # Run on manual dispatch, or on push except version-bump bot commits (those use [skip ci]).
     if: >-
-      github.event_name == 'push' &&
-      !contains(github.event.head_commit.message, '[skip ci]') &&
-      !startsWith(github.event.head_commit.message, 'chore: release v')
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'push' &&
+        !contains(github.event.head_commit.message, '[skip ci]') &&
+        !startsWith(github.event.head_commit.message, 'chore: release v')
+      )
     runs-on: ubuntu-latest
     outputs:
+      published: ${{ steps.semver.outputs.skip == 'false' }}
       skip: ${{ steps.semver.outputs.skip }}
       version: ${{ steps.semver.outputs.version }}
     steps:
@@ -89,20 +93,15 @@ jobs:
 
       - name: Build debug APK (GitHub Release + F-Droid repo)
         if: steps.semver.outputs.skip == 'false'
+        id: build
         env:
           CI: true
         run: |
           chmod +x gradlew
           ./gradlew :app:assembleDebug --stacktrace
+          APK="$(ls -1 app/build/outputs/apk/debug/OpenBahnNavigator-*-debug.apk | head -1)"
+          echo "apk=$APK" >> "$GITHUB_OUTPUT"
           ls -la app/build/outputs/apk/debug/
-
-      - name: Upload debug APK for F-Droid job
-        if: steps.semver.outputs.skip == 'false'
-        uses: actions/upload-artifact@v4
-        with:
-          name: fdroid-debug-apk
-          path: app/build/outputs/apk/debug/OpenBahnNavigator-*-debug.apk
-          retention-days: 2
 
       - name: Publish GitHub Release
         if: steps.semver.outputs.skip == 'false'
@@ -127,42 +126,36 @@ jobs:
 
             **One-time:** If you installed an older release built before stable CI signing, uninstall once, then install this APK. Later releases upgrade without uninstalling as long as `versionCode` increases.
 
-  # Publishes https://<owner>.github.io/<repo>/fdroid/repo via GitHub Pages (requires Pages → Source: GitHub Actions).
-  publish-fdroid:
+      - name: Configure F-Droid repository signing
+        if: steps.semver.outputs.skip == 'false'
+        run: |
+          chmod +x .github/scripts/prepare-fdroid-signing.sh
+          .github/scripts/prepare-fdroid-signing.sh
+
+      - name: Update F-Droid repo index
+        if: steps.semver.outputs.skip == 'false'
+        run: |
+          chmod +x .github/scripts/update-fdroid-repo.sh
+          .github/scripts/update-fdroid-repo.sh --apk "${{ steps.build.outputs.apk }}"
+
+      - name: Upload GitHub Pages artifact
+        if: steps.semver.outputs.skip == 'false'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: fdroid-pages
+
+  # Deploys fdroid-pages artifact from the release job (GitHub Pages → Source: GitHub Actions).
+  deploy-fdroid-pages:
     needs: release
-    if: needs.release.outputs.skip == 'false'
+    if: needs.release.outputs.published == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     permissions:
-      contents: read
       pages: write
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-
-      - uses: ./.github/actions/android-build-setup
-
-      - name: Download debug APK from release job
-        uses: actions/download-artifact@v4
-        with:
-          name: fdroid-debug-apk
-          path: fdroid-debug-apk
-
-      - name: Resolve debug APK path
-        id: apk
-        run: |
-          APK="$(ls -1 fdroid-debug-apk/OpenBahnNavigator-*-debug.apk | head -1)"
-          echo "path=$APK" >> "$GITHUB_OUTPUT"
-          echo "F-Droid will index: $APK"
-
-      - uses: ./.github/actions/publish-fdroid-pages
-        with:
-          release-apk-path: ${{ steps.apk.outputs.path }}
-
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

@@ -108,7 +108,9 @@ User-facing install URL:
 
 **Settings → Pages → Build and deployment → Source: GitHub Actions**
 
-Each semver release runs one **`assembleDebug`** in the **release** job. The same APK is attached to GitHub Releases and passed to **publish-fdroid** for `fdroid update` only (no second compile).
+Each semver release runs one **`assembleDebug`** in the **release** job. The same APK is attached to GitHub Releases, indexed for F-Droid, and **deploy-fdroid-pages** publishes to GitHub Pages.
+
+**Why was `deploy-fdroid-pages` skipped?** Common cases: the push was only `chore: release v…` or `[skip ci]` (release job does not run); or semver found no `feat:`/`fix:` commits since the last tag (`published=false`). Check the **release** job — F-Droid deploy only runs when a version was actually published.
 
 ### Publish
 
