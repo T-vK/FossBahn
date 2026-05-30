@@ -15,8 +15,11 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 
 /**
- * Client for Bahn-Vorhersage delay/transfer predictions.
- * Uses the public API at bahnvorhersage.de (GPL-3.0, https://gitlab.com/bahnvorhersage).
+ * Transfer success probabilities via Bahn-Vorhersage (optional) or a local heuristic.
+ *
+ * The bahnvorhersage.de website does **not** expose a public API for third-party apps.
+ * Set [baseUrl] to a self-hosted predictor (see https://gitlab.com/bahnvorhersage/bahnvorhersage)
+ * or leave empty to use transfer-time estimates only.
  */
 class BahnVorhersageClient(
     private val baseUrl: String = DEFAULT_BASE_URL,
@@ -26,17 +29,25 @@ class BahnVorhersageClient(
         if (!BahnVorhersageRequestBuilder.hasTransferEvents(journey)) {
             return RatedJourney(journey = journey, predictions = emptyList())
         }
+        if (baseUrl.isNotBlank()) {
+            rateFromApi(journey)?.let { return it }
+        }
+        return RatedJourney(
+            journey = journey,
+            predictions = BahnVorhersageHeuristic.estimate(journey),
+        )
+    }
+
+    private suspend fun rateFromApi(journey: Journey): RatedJourney? {
         return try {
             val body = BahnVorhersageRequestBuilder.build(journey)
-            if (body.isEmpty()) {
-                OpenBahnDebugLog.w("BahnVorhersage", "empty rate request for journey ${journey.id}")
-                return RatedJourney(journey = journey, predictions = emptyList())
-            }
+            if (body.isEmpty()) return null
             val response: RateJourneysResponse = httpClient.post("$baseUrl/rate-journeys/") {
                 contentType(ContentType.Application.Json)
                 setBody(body)
             }.body()
             val scores = response.transferScores.orEmpty()
+            if (scores.isEmpty() || scores.all { it == null }) return null
             RatedJourney(
                 journey = journey,
                 predictions = scores.mapIndexed { index, score ->
@@ -44,12 +55,13 @@ class BahnVorhersageClient(
                         legIndex = index,
                         successProbability = score,
                         delayDistribution = response.predictions?.getOrNull(index),
+                        isEstimate = false,
                     )
                 },
             )
         } catch (e: Exception) {
-            OpenBahnDebugLog.w("BahnVorhersage", "rateJourney failed for ${journey.id}: ${e.message}")
-            RatedJourney(journey = journey, predictions = emptyList())
+            OpenBahnDebugLog.w("BahnVorhersage", "rateJourney API failed for ${journey.id}: ${e.message}")
+            null
         }
     }
 
@@ -63,6 +75,7 @@ class BahnVorhersageClient(
     )
 
     companion object {
-        const val DEFAULT_BASE_URL = "https://bahnvorhersage.de/api"
+        /** No public API — use heuristic unless a self-hosted predictor URL is configured. */
+        const val DEFAULT_BASE_URL = ""
     }
 }

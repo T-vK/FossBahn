@@ -3,6 +3,7 @@ package de.openbahn.navigator.di
 import androidx.room.Room
 import de.openbahn.api.BahnVorhersageClient
 import de.openbahn.api.DbVendoClient
+import de.openbahn.navigator.BuildConfig
 import de.openbahn.navigator.data.OpenBahnDatabase
 import de.openbahn.navigator.data.TicketRepository
 import de.openbahn.navigator.data.TrackedJourneyRepository
@@ -19,7 +20,7 @@ import org.koin.dsl.module
 
 val appModule = module {
     single { DbVendoClient() }
-    single { BahnVorhersageClient() }
+    single { BahnVorhersageClient(baseUrl = BuildConfig.BAHN_VORHERSAGE_API_URL) }
     single {
         Room.databaseBuilder(androidContext(), OpenBahnDatabase::class.java, "openbahn.db")
             .fallbackToDestructiveMigration()

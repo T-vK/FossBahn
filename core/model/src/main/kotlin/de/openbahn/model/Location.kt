@@ -86,6 +86,8 @@ data class TransferPrediction(
     val legIndex: Int,
     val successProbability: Double?,
     val delayDistribution: List<Double>? = null,
+    /** True when scored from transfer time only (no Bahn-Vorhersage API). */
+    val isEstimate: Boolean = false,
 )
 
 @Serializable

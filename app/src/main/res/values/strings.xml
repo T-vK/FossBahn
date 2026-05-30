@@ -39,6 +39,7 @@
     <string name="transfers_count">%d transfers</string>
     <string name="dticket_valid">Valid with Deutschland-Ticket</string>
     <string name="transfer_probability">Connection probability: %d%%</string>
+    <string name="transfer_probability_estimate">Estimated connection chance: %d%% (transfer time)</string>
     <string name="prediction_unavailable">Bahn-Vorhersage: no prediction for this transfer</string>
     <string name="transfer_at">Transfer at %1$s</string>
     <string name="departure">Departure</string>

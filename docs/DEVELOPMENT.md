@@ -129,6 +129,21 @@ CI caches `fdroid/repo/` and `fdroid/archive/` so older APKs stay available (`ar
 
 Fastlane-style metadata: `metadata/en-US/`. The main catalog would build from source; the custom repo ships CI **release** APKs.
 
+## Bahn-Vorhersage (transfer probabilities)
+
+Search results show **Anschlusswahrscheinlichkeit** between legs when the journey has at least one transfer.
+
+- **Default:** transfer-time heuristic (no network call). Label: “Geschätzte Anschlusschance … (Umsteigezeit)”.
+- **Optional ML scores:** run a [self-hosted Bahn-Vorhersage predictor](https://gitlab.com/bahnvorhersage/bahnvorhersage) and set in `gradle.properties`:
+
+  ```properties
+  bahnVorhersageApiUrl=http://127.0.0.1:8000/api
+  ```
+
+  The public `bahnvorhersage.de` site does **not** offer a third-party HTTP API ([FAQ](https://bahnvorhersage.de/)).
+
+Implementation: `BahnVorhersageClient`, `BahnVorhersageRequestBuilder`, `BahnVorhersageHeuristic`, `TransferBlock` in `CommonComponents.kt`.
+
 ## Contributing
 
 Issues and pull requests are welcome on [GitHub](https://github.com/T-vK/FossBahn). For journey parser changes, add a fixture under `core/api/src/test/resources/` and extend `JourneyUiContractTest`.

@@ -156,11 +156,14 @@ internal object BahnVorhersageRequestBuilder {
             else -> 3
         }
 
-    private fun transferMinutes(arrival: StopEvent, departure: StopEvent): Long? {
+    fun transferMinutesBetween(arrival: StopEvent, departure: StopEvent): Long? {
         val arr = parseInstant(arrival.prognosedTime ?: arrival.scheduledTime) ?: return null
         val dep = parseInstant(departure.prognosedTime ?: departure.scheduledTime) ?: return null
         return Duration.between(arr, dep).toMinutes()
     }
+
+    private fun transferMinutes(arrival: StopEvent, departure: StopEvent): Long? =
+        transferMinutesBetween(arrival, departure)
 
     private fun coordsFromStop(id: String?, name: String): Pair<Double, Double>? {
         coordsFromHaltId(id)?.let { return it }

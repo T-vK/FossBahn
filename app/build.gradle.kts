@@ -32,6 +32,8 @@ android {
         versionName = appVersionName
         testInstrumentationRunner = "de.openbahn.navigator.OpenBahnTestRunner"
         vectorDrawables { useSupportLibrary = true }
+        val bahnVorhersageApiUrl = (project.findProperty("bahnVorhersageApiUrl") as String?)?.trim().orEmpty()
+        buildConfigField("String", "BAHN_VORHERSAGE_API_URL", "\"$bahnVorhersageApiUrl\"")
     }
 
     signingConfigs {

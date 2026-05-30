@@ -299,8 +299,13 @@ private fun TransferBlock(
         val probability = prediction?.successProbability
         when {
             probability != null -> {
+                val labelRes = if (prediction?.isEstimate == true) {
+                    R.string.transfer_probability_estimate
+                } else {
+                    R.string.transfer_probability
+                }
                 Text(
-                    stringResource(R.string.transfer_probability, (probability * 100).toInt().coerceIn(0, 100)),
+                    stringResource(labelRes, (probability * 100).toInt().coerceIn(0, 100)),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Medium,
                     color = when {
