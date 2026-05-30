@@ -2,10 +2,12 @@ package de.openbahn.navigator.ui.search
 
 import de.openbahn.model.Journey
 import de.openbahn.model.JourneySearchOptions
+import de.openbahn.model.JourneySearchResult
 import de.openbahn.model.Leg
 import de.openbahn.model.Location
 import de.openbahn.model.RatedJourney
 import de.openbahn.model.StopEvent
+import de.openbahn.model.TransferPrediction
 import de.openbahn.navigator.domain.JourneySearchRepository
 import java.time.LocalDateTime
 
@@ -28,14 +30,22 @@ class FakeJourneySearchRepository : JourneySearchRepository {
         to: Location,
         options: JourneySearchOptions,
         whenTime: LocalDateTime,
-    ): List<Journey> = listOf(sampleJourney)
+        pagingReference: String?,
+    ): JourneySearchResult = JourneySearchResult(
+        journeys = listOf(sampleJourney),
+        pagingEarlier = if (pagingReference == null) "earlier-fake" else null,
+        pagingLater = if (pagingReference == null) "later-fake" else null,
+    )
 
-    override suspend fun searchWithPredictions(
-        from: Location,
-        to: Location,
-        options: JourneySearchOptions,
-        whenTime: LocalDateTime,
-    ): List<RatedJourney> = listOf(RatedJourney(journey = sampleJourney))
+    override suspend fun rateJourneys(journeys: List<Journey>): List<RatedJourney> =
+        journeys.map { journey ->
+            RatedJourney(
+                journey = journey,
+                predictions = List(journey.transfers.coerceAtLeast(0)) { index ->
+                    TransferPrediction(legIndex = index, successProbability = 0.85)
+                },
+            )
+        }
 
     val sampleJourney = Journey(
         id = "test-journey-1",

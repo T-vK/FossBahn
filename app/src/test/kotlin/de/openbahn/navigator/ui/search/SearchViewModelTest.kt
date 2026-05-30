@@ -1,6 +1,7 @@
 package de.openbahn.navigator.ui.search
 
 import de.openbahn.model.Journey
+import de.openbahn.model.JourneySearchResult
 import de.openbahn.model.Leg
 import de.openbahn.model.Location
 import de.openbahn.model.RatedJourney
@@ -18,10 +19,12 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class SearchViewModelTest {
     private val dispatcher = StandardTestDispatcher()
@@ -56,8 +59,15 @@ class SearchViewModelTest {
             }
         }
         coEvery {
-            searchRepository.searchWithPredictions(any(), any(), any(), any())
-        } returns listOf(RatedJourney(journey = sampleJourney))
+            searchRepository.searchJourneys(any(), any(), any(), any(), any())
+        } returns JourneySearchResult(
+            journeys = listOf(sampleJourney),
+            pagingEarlier = "earlier",
+            pagingLater = "later",
+        )
+        coEvery { searchRepository.rateJourneys(any()) } answers {
+            firstArg<List<Journey>>().map { RatedJourney(journey = it) }
+        }
     }
 
     @AfterEach
@@ -77,13 +87,15 @@ class SearchViewModelTest {
         assertTrue(state.journeys.isNotEmpty() || state.ratedJourneys.isNotEmpty())
         assertNull(state.error)
         assertEquals("test-journey-1", state.ratedJourneys.first().journey.id)
+        assertNotNull(state.pagingEarlier)
+        assertNotNull(state.pagingLater)
     }
 
     @Test
     fun search_withNoJourneys_showsInfoNotError() = runTest(dispatcher) {
         coEvery {
-            searchRepository.searchWithPredictions(any(), any(), any(), any())
-        } returns emptyList()
+            searchRepository.searchJourneys(any(), any(), any(), any(), any())
+        } returns JourneySearchResult()
         val viewModel = SearchViewModel(searchRepository, trackingRepository)
         viewModel.selectFrom(berlin)
         viewModel.selectTo(munich)

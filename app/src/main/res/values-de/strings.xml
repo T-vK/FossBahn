@@ -49,6 +49,9 @@
     <string name="show_intermediate_stations">%d Zwischenstationen anzeigen</string>
     <string name="hide_intermediate_stations">Zwischenstationen ausblenden</string>
     <string name="delay_minutes">+%d Min. Verspätung</string>
+    <string name="scheduled_time_short">Plan %1$s</string>
+    <string name="load_earlier_connections">Frühere Verbindungen</string>
+    <string name="load_later_connections">Spätere Verbindungen</string>
     <string name="filter_transport">Verkehrsmittel</string>
     <string name="filter_bike">Fahrradmitnahme</string>
     <string name="filter_direct">Nur Direktverbindungen</string>

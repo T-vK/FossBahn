@@ -4,9 +4,13 @@ import de.openbahn.api.BahnVorhersageClient
 import de.openbahn.api.DbVendoClient
 import de.openbahn.model.Journey
 import de.openbahn.model.JourneySearchOptions
+import de.openbahn.model.JourneySearchResult
 import de.openbahn.model.Location
 import de.openbahn.model.RatedJourney
 import java.time.LocalDateTime
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 
 interface JourneySearchRepository {
     suspend fun searchLocations(query: String, locale: String): List<Location>
@@ -15,13 +19,9 @@ interface JourneySearchRepository {
         to: Location,
         options: JourneySearchOptions,
         whenTime: LocalDateTime = LocalDateTime.now(),
-    ): List<Journey>
-    suspend fun searchWithPredictions(
-        from: Location,
-        to: Location,
-        options: JourneySearchOptions,
-        whenTime: LocalDateTime = LocalDateTime.now(),
-    ): List<RatedJourney>
+        pagingReference: String? = null,
+    ): JourneySearchResult
+    suspend fun rateJourneys(journeys: List<Journey>): List<RatedJourney>
 }
 
 class JourneySearchUseCase(
@@ -36,16 +36,13 @@ class JourneySearchUseCase(
         to: Location,
         options: JourneySearchOptions,
         whenTime: LocalDateTime,
-    ): List<Journey> = dbClient.searchJourneys(from, to, options, whenTime)
+        pagingReference: String?,
+    ): JourneySearchResult = dbClient.searchJourneys(from, to, options, whenTime, pagingReference)
 
-    override suspend fun searchWithPredictions(
-        from: Location,
-        to: Location,
-        options: JourneySearchOptions,
-        whenTime: LocalDateTime,
-    ): List<RatedJourney> {
-        val journeys = searchJourneys(from, to, options, whenTime)
-        return journeys.map { predictionClient.rateJourney(it) }
+    override suspend fun rateJourneys(journeys: List<Journey>): List<RatedJourney> = coroutineScope {
+        journeys.map { journey ->
+            async { predictionClient.rateJourney(journey) }
+        }.awaitAll()
     }
 }
 

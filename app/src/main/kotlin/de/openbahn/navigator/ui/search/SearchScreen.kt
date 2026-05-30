@@ -190,12 +190,33 @@ fun SearchScreen(
                     LoadingIndicator()
                 }
             }
+            if (state.hasSearched && state.journeys.isNotEmpty()) {
+                if (state.pagingEarlier != null) {
+                    item(key = "load_earlier") {
+                        OutlinedButton(
+                            onClick = { viewModel.loadEarlierConnections() },
+                            modifier = Modifier.fillMaxWidth().testTag("load_earlier_connections"),
+                            enabled = !state.isLoading && !state.isLoadingEarlier,
+                        ) {
+                            if (state.isLoadingEarlier) {
+                                androidx.compose.material3.CircularProgressIndicator(
+                                    modifier = Modifier.padding(end = 8.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                            }
+                            Text(stringResource(R.string.load_earlier_connections))
+                        }
+                    }
+                }
+            }
             val rated = state.ratedJourneys
+            val predictionsRequested = state.showPredictions && state.hasSearched
             if (rated.isNotEmpty()) {
                 items(rated, key = { it.journey.id }) { ratedJourney ->
                     JourneyCard(
                         journey = ratedJourney.journey,
                         prediction = ratedJourney,
+                        predictionsRequested = predictionsRequested,
                         onTrack = { viewModel.trackJourney(ratedJourney.journey, context) },
                     )
                 }
@@ -203,8 +224,26 @@ fun SearchScreen(
                 items(state.journeys, key = { it.id }) { journey ->
                     JourneyCard(
                         journey = journey,
+                        predictionsRequested = predictionsRequested,
                         onTrack = { viewModel.trackJourney(journey, context) },
                     )
+                }
+            }
+            if (state.hasSearched && state.journeys.isNotEmpty() && state.pagingLater != null) {
+                item(key = "load_later") {
+                    OutlinedButton(
+                        onClick = { viewModel.loadLaterConnections() },
+                        modifier = Modifier.fillMaxWidth().testTag("load_later_connections"),
+                        enabled = !state.isLoading && !state.isLoadingLater,
+                    ) {
+                        if (state.isLoadingLater) {
+                            androidx.compose.material3.CircularProgressIndicator(
+                                modifier = Modifier.padding(end = 8.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        }
+                        Text(stringResource(R.string.load_later_connections))
+                    }
                 }
             }
         }

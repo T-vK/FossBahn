@@ -1,0 +1,34 @@
+{
+  "verbindungen": [
+    {
+      "tripId": "delay_1",
+      "verbindungsAbschnitte": [
+        {
+          "abfahrtsOrt": "Hamburg Hbf",
+          "abfahrtsOrtExtId": "8002549",
+          "ankunftsOrt": "Berlin Hbf",
+          "ankunftsOrtExtId": "8011160",
+          "abfahrt": {
+            "sollzeit": "2026-05-30T12:00:00",
+            "prognosezeit": "2026-05-30T12:08:00",
+            "verspaetung": 8
+          },
+          "ankunft": {
+            "sollzeit": "2026-05-30T14:30:00",
+            "prognosezeit": "2026-05-30T14:45:00",
+            "verspaetung": 15
+          },
+          "halte": [],
+          "verkehrsmittel": {
+            "name": "ICE 701",
+            "produktGattung": "ICE"
+          }
+        }
+      ]
+    }
+  ],
+  "verbindungReference": {
+    "earlier": "earlier-token-test",
+    "later": "later-token-test"
+  }
+}

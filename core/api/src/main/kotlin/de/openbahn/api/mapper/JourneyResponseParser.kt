@@ -6,6 +6,7 @@ import de.openbahn.api.DbParseException
 import de.openbahn.api.debug.OpenBahnDebugLog
 import de.openbahn.api.debug.FahrplanDiagnostics
 import de.openbahn.model.Journey
+import de.openbahn.model.JourneySearchResult
 import de.openbahn.model.Leg
 import de.openbahn.model.StopEvent
 import de.openbahn.model.TransportProduct
@@ -24,6 +25,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import java.time.Instant
+import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.UUID
@@ -50,7 +52,7 @@ internal object JourneyResponseParser {
     private val berlinZone = ZoneId.of("Europe/Berlin")
     private val isoLocalFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
 
-    fun parse(text: String): List<Journey> {
+    fun parse(text: String): JourneySearchResult {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) throw DbParseException("Empty response body")
         if (trimmed.contains("OPS_BLOCKED")) throw DbApiBlockedException("Journey search blocked")
@@ -63,12 +65,12 @@ internal object JourneyResponseParser {
 
         return when (root) {
             is JsonObject -> parseRootObject(root)
-            is JsonArray -> root.mapNotNull { mapVerbindung(it) }
+            is JsonArray -> JourneySearchResult(journeys = root.mapNotNull { mapVerbindung(it) })
             else -> throw DbParseException("Unexpected JSON root type")
         }
     }
 
-    private fun parseRootObject(root: JsonObject): List<Journey> {
+    private fun parseRootObject(root: JsonObject): JourneySearchResult {
         root["fehlerNachricht"]?.jsonObject?.let { err ->
             val code = text(err, "code") ?: "API_ERROR"
             if (code == "OPS_BLOCKED") throw DbApiBlockedException("Journey search blocked")
@@ -103,8 +105,71 @@ internal object JourneyResponseParser {
                     "sampleTopAbschnitte=$topCount flattenedLegs=${flat.size} abschnittKeys=$sampleKeys",
             )
         }
-        return journeys
+        val (earlier, later) = extractPaging(root)
+        return JourneySearchResult(
+            journeys = journeys,
+            pagingEarlier = earlier,
+            pagingLater = later,
+        )
     }
+
+    private fun extractPaging(root: JsonObject): Pair<String?, String?> {
+        root["verbindungReference"]?.jsonObject?.let { ref ->
+            return text(ref, "earlier") to text(ref, "later")
+        }
+        val single = text(root, "pagingReference")
+        return null to single
+    }
+
+    private data class ParsedStopTimes(
+        val scheduled: String,
+        val prognosed: String? = null,
+        val delayMinutes: Int? = null,
+    )
+
+    private fun parseStopTimes(obj: JsonObject?): ParsedStopTimes? {
+        if (obj == null) return null
+        val scheduled = timeText(obj, "sollzeit", "abfahrtsZeitpunkt", "ankunftsZeitpunkt", "zeitpunkt", "zeit")
+            ?: return null
+        val prognosed = timeText(obj, "prognosezeit", "prognoseZeit", "istzeit", "istZeit")
+            ?: timeText(obj["prognose"]?.jsonObject, "zeitpunkt", "prognosezeit", "istzeit")
+        val delay = intVal(obj, "verspaetung")
+            ?: intVal(obj["prognose"]?.jsonObject, "verspaetung")
+            ?: computeDelayMinutes(scheduled, prognosed)
+        return ParsedStopTimes(scheduled, prognosed, delay)
+    }
+
+    private fun computeDelayMinutes(scheduled: String, prognosed: String?): Int? {
+        if (prognosed == null || prognosed == scheduled) return null
+        val s = parseInstantMillis(scheduled) ?: return null
+        val p = parseInstantMillis(prognosed) ?: return null
+        val mins = ((p - s) / 60_000).toInt()
+        return mins.takeIf { it > 0 }
+    }
+
+    private fun parseInstantMillis(iso: String): Long? = try {
+        Instant.parse(iso).toEpochMilli()
+    } catch (_: Exception) {
+        try {
+            LocalDateTime.parse(iso.take(19), isoLocalFormatter).atZone(berlinZone).toInstant().toEpochMilli()
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun stopEventFromParsed(
+        name: String,
+        id: String?,
+        platform: String?,
+        times: ParsedStopTimes,
+    ) = StopEvent(
+        name = name,
+        id = id,
+        platform = platform,
+        scheduledTime = times.scheduled,
+        prognosedTime = times.prognosed,
+        delayMinutes = times.delayMinutes,
+    )
 
     private fun extractVerbindungElements(root: JsonObject): Pair<List<JsonElement>, String> {
         root["verbindungen"]?.jsonArray?.let { top ->
@@ -229,8 +294,8 @@ internal object JourneyResponseParser {
             transfers = intVal(v, "umstiegsAnzahl")
                 ?: intVal(v, "umstiege")
                 ?: (legs.size - 1).coerceAtLeast(0),
-            departure = timeText(v, "abfahrtsZeit", "abfahrtsZeitpunkt") ?: legs.first().origin.scheduledTime,
-            arrival = timeText(v, "ankunftsZeit", "ankunftsZeitpunkt") ?: legs.last().destination.scheduledTime,
+            departure = legs.first().origin.prognosedTime ?: legs.first().origin.scheduledTime,
+            arrival = legs.last().destination.prognosedTime ?: legs.last().destination.scheduledTime,
             priceHint = priceHint(v),
             refreshToken = text(v, "ctxRecon") ?: text(v, "kontext"),
             deutschlandTicketValid = bool(v, "dticketGueltig"),
@@ -253,8 +318,8 @@ internal object JourneyResponseParser {
             ?: stationName(a, "ankunftsBahnhof", lastHalt)
             ?: stationNameFromHalt(zielHalt)
             ?: return null
-        val depTime = sectionDepartureTime(a, firstHalt, startHalt) ?: return null
-        val arrTime = sectionArrivalTime(a, lastHalt, zielHalt) ?: return null
+        val depTimes = sectionDepartureTimes(a, firstHalt, startHalt) ?: return null
+        val arrTimes = sectionArrivalTimes(a, lastHalt, zielHalt) ?: return null
         val depPlatform = text(a, "gleis")
             ?: text(a, "abfahrtsGleis")
             ?: text(firstHalt, "gleis")
@@ -264,19 +329,21 @@ internal object JourneyResponseParser {
             ?: text(lastHalt, "gleis")
             ?: text(zielHalt, "gleis")
         return Leg(
-            origin = StopEvent(
+            origin = stopEventFromParsed(
                 name = depName,
                 id = stationExtId(a, "abfahrtsOrt", "abfahrtsOrtExtId", firstHalt)
-                    ?: stationExtIdFromHalt(startHalt),
+                    ?: stationExtIdFromHalt(startHalt)
+                    ?: text(firstHalt, "id"),
                 platform = depPlatform,
-                scheduledTime = depTime,
+                times = depTimes,
             ),
-            destination = StopEvent(
+            destination = stopEventFromParsed(
                 name = arrName,
                 id = stationExtId(a, "ankunftsOrt", "ankunftsOrtExtId", lastHalt)
-                    ?: stationExtIdFromHalt(zielHalt),
+                    ?: stationExtIdFromHalt(zielHalt)
+                    ?: text(lastHalt, "id"),
                 platform = arrPlatform,
-                scheduledTime = arrTime,
+                times = arrTimes,
             ),
             intermediateStops = mapIntermediateStops(halte, depName, arrName),
             lineName = lineLabel(vm),
@@ -299,14 +366,18 @@ internal object JourneyResponseParser {
             if (name.equals(depName, ignoreCase = true) || name.equals(arrName, ignoreCase = true)) {
                 return@mapNotNull null
             }
-            StopEvent(
-                name = name,
-                id = stationExtIdFromHalt(halt),
-                platform = text(halt, "gleis"),
-                scheduledTime = timeText(halt, "abfahrtsZeitpunkt", "ankunftsZeitpunkt", "ankunftsZeit")
-                    ?: timeText(halt, "abfahrtsZeit", "ankunft")
-                    ?: "",
-            )
+            run {
+                val times = parseStopTimes(halt)
+                    ?: timeText(halt, "abfahrtsZeitpunkt", "ankunftsZeitpunkt", "ankunftsZeit")
+                        ?.let { ParsedStopTimes(scheduled = it) }
+                    ?: return@mapNotNull null
+                stopEventFromParsed(
+                    name = name,
+                    id = stationExtIdFromHalt(halt) ?: text(halt, "id"),
+                    platform = text(halt, "gleis"),
+                    times = times,
+                )
+            }
         }
     }
 
@@ -316,23 +387,39 @@ internal object JourneyResponseParser {
             ?: section["stops"]?.jsonArray?.mapNotNull { runCatching { it.jsonObject }.getOrNull() }
             ?: emptyList()
 
-    private fun sectionDepartureTime(
+    private fun sectionDepartureTimes(
         section: JsonObject,
         firstHalt: JsonObject?,
         startHalt: JsonObject?,
-    ): String? =
-        timeText(section, "abfahrtsZeitpunkt", "abgangsZeitpunkt", "abfahrtsZeit", "abgangsZeit", "abfahrt")
-            ?: timeText(startHalt, "abfahrtsZeitpunkt", "abfahrtsZeit", "zeitpunkt", "abfahrt")
-            ?: timeText(firstHalt, "abfahrtsZeitpunkt", "abgangsDatum", "abgangsZeitpunkt", "abfahrtsZeit", "abgangsZeit")
+    ): ParsedStopTimes? =
+        parseStopTimes(section["abfahrt"]?.jsonObject)
+            ?: parseStopTimes(startHalt)
+            ?: parseStopTimes(firstHalt)
+            ?: timeText(section, "abfahrtsZeitpunkt", "abgangsZeitpunkt", "abfahrtsZeit", "abgangsZeit", "abfahrt")
+                ?.let { scheduled ->
+                    ParsedStopTimes(
+                        scheduled = scheduled,
+                        prognosed = timeText(section, "prognosezeit", "prognoseZeit", "istzeit"),
+                        delayMinutes = intVal(section, "verspaetung"),
+                    )
+                }
 
-    private fun sectionArrivalTime(
+    private fun sectionArrivalTimes(
         section: JsonObject,
         lastHalt: JsonObject?,
         zielHalt: JsonObject?,
-    ): String? =
-        timeText(section, "ankunftsZeitpunkt", "ankunftsDatum", "ankunftsZeit", "ankunft")
-            ?: timeText(zielHalt, "ankunftsZeitpunkt", "ankunftsZeit", "zeitpunkt", "ankunft")
-            ?: timeText(lastHalt, "ankunftsZeitpunkt", "ankunftsDatum", "ankunftsZeit", "ankunftZeitpunkt")
+    ): ParsedStopTimes? =
+        parseStopTimes(section["ankunft"]?.jsonObject)
+            ?: parseStopTimes(zielHalt)
+            ?: parseStopTimes(lastHalt)
+            ?: timeText(section, "ankunftsZeitpunkt", "ankunftsDatum", "ankunftsZeit", "ankunft")
+                ?.let { scheduled ->
+                    ParsedStopTimes(
+                        scheduled = scheduled,
+                        prognosed = timeText(section, "prognosezeit", "prognoseZeit", "istzeit"),
+                        delayMinutes = intVal(section, "verspaetung"),
+                    )
+                }
 
     private fun haltObject(section: JsonObject, vararg keys: String): JsonObject? {
         for (key in keys) {
