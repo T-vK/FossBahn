@@ -35,7 +35,8 @@
     <string name="favorites_stations_section">Lieblingsstationen</string>
     <string name="favorites_stations_empty">Markieren Sie eine Station in den Suchvorschlägen mit dem Stern.</string>
     <string name="favorites_search_route">Jetzt suchen</string>
-    <string name="favorites_search_now_hint">Nutzt aktuelles Datum und Uhrzeit mit gespeicherten Filtern.</string>
+    <string name="favorites_edit">Favoriten bearbeiten</string>
+    <string name="favorites_done">Bearbeitung beenden</string>
     <string name="delete">Entfernen</string>
     <string name="tracking_empty">Keine aktiven Verbindungen. Verfolgen Sie eine Verbindung in den Suchergebnissen.</string>
     <string name="swap_stations">Stationen tauschen</string>

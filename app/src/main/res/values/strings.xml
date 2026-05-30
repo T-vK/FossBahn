@@ -35,7 +35,8 @@
     <string name="favorites_stations_section">Favorite stations</string>
     <string name="favorites_stations_empty">Star a station in the search suggestions to add it here.</string>
     <string name="favorites_search_route">Search now</string>
-    <string name="favorites_search_now_hint">Uses current date and time with saved filters.</string>
+    <string name="favorites_edit">Edit favorites</string>
+    <string name="favorites_done">Done editing</string>
     <string name="delete">Remove</string>
     <string name="tracking_empty">No active journeys. Track a connection from search results.</string>
     <string name="swap_stations">Swap stations</string>

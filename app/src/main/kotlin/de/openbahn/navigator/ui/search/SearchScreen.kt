@@ -1,7 +1,7 @@
 package de.openbahn.navigator.ui.search
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -39,6 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -117,7 +118,10 @@ fun SearchScreen(
                     value = state.fromQuery,
                     onValueChange = viewModel::setFromQuery,
                     label = { Text(stringResource(R.string.from)) },
-                    modifier = Modifier.fillMaxWidth().testTag("search_from"),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("search_from")
+                        .onFocusChanged { viewModel.onFromFocusChanged(it.isFocused) },
                     singleLine = true,
                     trailingIcon = {
                         IconButton(onClick = {
@@ -133,54 +137,68 @@ fun SearchScreen(
                     },
                 )
             }
-            item(key = "from_suggestions") {
-                SuggestionList(
-                    suggestions = state.fromSuggestions,
-                    favoriteKeys = state.favoriteLocationKeys,
-                    onSelect = viewModel::selectFrom,
-                    onToggleFavorite = viewModel::toggleFavoriteLocation,
-                )
+            if (state.activeLocationField == ActiveLocationField.FROM && state.fromSuggestions.isNotEmpty()) {
+                item(key = "from_suggestions") {
+                    SuggestionList(
+                        suggestions = state.fromSuggestions,
+                        favoriteKeys = state.favoriteLocationKeys,
+                        onSelect = viewModel::selectFrom,
+                        onToggleFavorite = viewModel::toggleFavoriteLocation,
+                    )
+                }
+                if (state.cachedRecent.isNotEmpty()) {
+                    item(key = "clear_recent_from") {
+                        TextButton(onClick = viewModel::clearRecentLocations) {
+                            Text(stringResource(R.string.clear_recent_locations))
+                        }
+                    }
+                }
             }
             item(key = "to_field") {
                 OutlinedTextField(
                     value = state.toQuery,
                     onValueChange = viewModel::setToQuery,
                     label = { Text(stringResource(R.string.to)) },
-                    modifier = Modifier.fillMaxWidth().testTag("search_to"),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("search_to")
+                        .onFocusChanged { viewModel.onToFocusChanged(it.isFocused) },
                     singleLine = true,
                 )
             }
-            item(key = "to_suggestions") {
-                SuggestionList(
-                    suggestions = state.toSuggestions,
-                    favoriteKeys = state.favoriteLocationKeys,
-                    onSelect = viewModel::selectTo,
-                    onToggleFavorite = viewModel::toggleFavoriteLocation,
-                )
-            }
-            if (state.cachedRecent.isNotEmpty()) {
-                item(key = "clear_recent") {
-                    TextButton(onClick = viewModel::clearRecentLocations) {
-                        Text(stringResource(R.string.clear_recent_locations))
+            if (state.activeLocationField == ActiveLocationField.TO && state.toSuggestions.isNotEmpty()) {
+                item(key = "to_suggestions") {
+                    SuggestionList(
+                        suggestions = state.toSuggestions,
+                        favoriteKeys = state.favoriteLocationKeys,
+                        onSelect = viewModel::selectTo,
+                        onToggleFavorite = viewModel::toggleFavoriteLocation,
+                    )
+                }
+                if (state.cachedRecent.isNotEmpty()) {
+                    item(key = "clear_recent_to") {
+                        TextButton(onClick = viewModel::clearRecentLocations) {
+                            Text(stringResource(R.string.clear_recent_locations))
+                        }
                     }
                 }
             }
             item(key = "when_field") {
-                Box(
+                val whenInteraction = remember { MutableInteractionSource() }
+                OutlinedTextField(
+                    value = whenCaption,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(stringResource(R.string.search_when)) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { showDateTimePicker = true },
-                ) {
-                    OutlinedTextField(
-                        value = whenCaption,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text(stringResource(R.string.search_when)) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("search_when_field"),
-                    )
-                }
+                        .testTag("search_when_field")
+                        .clickable(
+                            interactionSource = whenInteraction,
+                            indication = null,
+                        ) { showDateTimePicker = true },
+                    interactionSource = whenInteraction,
+                )
             }
             item(key = "search_button") {
                 Button(

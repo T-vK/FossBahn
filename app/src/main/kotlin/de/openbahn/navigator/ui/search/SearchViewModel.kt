@@ -28,11 +28,18 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+enum class ActiveLocationField {
+    NONE,
+    FROM,
+    TO,
+}
+
 data class SearchUiState(
     val fromQuery: String = "",
     val toQuery: String = "",
     val from: Location? = null,
     val to: Location? = null,
+    val activeLocationField: ActiveLocationField = ActiveLocationField.NONE,
     val fromSuggestions: List<Location> = emptyList(),
     val toSuggestions: List<Location> = emptyList(),
     val cachedRecent: List<Location> = emptyList(),
@@ -119,13 +126,47 @@ class SearchViewModel(
         }
     }
 
+    fun onFromFocusChanged(focused: Boolean) {
+        _state.update { state ->
+            if (focused) {
+                state.copy(
+                    activeLocationField = ActiveLocationField.FROM,
+                    toSuggestions = emptyList(),
+                    fromSuggestions = suggestionsForField(ActiveLocationField.FROM, state.fromQuery),
+                )
+            } else if (state.activeLocationField == ActiveLocationField.FROM) {
+                state.copy(activeLocationField = ActiveLocationField.NONE, fromSuggestions = emptyList())
+            } else {
+                state
+            }
+        }
+    }
+
+    fun onToFocusChanged(focused: Boolean) {
+        _state.update { state ->
+            if (focused) {
+                state.copy(
+                    activeLocationField = ActiveLocationField.TO,
+                    fromSuggestions = emptyList(),
+                    toSuggestions = suggestionsForField(ActiveLocationField.TO, state.toQuery),
+                )
+            } else if (state.activeLocationField == ActiveLocationField.TO) {
+                state.copy(activeLocationField = ActiveLocationField.NONE, toSuggestions = emptyList())
+            } else {
+                state
+            }
+        }
+    }
+
     fun setFromQuery(query: String) {
         _state.update { state ->
             val keepSelection = state.from?.name.equals(query, ignoreCase = true)
             state.copy(
                 fromQuery = query,
                 from = if (keepSelection) state.from else null,
-                fromSuggestions = instantSuggestions(query, isFrom = true),
+                activeLocationField = ActiveLocationField.FROM,
+                toSuggestions = emptyList(),
+                fromSuggestions = suggestionsForField(ActiveLocationField.FROM, query),
             )
         }
         loadSuggestions(query, isFrom = true)
@@ -137,19 +178,35 @@ class SearchViewModel(
             state.copy(
                 toQuery = query,
                 to = if (keepSelection) state.to else null,
-                toSuggestions = instantSuggestions(query, isFrom = false),
+                activeLocationField = ActiveLocationField.TO,
+                fromSuggestions = emptyList(),
+                toSuggestions = suggestionsForField(ActiveLocationField.TO, query),
             )
         }
         loadSuggestions(query, isFrom = false)
     }
 
     fun selectFrom(location: Location) {
-        _state.update { it.copy(from = location, fromQuery = location.name, fromSuggestions = emptyList()) }
+        _state.update {
+            it.copy(
+                from = location,
+                fromQuery = location.name,
+                fromSuggestions = emptyList(),
+                activeLocationField = ActiveLocationField.NONE,
+            )
+        }
         viewModelScope.launch { locationHistory.recordUsed(location) }
     }
 
     fun selectTo(location: Location) {
-        _state.update { it.copy(to = location, toQuery = location.name, toSuggestions = emptyList()) }
+        _state.update {
+            it.copy(
+                to = location,
+                toQuery = location.name,
+                toSuggestions = emptyList(),
+                activeLocationField = ActiveLocationField.NONE,
+            )
+        }
         viewModelScope.launch { locationHistory.recordUsed(location) }
     }
 
@@ -231,31 +288,28 @@ class SearchViewModel(
         }
     }
 
-    private fun instantSuggestions(query: String, isFrom: Boolean): List<Location> {
+    private fun suggestionsForField(field: ActiveLocationField, query: String): List<Location> {
+        if (_state.value.activeLocationField != field) return emptyList()
         val recent = _state.value.cachedRecent
         val q = query.trim()
-        val recentMatches = if (q.length < 1) {
+        return if (q.isEmpty()) {
             recent.take(8)
         } else {
             recent.filter { it.name.contains(q, ignoreCase = true) }.take(8)
         }
-        return if (isFrom) recentMatches else recentMatches
     }
 
     private fun refreshInstantSuggestions() {
         _state.update { state ->
-            state.copy(
-                fromSuggestions = if (state.fromSuggestions.isNotEmpty() || state.fromQuery.length >= 1) {
-                    mergeSuggestions(state.fromQuery, state.fromSuggestions)
-                } else {
-                    instantSuggestions(state.fromQuery, isFrom = true)
-                },
-                toSuggestions = if (state.toSuggestions.isNotEmpty() || state.toQuery.length >= 1) {
-                    mergeSuggestions(state.toQuery, state.toSuggestions)
-                } else {
-                    instantSuggestions(state.toQuery, isFrom = false)
-                },
-            )
+            when (state.activeLocationField) {
+                ActiveLocationField.FROM -> state.copy(
+                    fromSuggestions = mergeSuggestions(state.fromQuery, suggestionsForField(ActiveLocationField.FROM, state.fromQuery)),
+                )
+                ActiveLocationField.TO -> state.copy(
+                    toSuggestions = mergeSuggestions(state.toQuery, suggestionsForField(ActiveLocationField.TO, state.toQuery)),
+                )
+                ActiveLocationField.NONE -> state
+            }
         }
     }
 
@@ -432,8 +486,10 @@ class SearchViewModel(
     }
 
     private fun loadSuggestions(query: String, isFrom: Boolean) {
+        val field = if (isFrom) ActiveLocationField.FROM else ActiveLocationField.TO
+        if (_state.value.activeLocationField != field) return
         suggestJob?.cancel()
-        val instant = mergeSuggestions(query, instantSuggestions(query, isFrom))
+        val instant = mergeSuggestions(query, suggestionsForField(field, query))
         _state.update {
             if (isFrom) it.copy(fromSuggestions = instant) else it.copy(toSuggestions = instant)
         }

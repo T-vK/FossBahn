@@ -24,7 +24,7 @@ Temporary tracker for the large UX/feature batch. Delete or archive when complet
 | 11 | Single date/time field + dialog + "Now" | [x] |
 | 12 | First-launch Deutschland-Ticket prompt | [x] |
 | 13 | Favorites tab in bottom nav | [x] |
-| 14 | CI green on main | [~] |
+| 14 | CI green on main | [x] |
 
 ## Notes
 - Push directly to `main`, commits: `feat:` / `fix:` only.
