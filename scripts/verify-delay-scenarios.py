@@ -64,6 +64,7 @@ SCENARIOS = (
         "expect_dep_delay_min": 5,
         "expect_dep_prognosed": "13:56",
         "expect_arr_prognosed": "16:42",
+        "expect_arr_delay_min": 15,
         "expect_cancelled": False,
     },
     {
@@ -265,28 +266,38 @@ def flatten_connections(root: dict) -> list[dict]:
     return out
 
 
+def _halt_times(halt: dict, for_departure: bool) -> tuple[Any, Any]:
+    if for_departure:
+        sched = halt.get("abfahrtsZeitpunkt") or halt.get("abgangsZeitpunkt")
+        prog = halt.get("ezAbfahrtsZeitpunkt") or halt.get("ezAbgangsZeitpunkt") or halt.get("ezZeit")
+    else:
+        sched = halt.get("ankunftsZeitpunkt") or halt.get("ankunftsZeit")
+        prog = halt.get("ezAnkunftsZeitpunkt") or halt.get("ezAnkunftsDatum") or halt.get("ezZeit")
+    return sched, prog
+
+
 def section_times(section: dict) -> dict[str, Any]:
     abfahrt = section.get("abfahrt") if isinstance(section.get("abfahrt"), dict) else {}
     ankunft = section.get("ankunft") if isinstance(section.get("ankunft"), dict) else {}
-    dep_sched = (
-        abfahrt.get("sollzeit")
-        or section.get("abfahrtsZeitpunkt")
-        or (section.get("halte") or [{}])[0].get("abfahrtsZeitpunkt")
-    )
+    halte = [h for h in (section.get("halte") or []) if isinstance(h, dict)]
+    first_halt = halte[0] if halte else {}
+    last_halt = halte[-1] if halte else {}
+    fh_sched, fh_prog = _halt_times(first_halt, True)
+    lh_sched, lh_prog = _halt_times(last_halt, False)
+
+    dep_sched = abfahrt.get("sollzeit") or section.get("abfahrtsZeitpunkt") or fh_sched
     dep_prog = (
         abfahrt.get("prognosezeit")
         or section.get("ezAbfahrtsZeitpunkt")
-        or (section.get("halte") or [{}])[0].get("ezAbfahrtsZeitpunkt")
+        or abfahrt.get("ezZeit")
+        or fh_prog
     )
-    arr_sched = (
-        ankunft.get("sollzeit")
-        or section.get("ankunftsZeitpunkt")
-        or (section.get("halte") or [{}])[-1].get("ankunftsZeitpunkt")
-    )
+    arr_sched = ankunft.get("sollzeit") or section.get("ankunftsZeitpunkt") or lh_sched
     arr_prog = (
         ankunft.get("prognosezeit")
         or section.get("ezAnkunftsZeitpunkt")
-        or (section.get("halte") or [{}])[-1].get("ezAnkunftsZeitpunkt")
+        or ankunft.get("ezZeit")
+        or lh_prog
     )
     dep_delay = abfahrt.get("verspaetung") or section.get("verspaetung")
     return {
@@ -354,7 +365,32 @@ def refresh_connection(ctx_recon: str) -> dict | None:
     return json.loads(text)
 
 
+def connections_from_refresh_payload(raw: dict) -> list[dict]:
+    """Normalize /reiseloesung/verbindung response like JourneyResponseParser.parseRefresh."""
+    if raw.get("verbindungen"):
+        return flatten_connections(raw)
+    inner = raw.get("verbindung")
+    if isinstance(inner, dict):
+        return flatten_connections({"verbindungen": [inner]})
+    if raw.get("verbindungsAbschnitte") or raw.get("segmente"):
+        return [raw]
+    return flatten_connections({"verbindungen": [raw]})
+
+
+def effective_board_when(scenario_when_iso: str) -> str:
+    """Board API rejects past datum/zeit — use now when scenario time has passed."""
+    try:
+        when = datetime.fromisoformat(scenario_when_iso[:19])
+    except ValueError:
+        return scenario_when_iso
+    now = datetime.now() + timedelta(minutes=2)
+    if when < now:
+        return now.strftime("%Y-%m-%dT%H:%M:%S")
+    return scenario_when_iso
+
+
 def board_departures(eva: str, when: str) -> list[dict]:
+    when = effective_board_when(when)
     date, time = when[:10], when[11:19]
     params: list[tuple[str, str]] = [
         ("ortExtId", eva),
@@ -362,12 +398,29 @@ def board_departures(eva: str, when: str) -> list[dict]:
         ("zeit", time),
         ("dauer", "180"),
     ]
-    for p in ("ICE", "IC", "EC", "IR", "RE", "RB", "S", "BUS"):
+    for p in PRODUKTGATTUNGEN:
         params.append(("verkehrsmittel[]", p))
     q = urllib.parse.urlencode(params)
     text = fetch(f"{API}/reiseloesung/abfahrten?{q}", method="GET")
     data = json.loads(text)
     return data.get("abfahrten") or data.get("entries") or []
+
+
+def board_arrivals(eva: str, when: str) -> list[dict]:
+    when = effective_board_when(when)
+    date, time = when[:10], when[11:19]
+    params: list[tuple[str, str]] = [
+        ("ortExtId", eva),
+        ("datum", date),
+        ("zeit", time),
+        ("dauer", "180"),
+    ]
+    for p in PRODUKTGATTUNGEN:
+        params.append(("verkehrsmittel[]", p))
+    q = urllib.parse.urlencode(params)
+    text = fetch(f"{API}/reiseloesung/ankuenfte?{q}", method="GET")
+    data = json.loads(text)
+    return data.get("ankuenfte") or data.get("entries") or []
 
 
 def match_board(entries: list[dict], line: str, dep_clock: str) -> dict | None:
@@ -380,45 +433,77 @@ def match_board(entries: list[dict], line: str, dep_clock: str) -> dict | None:
     return None
 
 
+def enrich_hit_with_refresh(hit: dict, spec: dict) -> dict:
+    """Mirror app: search often has no verspaetung; refresh via ctxRecon adds delays."""
+    token = hit["connection"].get("ctxRecon")
+    if not token:
+        return hit
+    banner(f"REFRESH /reiseloesung/verbindung: {spec['name']}")
+    try:
+        refreshed = refresh_connection(token)
+    except RuntimeError as err:
+        print(f"  refresh failed: {err}")
+        return hit
+    if not refreshed:
+        return hit
+    r_conns = connections_from_refresh_payload(refreshed)
+    r_hit = find_connection(r_conns, spec["line"], spec["dep_clock"])
+    if r_hit:
+        print_connection_debug("after refresh (used for checks)", r_hit)
+        return r_hit
+    print("  refresh returned data but could not re-match line/time — using search payload")
+    return hit
+
+
+def delays_ok(times: dict[str, Any], spec: dict) -> bool:
+    dep_delay = times["dep_delay"] or 0
+    dep_prog = clock(str(times["dep_prog"])) if times.get("dep_prog") else None
+    arr_prog = clock(str(times["arr_prog"])) if times.get("arr_prog") else None
+    if dep_delay >= spec["expect_dep_delay_min"]:
+        return True
+    if dep_prog == spec.get("expect_dep_prognosed"):
+        return True
+    if arr_prog == spec.get("expect_arr_prognosed"):
+        return True
+    return False
+
+
 def check_scenario(hit: dict | None, spec: dict) -> bool:
     if hit is None:
         print(f"⚠ {spec['name']}: not found in search results (may be outside timetable window)")
         return True
-    print_connection_debug(spec["name"], hit)
-    t = hit["times"]
-    conn = hit["connection"]
-    sec = hit["section"]
+
+    print_connection_debug("search /fahrplan", hit)
+    best = enrich_hit_with_refresh(hit, spec)
+    t = best["times"]
+    conn = best["connection"]
+    sec = best["section"]
 
     if spec["expect_cancelled"]:
         ok = is_cancelled_section(sec, conn)
         if not ok:
-            print(f"✗ {spec['name']}: expected cancellation flags/remarks")
+            print(f"✗ {spec['name']}: expected cancellation flags/remarks in search/refresh JSON")
             return False
         print(f"✓ {spec['name']}: cancellation visible in API")
         return True
 
     dep_delay = t["dep_delay"] or 0
-    dep_prog = clock(str(t["dep_prog"]))
-    if dep_delay < spec["expect_dep_delay_min"] and dep_prog != spec.get("expect_dep_prognosed"):
+    dep_prog = clock(str(t["dep_prog"])) if t.get("dep_prog") else None
+    if delays_ok(t, spec):
         print(
-            f"✗ {spec['name']}: expected dep delay >={spec['expect_dep_delay_min']} min "
-            f"or prognosed {spec.get('expect_dep_prognosed')}, got delay={dep_delay} prog={dep_prog}",
+            f"✓ {spec['name']}: delays visible after refresh "
+            f"(dep delay={dep_delay} min, prog={dep_prog})",
         )
-        return False
-    print(f"✓ {spec['name']}: delay visible in search JSON (dep delay={dep_delay} min)")
+        return True
 
-    token = conn.get("ctxRecon")
-    if token:
-        banner(f"REFRESH: {spec['name']}")
-        refreshed = refresh_connection(token)
-        if refreshed:
-            r_conns = flatten_connections(refreshed if isinstance(refreshed, dict) else {})
-            r_hit = find_connection(r_conns, spec["line"], spec["dep_clock"])
-            if r_hit:
-                print_connection_debug("after /verbindung", r_hit)
-            else:
-                print("  (refresh returned data but could not re-match section)")
-    return True
+    print(
+        f"✗ {spec['name']}: no delays after search+refresh "
+        f"(dep delay={dep_delay} prog={dep_prog}; expected >={spec['expect_dep_delay_min']} min "
+        f"or {spec.get('expect_dep_prognosed')})",
+    )
+    print("  Note: historical delays (2026-05-30 afternoon) may no longer be in the live API.")
+    print("  Use ./scripts/verify-delay-scenarios.sh for fixture verification.")
+    return False
 
 
 def main() -> None:
@@ -454,16 +539,43 @@ def main() -> None:
         sys.exit(1)
     connections = flatten_connections(root)
     print(f"Connections: {len(connections)}")
+    for conn in connections[:12]:
+        for sec in conn.get("verbindungsAbschnitte") or conn.get("segmente") or []:
+            if isinstance(sec, dict) and line_name(sec):
+                t = section_times(sec)
+                print(
+                    f"  • {line_name(sec)} dep {clock(str(t['dep_sched']))} "
+                    f"delay={t['dep_delay']}",
+                )
+                break
+
+    # FLX may need a later search anchor than 12:00
+    extra_connections: list[dict] = []
+    if when_iso.startswith("2026-05-30"):
+        try:
+            later_body = build_fahrplan_body(hamburg, berlin, "2026-05-30T16:30:00")
+            later_raw = fetch(f"{API}/angebote/fahrplan", data=json.dumps(later_body).encode())
+            extra_connections = flatten_connections(json.loads(later_raw))
+            if extra_connections:
+                print(f"Supplemental search @ 16:30: {len(extra_connections)} connection(s)")
+        except RuntimeError:
+            pass
+
+    all_connections = connections + extra_connections
 
     all_ok = True
     for spec in SCENARIOS:
         banner(spec["name"])
-        hit = find_connection(connections, spec["line"], spec["dep_clock"])
+        hit = find_connection(all_connections, spec["line"], spec["dep_clock"])
         if not check_scenario(hit, spec):
             all_ok = False
 
-        banner(f"BOARD abfahrten @ Hamburg ({spec['dep_clock']})")
         dep_when = f"2026-05-30T{spec['dep_clock']}:00"
+        board_when = effective_board_when(dep_when)
+        if board_when != dep_when:
+            print(f"  (board uses now={board_when} — API rejects past board times)")
+
+        banner(f"BOARD abfahrten @ Hamburg (target dep {spec['dep_clock']})")
         try:
             entries = board_departures(HAMBURG_EVA, dep_when)
             board_hit = match_board(entries, spec["line"], spec["dep_clock"])
@@ -471,11 +583,14 @@ def main() -> None:
                 ez = board_hit.get("ezZeit")
                 zeit = board_hit.get("zeit")
                 d = board_hit.get("verspaetung") or delay_minutes(str(zeit), str(ez))
-                print(f"  board: {clock(str(zeit))} → {clock(str(ez))} delay={d} ausfall={board_hit.get('ausfall')}")
+                print(
+                    f"  abfahrten: {clock(str(zeit))} → {clock(str(ez))} "
+                    f"delay={d} ausfall={board_hit.get('ausfall')}",
+                )
             else:
-                print("  board: no matching entry in 3h window")
+                print("  abfahrten: no exact line/time match in 3h window (may differ after scenario date)")
         except Exception as err:
-            print(f"  board: skipped ({err})")
+            print(f"  abfahrten: skipped ({err})")
 
     if not all_ok:
         sys.exit(1)
