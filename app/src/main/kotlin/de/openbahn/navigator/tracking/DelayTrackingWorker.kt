@@ -27,6 +27,7 @@ class DelayTrackingWorker(
             "openbahn.db",
         ).build()
         val repo = TrackedJourneyRepository(database.trackedJourneyDao())
+        repo.pruneArrived()
         val client = DbVendoClient()
         val active = repo.getActiveForWorker()
 

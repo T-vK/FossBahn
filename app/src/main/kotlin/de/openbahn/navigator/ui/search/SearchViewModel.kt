@@ -5,16 +5,21 @@ import androidx.lifecycle.viewModelScope
 import de.openbahn.api.DbApiBlockedException
 import de.openbahn.api.DbApiException
 import de.openbahn.api.DbParseException
-import de.openbahn.api.debug.FahrplanDiagnostics
 import de.openbahn.api.debug.OpenBahnDebugLog
-import java.io.IOException
 import de.openbahn.model.Journey
 import de.openbahn.model.JourneySearchOptions
 import de.openbahn.model.Location
 import de.openbahn.model.RatedJourney
+import de.openbahn.navigator.data.FavoriteRoute
+import de.openbahn.navigator.data.FavoriteRouteRepository
+import de.openbahn.navigator.data.LocationHistoryRepository
+import de.openbahn.navigator.data.PendingSearchRepository
 import de.openbahn.navigator.data.TrackedJourneyRepository
+import de.openbahn.navigator.data.UserPreferencesRepository
 import de.openbahn.navigator.domain.JourneySearchRepository
 import de.openbahn.navigator.tracking.DelayTrackingWorker
+import java.io.IOException
+import java.time.LocalDateTime
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,7 +27,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.LocalDateTime
 
 data class SearchUiState(
     val fromQuery: String = "",
@@ -31,6 +35,8 @@ data class SearchUiState(
     val to: Location? = null,
     val fromSuggestions: List<Location> = emptyList(),
     val toSuggestions: List<Location> = emptyList(),
+    val cachedRecent: List<Location> = emptyList(),
+    val favoriteLocationKeys: Set<String> = emptySet(),
     val options: JourneySearchOptions = JourneySearchOptions(),
     val departureTime: LocalDateTime = LocalDateTime.now(),
     val journeys: List<Journey> = emptyList(),
@@ -45,21 +51,82 @@ data class SearchUiState(
     val showPredictions: Boolean = true,
     val locale: String = "de",
     val hasSearched: Boolean = false,
+    val showOnboarding: Boolean = false,
 )
 
 class SearchViewModel(
     private val searchUseCase: JourneySearchRepository,
     private val trackingRepository: TrackedJourneyRepository,
+    private val locationHistory: LocationHistoryRepository,
+    private val userPreferences: UserPreferencesRepository,
+    private val favoriteRoutes: FavoriteRouteRepository,
+    private val pendingSearch: PendingSearchRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SearchUiState())
     val state: StateFlow<SearchUiState> = _state.asStateFlow()
     private var suggestJob: Job? = null
 
+    init {
+        viewModelScope.launch {
+            userPreferences.onboardingCompleted.collect { done ->
+                _state.update { it.copy(showOnboarding = !done) }
+            }
+        }
+        viewModelScope.launch {
+            locationHistory.observeRecent().collect { recent ->
+                _state.update { it.copy(cachedRecent = recent) }
+                refreshInstantSuggestions()
+            }
+        }
+        viewModelScope.launch {
+            locationHistory.observeFavoriteLocations().collect { favorites ->
+                _state.update {
+                    it.copy(favoriteLocationKeys = favorites.map { loc -> loc.evaNumber ?: loc.id }.toSet())
+                }
+            }
+        }
+        viewModelScope.launch {
+            pendingSearch.pendingRoute.collect { route ->
+                if (route != null) {
+                    pendingSearch.consume()
+                    applyFavoriteRoute(route)
+                }
+            }
+        }
+    }
+
+    fun completeOnboarding(deutschlandTicketOnly: Boolean) {
+        viewModelScope.launch {
+            userPreferences.completeOnboarding(deutschlandTicketOnly)
+            if (deutschlandTicketOnly) {
+                _state.update {
+                    it.copy(
+                        options = it.options.copy(deutschlandTicketConnectionsOnly = true),
+                        showOnboarding = false,
+                    )
+                }
+            } else {
+                _state.update { it.copy(showOnboarding = false) }
+            }
+        }
+    }
+
+    fun dismissOnboarding() {
+        viewModelScope.launch {
+            userPreferences.completeOnboarding(deutschlandTicketOnlyDefault = false)
+            _state.update { it.copy(showOnboarding = false) }
+        }
+    }
+
     fun setFromQuery(query: String) {
         _state.update { state ->
             val keepSelection = state.from?.name.equals(query, ignoreCase = true)
-            state.copy(fromQuery = query, from = if (keepSelection) state.from else null)
+            state.copy(
+                fromQuery = query,
+                from = if (keepSelection) state.from else null,
+                fromSuggestions = instantSuggestions(query, isFrom = true),
+            )
         }
         loadSuggestions(query, isFrom = true)
     }
@@ -67,21 +134,35 @@ class SearchViewModel(
     fun setToQuery(query: String) {
         _state.update { state ->
             val keepSelection = state.to?.name.equals(query, ignoreCase = true)
-            state.copy(toQuery = query, to = if (keepSelection) state.to else null)
+            state.copy(
+                toQuery = query,
+                to = if (keepSelection) state.to else null,
+                toSuggestions = instantSuggestions(query, isFrom = false),
+            )
         }
         loadSuggestions(query, isFrom = false)
     }
 
     fun selectFrom(location: Location) {
-        _state.update { it.copy(from = location, fromQuery = location.name, fromSuggestions = emptyList()) }
+        viewModelScope.launch {
+            locationHistory.recordUsed(location)
+            _state.update { it.copy(from = location, fromQuery = location.name, fromSuggestions = emptyList()) }
+        }
     }
 
     fun selectTo(location: Location) {
-        _state.update { it.copy(to = location, toQuery = location.name, toSuggestions = emptyList()) }
+        viewModelScope.launch {
+            locationHistory.recordUsed(location)
+            _state.update { it.copy(to = location, toQuery = location.name, toSuggestions = emptyList()) }
+        }
     }
 
     fun updateOptions(options: JourneySearchOptions) {
         _state.update { it.copy(options = options) }
+    }
+
+    fun setWhen(time: LocalDateTime, arrivalSearch: Boolean) {
+        _state.update { it.copy(departureTime = time, options = it.options.copy(arrivalSearch = arrivalSearch)) }
     }
 
     fun setDepartureTime(time: LocalDateTime) {
@@ -90,6 +171,45 @@ class SearchViewModel(
 
     fun setLocale(locale: String) {
         _state.update { it.copy(locale = locale, options = _state.value.options.copy(locale = locale)) }
+    }
+
+    fun clearRecentLocations() {
+        viewModelScope.launch {
+            locationHistory.clearRecent()
+            refreshInstantSuggestions()
+        }
+    }
+
+    fun toggleFavoriteLocation(location: Location) {
+        viewModelScope.launch {
+            if (locationHistory.isFavoriteLocation(location)) {
+                locationHistory.removeFavoriteLocation(location)
+            } else {
+                locationHistory.addFavoriteLocation(location)
+            }
+        }
+    }
+
+    fun saveCurrentRouteAsFavorite(label: String? = null) {
+        val from = _state.value.from ?: return
+        val to = _state.value.to ?: return
+        viewModelScope.launch {
+            favoriteRoutes.save(from, to, _state.value.options, label)
+        }
+    }
+
+    fun applyFavoriteRoute(route: FavoriteRoute) {
+        _state.update {
+            it.copy(
+                from = route.from,
+                to = route.to,
+                fromQuery = route.from.name,
+                toQuery = route.to.name,
+                options = route.options,
+                departureTime = LocalDateTime.now(),
+            )
+        }
+        search()
     }
 
     fun search() {
@@ -104,6 +224,43 @@ class SearchViewModel(
     fun loadLaterConnections() {
         val token = _state.value.pagingLater ?: return
         viewModelScope.launch { loadMore(pagingReference = token, earlier = false) }
+    }
+
+    fun trackJourney(journey: Journey, context: android.content.Context) {
+        val from = _state.value.from?.name ?: return
+        val to = _state.value.to?.name ?: return
+        viewModelScope.launch {
+            trackingRepository.track(journey, from, to)
+            DelayTrackingWorker.schedule(context)
+        }
+    }
+
+    private fun instantSuggestions(query: String, isFrom: Boolean): List<Location> {
+        val recent = _state.value.cachedRecent
+        val q = query.trim()
+        val recentMatches = if (q.length < 1) {
+            recent.take(8)
+        } else {
+            recent.filter { it.name.contains(q, ignoreCase = true) }.take(8)
+        }
+        return if (isFrom) recentMatches else recentMatches
+    }
+
+    private fun refreshInstantSuggestions() {
+        _state.update { state ->
+            state.copy(
+                fromSuggestions = if (state.fromSuggestions.isNotEmpty() || state.fromQuery.length >= 1) {
+                    mergeSuggestions(state.fromQuery, state.fromSuggestions)
+                } else {
+                    instantSuggestions(state.fromQuery, isFrom = true)
+                },
+                toSuggestions = if (state.toSuggestions.isNotEmpty() || state.toQuery.length >= 1) {
+                    mergeSuggestions(state.toQuery, state.toSuggestions)
+                } else {
+                    instantSuggestions(state.toQuery, isFrom = false)
+                },
+            )
+        }
     }
 
     private suspend fun performSearch(replaceResults: Boolean) {
@@ -134,6 +291,10 @@ class SearchViewModel(
             return
         }
         _state.update { it.copy(from = from, to = to) }
+        viewModelScope.launch {
+            locationHistory.recordUsed(from)
+            locationHistory.recordUsed(to)
+        }
         runSearch(from, to, pagingReference = null, replaceResults = replaceResults)
     }
 
@@ -256,15 +417,6 @@ class SearchViewModel(
         }
     }
 
-    fun trackJourney(journey: Journey, context: android.content.Context) {
-        val from = _state.value.from?.name ?: return
-        val to = _state.value.to?.name ?: return
-        viewModelScope.launch {
-            trackingRepository.track(journey, from, to)
-            DelayTrackingWorker.schedule(context)
-        }
-    }
-
     private suspend fun resolveLocation(
         label: String,
         query: String,
@@ -276,6 +428,8 @@ class SearchViewModel(
         }
         suggestions.firstOrNull { it.name.equals(query, ignoreCase = true) }?.let { return it }
         if (query.length < 2) return null
+        val recent = locationHistory.recentMatching(query)
+        recent.firstOrNull { it.name.equals(query, ignoreCase = true) }?.let { return it }
         val results = searchUseCase.searchLocations(query, _state.value.locale)
         results.firstOrNull { it.name.equals(query, ignoreCase = true) }?.let { return it }
         return results.singleOrNull()
@@ -283,21 +437,33 @@ class SearchViewModel(
 
     private fun loadSuggestions(query: String, isFrom: Boolean) {
         suggestJob?.cancel()
+        val instant = mergeSuggestions(query, instantSuggestions(query, isFrom))
+        _state.update {
+            if (isFrom) it.copy(fromSuggestions = instant) else it.copy(toSuggestions = instant)
+        }
         if (query.length < 2) {
-            _state.update {
-                if (isFrom) it.copy(fromSuggestions = emptyList()) else it.copy(toSuggestions = emptyList())
-            }
             return
         }
         suggestJob = viewModelScope.launch {
             delay(300)
             try {
-                val results = searchUseCase.searchLocations(query, _state.value.locale)
+                val recent = locationHistory.recentMatching(query)
+                val api = searchUseCase.searchLocations(query, _state.value.locale)
+                val merged = mergeSuggestions(query, recent + api)
                 _state.update {
-                    if (isFrom) it.copy(fromSuggestions = results) else it.copy(toSuggestions = results)
+                    if (isFrom) it.copy(fromSuggestions = merged) else it.copy(toSuggestions = merged)
                 }
             } catch (_: Exception) {
             }
         }
+    }
+
+    private fun mergeSuggestions(query: String, suggestions: List<Location>): List<Location> {
+        val q = query.trim()
+        val recent = _state.value.cachedRecent.filter {
+            q.isEmpty() || it.name.contains(q, ignoreCase = true)
+        }
+        val combined = (recent + suggestions).distinctBy { it.evaNumber ?: it.id }
+        return combined.take(8)
     }
 }

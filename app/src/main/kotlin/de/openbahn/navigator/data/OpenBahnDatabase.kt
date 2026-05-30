@@ -9,14 +9,23 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 @Database(
-    entities = [TicketEntity::class, TrackedJourneyEntity::class],
-    version = 1,
+    entities = [
+        TicketEntity::class,
+        TrackedJourneyEntity::class,
+        RecentLocationEntity::class,
+        FavoriteLocationEntity::class,
+        FavoriteRouteEntity::class,
+    ],
+    version = 2,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
 abstract class OpenBahnDatabase : RoomDatabase() {
     abstract fun ticketDao(): TicketDao
     abstract fun trackedJourneyDao(): TrackedJourneyDao
+    abstract fun recentLocationDao(): RecentLocationDao
+    abstract fun favoriteLocationDao(): FavoriteLocationDao
+    abstract fun favoriteRouteDao(): FavoriteRouteDao
 }
 
 class Converters {

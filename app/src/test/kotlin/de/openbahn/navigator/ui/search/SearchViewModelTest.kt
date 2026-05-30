@@ -6,12 +6,19 @@ import de.openbahn.model.Leg
 import de.openbahn.model.Location
 import de.openbahn.model.RatedJourney
 import de.openbahn.model.StopEvent
+import de.openbahn.navigator.data.FavoriteRouteRepository
+import de.openbahn.navigator.data.LocationHistoryRepository
+import de.openbahn.navigator.data.PendingSearchRepository
 import de.openbahn.navigator.data.TrackedJourneyRepository
+import de.openbahn.navigator.data.UserPreferencesRepository
 import de.openbahn.navigator.domain.JourneySearchRepository
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -46,10 +53,18 @@ class SearchViewModelTest {
     )
     private val searchRepository = mockk<JourneySearchRepository>()
     private val trackingRepository = mockk<TrackedJourneyRepository>(relaxed = true)
+    private val locationHistory = mockk<LocationHistoryRepository>(relaxed = true)
+    private val userPreferences = mockk<UserPreferencesRepository>(relaxed = true)
+    private val favoriteRoutes = mockk<FavoriteRouteRepository>(relaxed = true)
+    private val pendingSearch = PendingSearchRepository()
 
     @BeforeEach
     fun setup() {
         Dispatchers.setMain(dispatcher)
+        every { userPreferences.onboardingCompleted } returns MutableStateFlow(true)
+        every { locationHistory.observeRecent() } returns flowOf(emptyList())
+        every { locationHistory.observeFavoriteLocations() } returns flowOf(emptyList())
+        coEvery { locationHistory.recentMatching(any()) } returns emptyList()
         coEvery { searchRepository.searchLocations(any(), any()) } answers {
             val q = firstArg<String>()
             when {
@@ -75,9 +90,18 @@ class SearchViewModelTest {
         Dispatchers.resetMain()
     }
 
+    private fun createViewModel() = SearchViewModel(
+        searchRepository,
+        trackingRepository,
+        locationHistory,
+        userPreferences,
+        favoriteRoutes,
+        pendingSearch,
+    )
+
     @Test
     fun search_showsJourneyResults() = runTest(dispatcher) {
-        val viewModel = SearchViewModel(searchRepository, trackingRepository)
+        val viewModel = createViewModel()
         viewModel.selectFrom(berlin)
         viewModel.selectTo(munich)
         viewModel.search()
@@ -96,7 +120,7 @@ class SearchViewModelTest {
         coEvery {
             searchRepository.searchJourneys(any(), any(), any(), any(), any())
         } returns JourneySearchResult()
-        val viewModel = SearchViewModel(searchRepository, trackingRepository)
+        val viewModel = createViewModel()
         viewModel.selectFrom(berlin)
         viewModel.selectTo(munich)
         viewModel.search()
@@ -108,7 +132,7 @@ class SearchViewModelTest {
     @Test
     fun search_withoutStations_showsError() = runTest(dispatcher) {
         coEvery { searchRepository.searchLocations(any(), any()) } returns emptyList()
-        val viewModel = SearchViewModel(searchRepository, trackingRepository)
+        val viewModel = createViewModel()
         viewModel.setFromQuery("x")
         viewModel.setToQuery("y")
         viewModel.search()

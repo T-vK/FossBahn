@@ -1,6 +1,7 @@
 package de.openbahn.navigator.ui.search
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -14,12 +15,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,28 +30,27 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import de.openbahn.model.Location
+import de.openbahn.model.RatedJourney
 import de.openbahn.navigator.R
+import de.openbahn.navigator.navigation.JourneyNavigation
 import de.openbahn.navigator.ui.components.ErrorBanner
 import de.openbahn.navigator.ui.components.JourneyCard
 import de.openbahn.navigator.ui.components.LoadingIndicator
-import java.time.Instant
-import java.time.LocalDateTime
-import java.time.ZoneId
+import de.openbahn.navigator.data.stableKey
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import org.koin.androidx.compose.koinViewModel
@@ -59,12 +59,12 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun SearchScreen(
     onOpenFilters: () -> Unit,
+    onOpenJourneyDetail: () -> Unit,
     viewModel: SearchViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
-    var showDatePicker by remember { mutableStateOf(false) }
-    var showTimePicker by remember { mutableStateOf(false) }
+    var showDateTimePicker by remember { mutableStateOf(false) }
     val whenLabel = DateTimeFormatter.ofPattern("EEE d MMM, HH:mm", Locale.getDefault())
         .format(state.departureTime)
     val whenCaption = if (state.options.arrivalSearch) {
@@ -72,6 +72,24 @@ fun SearchScreen(
     } else {
         stringResource(R.string.search_departure_at, whenLabel)
     }
+
+    if (state.showOnboarding) {
+        DeutschlandTicketOnboardingDialog(
+            onDismissOnly = viewModel::dismissOnboarding,
+            onEnableFilter = { viewModel.completeOnboarding(deutschlandTicketOnly = true) },
+        )
+    }
+
+    DateTimePickerDialog(
+        visible = showDateTimePicker,
+        selected = state.departureTime,
+        arrivalSearch = state.options.arrivalSearch,
+        onDismiss = { showDateTimePicker = false },
+        onConfirm = { time, arrival ->
+            viewModel.setWhen(time, arrival)
+            showDateTimePicker = false
+        },
+    )
 
     Scaffold(
         topBar = {
@@ -116,7 +134,12 @@ fun SearchScreen(
                 )
             }
             item(key = "from_suggestions") {
-                SuggestionList(state.fromSuggestions, onSelect = viewModel::selectFrom)
+                SuggestionList(
+                    suggestions = state.fromSuggestions,
+                    favoriteKeys = state.favoriteLocationKeys,
+                    onSelect = viewModel::selectFrom,
+                    onToggleFavorite = viewModel::toggleFavoriteLocation,
+                )
             }
             item(key = "to_field") {
                 OutlinedTextField(
@@ -128,30 +151,35 @@ fun SearchScreen(
                 )
             }
             item(key = "to_suggestions") {
-                SuggestionList(state.toSuggestions, onSelect = viewModel::selectTo)
-            }
-            item(key = "when_header") {
-                Text(stringResource(R.string.search_when), style = MaterialTheme.typography.titleSmall)
-                Text(
-                    whenCaption,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.testTag("search_when_label"),
+                SuggestionList(
+                    suggestions = state.toSuggestions,
+                    favoriteKeys = state.favoriteLocationKeys,
+                    onSelect = viewModel::selectTo,
+                    onToggleFavorite = viewModel::toggleFavoriteLocation,
                 )
             }
-            item(key = "when_pickers") {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = { showDatePicker = true },
-                        modifier = Modifier.weight(1f).testTag("search_pick_date"),
-                    ) {
-                        Text(stringResource(R.string.search_pick_date))
+            if (state.cachedRecent.isNotEmpty()) {
+                item(key = "clear_recent") {
+                    TextButton(onClick = viewModel::clearRecentLocations) {
+                        Text(stringResource(R.string.clear_recent_locations))
                     }
-                    OutlinedButton(
-                        onClick = { showTimePicker = true },
-                        modifier = Modifier.weight(1f).testTag("search_pick_time"),
-                    ) {
-                        Text(stringResource(R.string.search_pick_time))
-                    }
+                }
+            }
+            item(key = "when_field") {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showDateTimePicker = true },
+                ) {
+                    OutlinedTextField(
+                        value = whenCaption,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(stringResource(R.string.search_when)) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("search_when_field"),
+                    )
                 }
             }
             item(key = "search_button") {
@@ -165,6 +193,13 @@ fun SearchScreen(
                         stringResource(R.string.search_connections),
                         modifier = Modifier.padding(start = 8.dp),
                     )
+                }
+            }
+            if (state.from != null && state.to != null && state.hasSearched) {
+                item(key = "save_favorite_route") {
+                    TextButton(onClick = { viewModel.saveCurrentRouteAsFavorite() }) {
+                        Text(stringResource(R.string.save_favorite_route))
+                    }
                 }
             }
             state.error?.let { key ->
@@ -214,10 +249,10 @@ fun SearchScreen(
             val predictionsRequested = state.showPredictions && state.hasSearched
             if (rated.isNotEmpty()) {
                 items(rated, key = { it.journey.id }) { ratedJourney ->
-                    JourneyCard(
-                        journey = ratedJourney.journey,
-                        prediction = ratedJourney,
+                    JourneyResultItem(
+                        ratedJourney = ratedJourney,
                         predictionsRequested = predictionsRequested,
+                        onOpenDetail = onOpenJourneyDetail,
                         onTrack = { viewModel.trackJourney(ratedJourney.journey, context) },
                     )
                 }
@@ -226,6 +261,10 @@ fun SearchScreen(
                     JourneyCard(
                         journey = journey,
                         predictionsRequested = predictionsRequested,
+                        onOpenFullscreen = {
+                            JourneyNavigation.set(journey, predictionsRequested = predictionsRequested)
+                            onOpenJourneyDetail()
+                        },
                         onTrack = { viewModel.trackJourney(journey, context) },
                     )
                 }
@@ -252,88 +291,66 @@ fun SearchScreen(
             }
         }
     }
+}
 
-    if (showDatePicker) {
-        val zone = ZoneId.systemDefault()
-        val dateState = rememberDatePickerState(
-            initialSelectedDateMillis = state.departureTime.atZone(zone).toInstant().toEpochMilli(),
-        )
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val millis = dateState.selectedDateMillis
-                        if (millis != null) {
-                            val picked = Instant.ofEpochMilli(millis).atZone(zone).toLocalDate()
-                            val current = state.departureTime
-                            viewModel.setDepartureTime(
-                                LocalDateTime.of(picked, current.toLocalTime()),
-                            )
-                        }
-                        showDatePicker = false
-                    },
-                ) { Text(stringResource(android.R.string.ok)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-            },
-        ) {
-            DatePicker(state = dateState)
-        }
-    }
-
-    if (showTimePicker) {
-        val timeState = rememberTimePickerState(
-            initialHour = state.departureTime.hour,
-            initialMinute = state.departureTime.minute,
-            is24Hour = true,
-        )
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showTimePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val current = state.departureTime
-                        viewModel.setDepartureTime(
-                            LocalDateTime.of(
-                                current.toLocalDate(),
-                                java.time.LocalTime.of(timeState.hour, timeState.minute),
-                            ),
-                        )
-                        showTimePicker = false
-                    },
-                ) { Text(stringResource(android.R.string.ok)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-            },
-            text = { TimePicker(state = timeState) },
-        )
-    }
+@Composable
+private fun JourneyResultItem(
+    ratedJourney: RatedJourney,
+    predictionsRequested: Boolean,
+    onOpenDetail: () -> Unit,
+    onTrack: () -> Unit,
+) {
+    JourneyCard(
+        journey = ratedJourney.journey,
+        prediction = ratedJourney,
+        predictionsRequested = predictionsRequested,
+        onOpenFullscreen = {
+            JourneyNavigation.set(
+                ratedJourney.journey,
+                prediction = ratedJourney,
+                predictionsRequested = predictionsRequested,
+            )
+            onOpenDetail()
+        },
+        onTrack = onTrack,
+    )
 }
 
 @Composable
 private fun SuggestionList(
-    suggestions: List<de.openbahn.model.Location>,
-    onSelect: (de.openbahn.model.Location) -> Unit,
+    suggestions: List<Location>,
+    favoriteKeys: Set<String>,
+    onSelect: (Location) -> Unit,
+    onToggleFavorite: (Location) -> Unit,
 ) {
     Column {
-        suggestions.take(5).forEach { loc ->
-            Text(
-                loc.name,
+        suggestions.take(8).forEach { loc ->
+            val key = loc.stableKey()
+            Row(
                 Modifier
                     .fillMaxWidth()
                     .testTag("location_suggestion_${loc.evaNumber ?: loc.id}")
                     .clickable { onSelect(loc) }
                     .padding(vertical = 6.dp, horizontal = 4.dp),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    loc.name,
+                    Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                IconButton(onClick = { onToggleFavorite(loc) }) {
+                    val isFav = key in favoriteKeys
+                    Icon(
+                        if (isFav) Icons.Default.Star else Icons.Default.StarBorder,
+                        contentDescription = stringResource(
+                            if (isFav) R.string.remove_favorite_station else R.string.add_favorite_station,
+                        ),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
         }
     }
 }

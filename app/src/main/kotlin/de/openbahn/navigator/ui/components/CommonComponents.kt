@@ -1,5 +1,6 @@
 package de.openbahn.navigator.ui.components
 
+import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -9,10 +10,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -23,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -36,6 +42,7 @@ import de.openbahn.model.StopEvent
 import de.openbahn.navigator.R
 import de.openbahn.navigator.ui.util.formatDurationMinutes
 import de.openbahn.navigator.ui.util.formatJourneyClock
+import de.openbahn.navigator.ui.util.journeyBookingUri
 
 @Composable
 fun LoadingIndicator(modifier: Modifier = Modifier) {
@@ -63,11 +70,26 @@ fun JourneyCard(
     journey: Journey,
     prediction: RatedJourney? = null,
     predictionsRequested: Boolean = false,
+    expanded: Boolean = false,
+    onOpenFullscreen: (() -> Unit)? = null,
     onTrack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
+    var detailsExpanded by remember(journey.id) { mutableStateOf(expanded) }
+    val context = LocalContext.current
+    val bookingUri = remember(journey.id, journey.refreshToken) { journeyBookingUri(journey) }
+
     Card(
-        modifier = modifier.fillMaxWidth().testTag("journey_card"),
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("journey_card")
+            .then(
+                if (onOpenFullscreen != null) {
+                    Modifier.clickable(onClick = onOpenFullscreen)
+                } else {
+                    Modifier
+                },
+            ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -87,8 +109,25 @@ fun JourneyCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            journey.priceHint?.let {
-                Text(it, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            journey.priceHint?.let { price ->
+                Text(
+                    price,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .then(
+                            if (bookingUri != null) {
+                                Modifier.clickable {
+                                    context.startActivity(
+                                        Intent(Intent.ACTION_VIEW, bookingUri),
+                                    )
+                                }
+                            } else {
+                                Modifier
+                            },
+                        )
+                        .testTag("journey_price"),
+                )
             }
             if (journey.deutschlandTicketValid == true) {
                 Text(
@@ -98,31 +137,88 @@ fun JourneyCard(
                 )
             }
 
-            HorizontalDivider()
+            if (journey.remarks.isNotEmpty()) {
+                RemarksBlock(remarks = journey.remarks)
+            }
 
-            journey.legs.forEachIndexed { index, leg ->
-                LegDetailsBlock(leg = leg, legIndex = index)
-                if (index < journey.legs.lastIndex) {
-                    TransferBlock(
-                        fromLeg = leg,
-                        toLeg = journey.legs[index + 1],
-                        prediction = prediction?.predictions?.getOrNull(index),
-                        predictionsRequested = predictionsRequested,
+            if (!expanded) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { detailsExpanded = !detailsExpanded }
+                        .padding(vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        if (detailsExpanded) {
+                            stringResource(R.string.hide_journey_details)
+                        } else {
+                            stringResource(R.string.show_journey_details)
+                        },
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Icon(
+                        if (detailsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
                     )
                 }
             }
 
-            if (journey.transfers == 0 && predictionsRequested) {
-                PunctualityBlock(
-                    probability = prediction?.punctualityProbability,
-                    isEstimate = prediction?.punctualityIsEstimate == true,
-                )
+            AnimatedVisibility(
+                visible = expanded || detailsExpanded,
+                enter = expandVertically(),
+                exit = shrinkVertically(),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    HorizontalDivider()
+                    journey.legs.forEachIndexed { index, leg ->
+                        LegDetailsBlock(leg = leg, legIndex = index)
+                        if (index < journey.legs.lastIndex) {
+                            TransferBlock(
+                                fromLeg = leg,
+                                toLeg = journey.legs[index + 1],
+                                prediction = prediction?.predictions?.getOrNull(index),
+                                predictionsRequested = predictionsRequested,
+                            )
+                        }
+                    }
+                    if (journey.transfers == 0 && predictionsRequested) {
+                        PunctualityBlock(
+                            probability = prediction?.punctualityProbability,
+                            isEstimate = prediction?.punctualityIsEstimate == true,
+                        )
+                    }
+                }
             }
 
             onTrack?.let {
-                TextButton(onClick = it, modifier = Modifier.align(Alignment.End)) {
+                TextButton(
+                    onClick = it,
+                    modifier = Modifier.align(Alignment.End),
+                ) {
                     Text(stringResource(R.string.track_journey))
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RemarksBlock(remarks: List<String>) {
+    var expanded by remember(remarks) { mutableStateOf(false) }
+    Text(
+        if (expanded) stringResource(R.string.hide_remarks) else stringResource(R.string.show_remarks, remarks.size),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.clickable { expanded = !expanded },
+    )
+    AnimatedVisibility(visible = expanded, enter = expandVertically(), exit = shrinkVertically()) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            remarks.forEach { remark ->
+                Text(remark, style = MaterialTheme.typography.bodySmall)
             }
         }
     }
