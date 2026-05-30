@@ -17,35 +17,35 @@ class JourneyUiContractTest {
     @Test
     fun dbVendoRealFixture_yieldsJourneysForUi() {
         val text = javaClass.getResource("/dbweb-journey-db-vendo-real.json")!!.readText()
-        val journeys = JourneyResponseParser.parse(text)
+        val journeys = JourneyResponseParser.parse(text).journeys
         assertUiContract(journeys, "db-vendo real journey fixture")
     }
 
     @Test
     fun hamburgBerlinFixture_yieldsJourneysForUi() {
         val text = javaClass.getResource("/dbweb-journey-hamburg-berlin.json")!!.readText()
-        val journeys = JourneyResponseParser.parse(text)
+        val journeys = JourneyResponseParser.parse(text).journeys
         assertUiContract(journeys, "Hamburg–Berlin fixture")
     }
 
     @Test
     fun intervalleOnlyFixture_yieldsJourneysForUi() {
         val text = javaClass.getResource("/dbweb-journey-intervalle-only.json")!!.readText()
-        val journeys = JourneyResponseParser.parse(text)
+        val journeys = JourneyResponseParser.parse(text).journeys
         assertUiContract(journeys, "intervalle-only fixture")
     }
 
     @Test
     fun emptyOuterAbschnitteWithNestedVerbindung_yieldsJourneysForUi() {
         val text = javaClass.getResource("/dbweb-journey-empty-outer-abschnitte.json")!!.readText()
-        val journeys = JourneyResponseParser.parse(text)
+        val journeys = JourneyResponseParser.parse(text).journeys
         assertUiContract(journeys, "empty outer abschnitte + nested verbindung")
     }
 
     @Test
     fun nestedAbschnitteWrapperFixture_yieldsJourneysForUi() {
         val text = javaClass.getResource("/dbweb-journey-nested-abschnitte-wrapper.json")!!.readText()
-        val journeys = JourneyResponseParser.parse(text)
+        val journeys = JourneyResponseParser.parse(text).journeys
         assertUiContract(journeys, "nested abschnitte wrapper")
         assertTrue(journeys.first().legs.size >= 2, "expected multiple legs from nested abschnitte")
     }
@@ -53,14 +53,14 @@ class JourneyUiContractTest {
     @Test
     fun epochMillisAbschnittFixture_yieldsJourneysForUi() {
         val text = javaClass.getResource("/dbweb-journey-epoch-millis-abschnitt.json")!!.readText()
-        val journeys = JourneyResponseParser.parse(text)
+        val journeys = JourneyResponseParser.parse(text).journeys
         assertUiContract(journeys, "epoch millis abschnitt")
     }
 
     @Test
     fun haltIdNamesFixture_yieldsJourneysForUi() {
         val text = javaClass.getResource("/dbweb-journey-halt-id-names.json")!!.readText()
-        val journeys = JourneyResponseParser.parse(text)
+        val journeys = JourneyResponseParser.parse(text).journeys
         assertUiContract(journeys, "halt id names")
         assertTrue(journeys.first().legs.first().origin.name.contains("Hamburg"))
     }
@@ -68,7 +68,7 @@ class JourneyUiContractTest {
     @Test
     fun sollzeitAbschnittFixture_yieldsJourneysForUi() {
         val text = javaClass.getResource("/dbweb-journey-sollzeit-abschnitt.json")!!.readText()
-        val journeys = JourneyResponseParser.parse(text)
+        val journeys = JourneyResponseParser.parse(text).journeys
         assertUiContract(journeys, "abfahrt/ankunft sollzeit fixture")
         assertTrue(journeys.first().legs.first().origin.name.contains("Hamburg"))
     }
@@ -76,7 +76,7 @@ class JourneyUiContractTest {
     @Test
     fun abfahrtNestedAbfahrtsZeitpunktFixture_yieldsJourneysForUi() {
         val text = javaClass.getResource("/dbweb-journey-abfahrt-nested-zeit.json")!!.readText()
-        val journeys = JourneyResponseParser.parse(text)
+        val journeys = JourneyResponseParser.parse(text).journeys
         assertUiContract(journeys, "abfahrt/ankunft with nested abfahrtsZeitpunkt")
         assertTrue(journeys.first().legs.first().origin.name.contains("Hamburg"))
         assertTrue(journeys.first().legs.first().destination.name.contains("Berlin"))
@@ -85,7 +85,7 @@ class JourneyUiContractTest {
     @Test
     fun startHaltAbfahrtFixture_yieldsJourneysForUi() {
         val text = javaClass.getResource("/dbweb-journey-starthalt-abfahrt.json")!!.readText()
-        val journeys = JourneyResponseParser.parse(text)
+        val journeys = JourneyResponseParser.parse(text).journeys
         assertUiContract(journeys, "startHalt/zielHalt + abfahrt/ankunft fixture")
         assertTrue(journeys.first().legs.first().origin.name.contains("Berlin"))
         assertTrue(journeys.first().legs.first().destination.name.contains("Hamburg"))
@@ -94,14 +94,14 @@ class JourneyUiContractTest {
     @Test
     fun nestedOrtAbschnittFixture_yieldsJourneysForUi() {
         val text = javaClass.getResource("/dbweb-journey-nested-ort-abschnitt.json")!!.readText()
-        val journeys = JourneyResponseParser.parse(text)
+        val journeys = JourneyResponseParser.parse(text).journeys
         assertUiContract(journeys, "nested ort abschnitt")
     }
 
     @Test
     fun intermediateHalteFixture_mapsZwischenstationen() {
         val text = javaClass.getResource("/dbweb-journey-intermediate-halte.json")!!.readText()
-        val journeys = JourneyResponseParser.parse(text)
+        val journeys = JourneyResponseParser.parse(text).journeys
         assertUiContract(journeys, "intermediate halte")
         val leg = journeys.first().legs.first()
         assertEquals(1, leg.intermediateStops.size)
@@ -113,7 +113,7 @@ class JourneyUiContractTest {
     @Test
     fun halteOnlyAbschnittFixture_yieldsJourneysForUi() {
         val text = javaClass.getResource("/dbweb-journey-halte-only-abschnitt.json")!!.readText()
-        val journeys = JourneyResponseParser.parse(text)
+        val journeys = JourneyResponseParser.parse(text).journeys
         assertUiContract(journeys, "halte-only abschnitt fixture")
         val names = journeys.first().legs.flatMap { listOf(it.origin.name, it.destination.name) }
         assertTrue(names.any { it.contains("Hamburg") })

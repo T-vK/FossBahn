@@ -13,6 +13,7 @@ import de.openbahn.api.mapper.StationBoardMapper
 import de.openbahn.model.BoardEntry
 import de.openbahn.model.Journey
 import de.openbahn.model.JourneySearchOptions
+import de.openbahn.model.JourneySearchResult
 import de.openbahn.model.Location
 import de.openbahn.model.StationBoard
 import de.openbahn.model.TransportProduct
@@ -84,14 +85,16 @@ class DbVendoClient(
         to: Location,
         options: JourneySearchOptions = JourneySearchOptions(),
         whenTime: LocalDateTime = LocalDateTime.now(),
-    ): List<Journey> {
-        val raw = postFahrplan(from, to, options, whenTime)
-        val journeys = parseJourneyResponse(raw)
+        pagingReference: String? = null,
+    ): JourneySearchResult {
+        val raw = postFahrplan(from, to, options, whenTime, pagingReference)
+        val result = parseJourneyResponse(raw)
         OpenBahnDebugLog.d(
             "DbVendo",
-            "searchJourneys ${from.name} -> ${to.name} at $whenTime -> ${journeys.size} journey(s)",
+            "searchJourneys ${from.name} -> ${to.name} at $whenTime -> ${result.journeys.size} journey(s) " +
+                "earlier=${result.pagingEarlier != null} later=${result.pagingLater != null}",
         )
-        return journeys
+        return result
     }
 
     /** Raw POST /angebote/fahrplan body (for live integration diagnostics). */
@@ -100,8 +103,9 @@ class DbVendoClient(
         to: Location,
         options: JourneySearchOptions,
         whenTime: LocalDateTime,
+        pagingReference: String? = null,
     ): String {
-        val body = JourneyRequestBuilder.build(from, to, options, whenTime)
+        val body = JourneyRequestBuilder.build(from, to, options, whenTime, pagingReference)
         OpenBahnDebugLog.d(
             "DbVendo",
             "postFahrplan ${FahrplanDiagnostics.describeLocation(from)} -> " +
@@ -128,7 +132,7 @@ class DbVendoClient(
         }
     }
 
-    private fun parseJourneyResponse(text: String): List<Journey> =
+    private fun parseJourneyResponse(text: String): JourneySearchResult =
         try {
             JourneyResponseParser.parse(text)
         } catch (e: DbApiBlockedException) {

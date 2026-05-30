@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import de.openbahn.model.BoardEntry
 import de.openbahn.model.Journey
@@ -61,6 +62,7 @@ fun ErrorBanner(message: String, modifier: Modifier = Modifier) {
 fun JourneyCard(
     journey: Journey,
     prediction: RatedJourney? = null,
+    predictionsRequested: Boolean = false,
     onTrack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -70,11 +72,7 @@ fun JourneyCard(
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(
-                    "${formatJourneyClock(journey.departure)} – ${formatJourneyClock(journey.arrival)}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
+                JourneyTimeRangeHeader(journey = journey)
                 Text(
                     formatDurationMinutes(journey.durationMinutes),
                     style = MaterialTheme.typography.titleMedium,
@@ -109,23 +107,8 @@ fun JourneyCard(
                         fromLeg = leg,
                         toLeg = journey.legs[index + 1],
                         prediction = prediction?.predictions?.getOrNull(index),
+                        predictionsRequested = predictionsRequested,
                     )
-                }
-            }
-
-            val anyDelay = journey.legs.any { leg ->
-                (leg.origin.delayMinutes ?: 0) > 0 || (leg.destination.delayMinutes ?: 0) > 0
-            }
-            if (anyDelay) {
-                journey.legs.forEach { leg ->
-                    val delay = leg.destination.delayMinutes ?: leg.origin.delayMinutes
-                    if ((delay ?: 0) > 0) {
-                        Text(
-                            stringResource(R.string.delay_minutes, delay!!),
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    }
                 }
             }
 
@@ -151,7 +134,6 @@ private fun LegDetailsBlock(leg: Leg, legIndex: Int) {
     StopRow(
         label = stringResource(R.string.departure),
         stop = leg.origin,
-        time = formatJourneyClock(leg.origin.scheduledTime),
         modifier = Modifier.testTag("leg_${legIndex}_departure"),
     )
     if (leg.intermediateStops.isNotEmpty()) {
@@ -160,16 +142,45 @@ private fun LegDetailsBlock(leg: Leg, legIndex: Int) {
     StopRow(
         label = stringResource(R.string.arrival),
         stop = leg.destination,
-        time = formatJourneyClock(leg.destination.scheduledTime),
         modifier = Modifier.testTag("leg_${legIndex}_arrival"),
     )
+}
+
+@Composable
+private fun JourneyTimeRangeHeader(journey: Journey) {
+    val first = journey.legs.firstOrNull()?.origin
+    val last = journey.legs.lastOrNull()?.destination
+    val depScheduled = first?.scheduledTime ?: journey.departure
+    val arrScheduled = last?.scheduledTime ?: journey.arrival
+    val depDisplay = first?.prognosedTime ?: depScheduled
+    val arrDisplay = last?.prognosedTime ?: arrScheduled
+    val depDelay = first?.delayMinutes ?: 0
+    val arrDelay = last?.delayMinutes ?: 0
+    Column {
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            StopTimeText(
+                scheduled = depScheduled,
+                prognosed = depDisplay,
+                delayMinutes = depDelay,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text("–", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            StopTimeText(
+                scheduled = arrScheduled,
+                prognosed = arrDisplay,
+                delayMinutes = arrDelay,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
 }
 
 @Composable
 private fun StopRow(
     label: String,
     stop: StopEvent,
-    time: String,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -182,7 +193,13 @@ private fun StopRow(
             Text(stop.name, style = MaterialTheme.typography.bodyMedium)
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text(time, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+            StopTimeText(
+                scheduled = stop.scheduledTime,
+                prognosed = stop.prognosedTime,
+                delayMinutes = stop.delayMinutes ?: 0,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+            )
             stop.platform?.let { platform ->
                 Text(
                     stringResource(R.string.platform_label, platform),
@@ -224,8 +241,10 @@ private fun IntermediateStopsBlock(stops: List<StopEvent>, legIndex: Int) {
                     Text(stop.name, style = MaterialTheme.typography.bodySmall)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (stop.scheduledTime.isNotBlank()) {
-                            Text(
-                                formatJourneyClock(stop.scheduledTime),
+                            StopTimeText(
+                                scheduled = stop.scheduledTime,
+                                prognosed = stop.prognosedTime,
+                                delayMinutes = stop.delayMinutes ?: 0,
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         }
@@ -248,6 +267,7 @@ private fun TransferBlock(
     fromLeg: Leg,
     toLeg: Leg,
     prediction: de.openbahn.model.TransferPrediction?,
+    predictionsRequested: Boolean,
 ) {
     Column(
         Modifier
@@ -277,21 +297,65 @@ private fun TransferBlock(
             }
         }
         val probability = prediction?.successProbability
-        if (probability != null) {
+        when {
+            probability != null -> {
+                Text(
+                    stringResource(R.string.transfer_probability, (probability * 100).toInt().coerceIn(0, 100)),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = when {
+                        probability >= 0.8 -> MaterialTheme.colorScheme.tertiary
+                        probability >= 0.5 -> MaterialTheme.colorScheme.primary
+                        else -> MaterialTheme.colorScheme.error
+                    },
+                    modifier = Modifier.testTag("transfer_prediction"),
+                )
+            }
+            predictionsRequested -> {
+                Text(
+                    stringResource(R.string.prediction_unavailable),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("transfer_prediction"),
+                )
+            }
+        }
+        HorizontalDivider()
+    }
+}
+
+@Composable
+private fun StopTimeText(
+    scheduled: String,
+    prognosed: String?,
+    delayMinutes: Int,
+    style: androidx.compose.ui.text.TextStyle,
+    fontWeight: FontWeight? = null,
+) {
+    val display = prognosed?.takeIf { it.isNotBlank() } ?: scheduled
+    val showScheduledStruck = prognosed != null && prognosed != scheduled
+    Column(horizontalAlignment = Alignment.End) {
+        if (showScheduledStruck) {
             Text(
-                stringResource(R.string.transfer_probability, (probability * 100).toInt()),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.tertiary,
-                modifier = Modifier.testTag("transfer_prediction"),
-            )
-        } else {
-            Text(
-                stringResource(R.string.prediction_unavailable),
+                stringResource(R.string.scheduled_time_short, formatJourneyClock(scheduled)),
                 style = MaterialTheme.typography.labelSmall,
+                textDecoration = TextDecoration.LineThrough,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        HorizontalDivider()
+        Text(
+            formatJourneyClock(display),
+            style = style,
+            fontWeight = fontWeight,
+            color = if (delayMinutes > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+        )
+        if (delayMinutes > 0) {
+            Text(
+                stringResource(R.string.delay_minutes, delayMinutes),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
     }
 }
 

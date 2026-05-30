@@ -39,7 +39,7 @@ internal object LiveApiTestSupport {
 
     /** Parse fahrplan JSON with OPS_BLOCKED → skipped test (not failed). */
     suspend fun parseFahrplanResponse(raw: String): List<Journey> = apiCall {
-        JourneyResponseParser.parse(raw)
+        JourneyResponseParser.parse(raw).journeys
     }
 
     fun assumeBlockedByResponseBody(raw: String) {

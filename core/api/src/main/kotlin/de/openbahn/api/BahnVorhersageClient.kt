@@ -1,5 +1,6 @@
 package de.openbahn.api
 
+import de.openbahn.api.debug.OpenBahnDebugLog
 import de.openbahn.model.Journey
 import de.openbahn.model.RatedJourney
 import de.openbahn.model.TransferPrediction
@@ -11,9 +12,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.add
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.JsonObject
 
 /**
  * Client for Bahn-Vorhersage delay/transfer predictions.
@@ -24,36 +23,33 @@ class BahnVorhersageClient(
     private val httpClient: HttpClient = DbVendoClient.createDefaultClient(),
 ) {
     suspend fun rateJourney(journey: Journey): RatedJourney {
+        if (!BahnVorhersageRequestBuilder.hasTransferEvents(journey)) {
+            return RatedJourney(journey = journey, predictions = emptyList())
+        }
         return try {
-            val body = buildRateRequest(journey)
+            val body = BahnVorhersageRequestBuilder.build(journey)
+            if (body.isEmpty()) {
+                OpenBahnDebugLog.w("BahnVorhersage", "empty rate request for journey ${journey.id}")
+                return RatedJourney(journey = journey, predictions = emptyList())
+            }
             val response: RateJourneysResponse = httpClient.post("$baseUrl/rate-journeys/") {
                 contentType(ContentType.Application.Json)
                 setBody(body)
             }.body()
+            val scores = response.transferScores.orEmpty()
             RatedJourney(
                 journey = journey,
-                predictions = response.transferScores?.mapIndexed { index, score ->
+                predictions = scores.mapIndexed { index, score ->
                     TransferPrediction(
                         legIndex = index,
                         successProbability = score,
                         delayDistribution = response.predictions?.getOrNull(index),
                     )
-                }.orEmpty(),
+                },
             )
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            OpenBahnDebugLog.w("BahnVorhersage", "rateJourney failed for ${journey.id}: ${e.message}")
             RatedJourney(journey = journey, predictions = emptyList())
-        }
-    }
-
-    private fun buildRateRequest(journey: Journey) = buildJsonObject {
-        putJsonArray("number") { journey.legs.forEach { add(0) } }
-        putJsonArray("line") { journey.legs.forEach { add(it.lineName ?: "") } }
-        putJsonArray("category") {
-            journey.legs.forEach { add(it.product?.vendoCode ?: "UNKNOWN") }
-        }
-        putJsonArray("operator") { journey.legs.forEach { add(it.operator ?: "DB") } }
-        putJsonArray("delay_prognosed") {
-            journey.legs.forEach { add(it.destination.delayMinutes ?: 0) }
         }
     }
 

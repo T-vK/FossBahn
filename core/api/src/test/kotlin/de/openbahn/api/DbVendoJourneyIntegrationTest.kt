@@ -59,7 +59,7 @@ class DbVendoJourneyIntegrationTest {
             berlin,
             JourneySearchOptions(),
             LocalDateTime.of(2026, 5, 30, 8, 0),
-        )
+        ).journeys
         assertEquals(1, journeys.size)
         val j = journeys.first()
         assertEquals("Hamburg Hbf", j.legs.first().origin.name)
@@ -71,7 +71,7 @@ class DbVendoJourneyIntegrationTest {
     @Test
     fun journeyResponseParser_readsHamburgBerlinFixture() {
         val text = journeyJson
-        val journeys = JourneyResponseParser.parse(text)
+        val journeys = JourneyResponseParser.parse(text).journeys
         assertEquals(1, journeys.size)
         assertEquals("Hamburg Hbf", journeys.first().legs.first().origin.name)
         assertEquals("Berlin Hbf", journeys.first().legs.last().destination.name)

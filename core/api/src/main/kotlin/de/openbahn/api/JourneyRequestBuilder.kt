@@ -30,7 +30,9 @@ internal object JourneyRequestBuilder {
         to: Location,
         options: JourneySearchOptions,
         whenTime: LocalDateTime,
+        pagingReference: String? = null,
     ): JsonObject = buildJsonObject {
+        pagingReference?.let { put("pagingReference", it) }
         put("abfahrtsHalt", from.haltIdForJourney())
         put("ankunftsHalt", to.haltIdForJourney())
         put("anfrageZeitpunkt", whenTime.format(timeFormatter))

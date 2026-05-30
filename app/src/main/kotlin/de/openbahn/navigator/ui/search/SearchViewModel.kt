@@ -35,7 +35,11 @@ data class SearchUiState(
     val departureTime: LocalDateTime = LocalDateTime.now(),
     val journeys: List<Journey> = emptyList(),
     val ratedJourneys: List<RatedJourney> = emptyList(),
+    val pagingEarlier: String? = null,
+    val pagingLater: String? = null,
     val isLoading: Boolean = false,
+    val isLoadingEarlier: Boolean = false,
+    val isLoadingLater: Boolean = false,
     val error: String? = null,
     val info: String? = null,
     val showPredictions: Boolean = true,
@@ -89,96 +93,164 @@ class SearchViewModel(
     }
 
     fun search() {
-        viewModelScope.launch {
-            OpenBahnDebugLog.d(
-                "Search",
-                "search() fromQuery=\"${_state.value.fromQuery}\" toQuery=\"${_state.value.toQuery}\" " +
-                    "departureTime=${_state.value.departureTime} arrivalSearch=${_state.value.options.arrivalSearch}",
+        viewModelScope.launch { performSearch(replaceResults = true) }
+    }
+
+    fun loadEarlierConnections() {
+        val token = _state.value.pagingEarlier ?: return
+        viewModelScope.launch { loadMore(pagingReference = token, earlier = true) }
+    }
+
+    fun loadLaterConnections() {
+        val token = _state.value.pagingLater ?: return
+        viewModelScope.launch { loadMore(pagingReference = token, earlier = false) }
+    }
+
+    private suspend fun performSearch(replaceResults: Boolean) {
+        OpenBahnDebugLog.d(
+            "Search",
+            "search() fromQuery=\"${_state.value.fromQuery}\" toQuery=\"${_state.value.toQuery}\" " +
+                "departureTime=${_state.value.departureTime} arrivalSearch=${_state.value.options.arrivalSearch}",
+        )
+        _state.update {
+            it.copy(
+                isLoading = true,
+                isLoadingEarlier = false,
+                isLoadingLater = false,
+                error = null,
+                info = null,
+                hasSearched = true,
+                journeys = if (replaceResults) emptyList() else it.journeys,
+                ratedJourneys = if (replaceResults) emptyList() else it.ratedJourneys,
+                pagingEarlier = if (replaceResults) null else it.pagingEarlier,
+                pagingLater = if (replaceResults) null else it.pagingLater,
             )
-            _state.update { it.copy(isLoading = true, error = null, info = null, hasSearched = true) }
-            val from = resolveLocation(
-                "from",
-                _state.value.fromQuery,
-                _state.value.from,
-                _state.value.fromSuggestions,
+        }
+        val from = resolveLocation("from", _state.value.fromQuery, _state.value.from, _state.value.fromSuggestions)
+        val to = resolveLocation("to", _state.value.toQuery, _state.value.to, _state.value.toSuggestions)
+        if (from == null || to == null) {
+            OpenBahnDebugLog.w("Search", "search() aborted: could not resolve stations")
+            _state.update { it.copy(isLoading = false, error = "error_select_stations") }
+            return
+        }
+        _state.update { it.copy(from = from, to = to) }
+        runSearch(from, to, pagingReference = null, replaceResults = replaceResults)
+    }
+
+    private suspend fun loadMore(pagingReference: String, earlier: Boolean) {
+        val from = _state.value.from ?: return
+        val to = _state.value.to ?: return
+        _state.update {
+            it.copy(
+                isLoadingEarlier = earlier,
+                isLoadingLater = !earlier,
+                error = null,
             )
-            val to = resolveLocation(
-                "to",
-                _state.value.toQuery,
-                _state.value.to,
-                _state.value.toSuggestions,
+        }
+        runSearch(from, to, pagingReference = pagingReference, replaceResults = false, prepend = earlier)
+    }
+
+    private suspend fun runSearch(
+        from: Location,
+        to: Location,
+        pagingReference: String?,
+        replaceResults: Boolean,
+        prepend: Boolean = false,
+    ) {
+        try {
+            val options = _state.value.options.copy(locale = _state.value.locale)
+            val page = searchUseCase.searchJourneys(
+                from, to, options, _state.value.departureTime, pagingReference,
             )
-            if (from == null || to == null) {
-                OpenBahnDebugLog.w(
-                    "Search",
-                    "search() aborted: could not resolve stations " +
-                        "(from=${from != null} to=${to != null}) — pick from suggestions",
+            val existing = if (replaceResults) emptyList() else _state.value.journeys
+            val existingIds = existing.map { it.id }.toSet()
+            val mergedJourneys = mergeJourneys(existing, page.journeys, prepend)
+            val rated = if (_state.value.showPredictions) {
+                val newOnes = page.journeys.filter { it.id !in existingIds }
+                val newRated = if (newOnes.isNotEmpty()) searchUseCase.rateJourneys(newOnes) else emptyList()
+                mergeRated(
+                    existing = if (replaceResults) emptyList() else _state.value.ratedJourneys,
+                    incoming = newRated,
+                    prepend = prepend,
                 )
-                _state.update {
-                    it.copy(
-                        isLoading = false,
-                        error = "error_select_stations",
-                    )
-                }
-                return@launch
+            } else {
+                emptyList()
             }
-            _state.update { it.copy(from = from, to = to) }
-            try {
-                val options = _state.value.options.copy(locale = _state.value.locale)
-                if (_state.value.showPredictions) {
-                    val rated = searchUseCase.searchWithPredictions(
-                        from, to, options, _state.value.departureTime,
-                    )
-                    val journeys = rated.map { it.journey }
-                    logSearchOutcome(journeys.size, rated.isEmpty())
-                    _state.update {
-                        it.copy(
-                            ratedJourneys = rated,
-                            journeys = journeys,
-                            isLoading = false,
-                            info = if (rated.isEmpty()) "info_no_connections" else null,
-                        )
-                    }
-                } else {
-                    val journeys = searchUseCase.searchJourneys(
-                        from, to, options, _state.value.departureTime,
-                    )
-                    logSearchOutcome(journeys.size, journeys.isEmpty())
-                    _state.update {
-                        it.copy(
-                            journeys = journeys,
-                            ratedJourneys = emptyList(),
-                            isLoading = false,
-                            info = if (journeys.isEmpty()) "info_no_connections" else null,
-                        )
-                    }
-                }
-            } catch (e: DbApiBlockedException) {
-                OpenBahnDebugLog.w("Search", "search() blocked: ${e.message}")
-                _state.update { it.copy(isLoading = false, error = "error_api_blocked") }
-            } catch (e: DbParseException) {
-                OpenBahnDebugLog.w("Search", "search() parse error: ${e.message}", e)
-                _state.update { it.copy(isLoading = false, error = "error_parse") }
-            } catch (e: DbApiException) {
-                OpenBahnDebugLog.w("Search", "search() api error: ${e.message}")
-                _state.update { it.copy(isLoading = false, error = "error_search_failed") }
-            } catch (e: IOException) {
-                OpenBahnDebugLog.w("Search", "search() network error: ${e.message}", e)
-                _state.update { it.copy(isLoading = false, error = "error_network") }
-            } catch (e: Exception) {
-                OpenBahnDebugLog.w("Search", "search() failed: ${e.message}", e)
-                _state.update { it.copy(isLoading = false, error = "error_search_failed") }
+            logSearchOutcome(mergedJourneys.size, mergedJourneys.isEmpty() && replaceResults)
+            _state.update {
+                it.copy(
+                    journeys = mergedJourneys,
+                    ratedJourneys = rated,
+                    pagingEarlier = when {
+                        replaceResults -> page.pagingEarlier
+                        prepend -> page.pagingEarlier
+                        else -> it.pagingEarlier
+                    },
+                    pagingLater = when {
+                        replaceResults -> page.pagingLater
+                        !prepend && pagingReference != null -> page.pagingLater
+                        else -> it.pagingLater
+                    },
+                    isLoading = false,
+                    isLoadingEarlier = false,
+                    isLoadingLater = false,
+                    info = if (mergedJourneys.isEmpty() && replaceResults) "info_no_connections" else null,
+                )
+            }
+        } catch (e: DbApiBlockedException) {
+            _state.update {
+                it.copy(isLoading = false, isLoadingEarlier = false, isLoadingLater = false, error = "error_api_blocked")
+            }
+        } catch (e: DbParseException) {
+            _state.update {
+                it.copy(isLoading = false, isLoadingEarlier = false, isLoadingLater = false, error = "error_parse")
+            }
+        } catch (e: DbApiException) {
+            _state.update {
+                it.copy(
+                    isLoading = false,
+                    isLoadingEarlier = false,
+                    isLoadingLater = false,
+                    error = "error_search_failed",
+                )
+            }
+        } catch (e: IOException) {
+            _state.update {
+                it.copy(isLoading = false, isLoadingEarlier = false, isLoadingLater = false, error = "error_network")
+            }
+        } catch (e: Exception) {
+            _state.update {
+                it.copy(
+                    isLoading = false,
+                    isLoadingEarlier = false,
+                    isLoadingLater = false,
+                    error = "error_search_failed",
+                )
             }
         }
     }
 
+    private fun mergeJourneys(
+        existing: List<Journey>,
+        incoming: List<Journey>,
+        prepend: Boolean,
+    ): List<Journey> {
+        val combined = if (prepend) incoming + existing else existing + incoming
+        return combined.distinctBy { it.id }
+    }
+
+    private fun mergeRated(
+        existing: List<RatedJourney>,
+        incoming: List<RatedJourney>,
+        prepend: Boolean,
+    ): List<RatedJourney> {
+        val combined = if (prepend) incoming + existing else existing + incoming
+        return combined.distinctBy { it.journey.id }
+    }
+
     private fun logSearchOutcome(journeyCount: Int, showNoConnections: Boolean) {
         if (showNoConnections) {
-            OpenBahnDebugLog.w(
-                "Search",
-                "search() UI will show info_no_connections — API returned $journeyCount journey(s). " +
-                    "See OpenBahn/DbVendo and OpenBahn/JourneyParser log lines above.",
-            )
+            OpenBahnDebugLog.w("Search", "search() UI will show info_no_connections — $journeyCount journey(s)")
         } else {
             OpenBahnDebugLog.d("Search", "search() success: $journeyCount journey(s) for UI")
         }
@@ -200,38 +272,13 @@ class SearchViewModel(
         suggestions: List<Location>,
     ): Location? {
         if (selected != null && selected.name.equals(query, ignoreCase = true)) {
-            OpenBahnDebugLog.d("Search", "resolve $label: kept selection ${FahrplanDiagnostics.describeLocation(selected)}")
             return selected
         }
-        suggestions.firstOrNull { it.name.equals(query, ignoreCase = true) }?.let {
-            OpenBahnDebugLog.d("Search", "resolve $label: matched suggestion ${FahrplanDiagnostics.describeLocation(it)}")
-            return it
-        }
-        if (query.length < 2) {
-            OpenBahnDebugLog.d("Search", "resolve $label: query too short")
-            return null
-        }
+        suggestions.firstOrNull { it.name.equals(query, ignoreCase = true) }?.let { return it }
+        if (query.length < 2) return null
         val results = searchUseCase.searchLocations(query, _state.value.locale)
-        val exact = results.firstOrNull { it.name.equals(query, ignoreCase = true) }
-        if (exact != null) {
-            OpenBahnDebugLog.d("Search", "resolve $label: exact API match ${FahrplanDiagnostics.describeLocation(exact)}")
-            return exact
-        }
-        val single = results.singleOrNull()
-        if (single != null) {
-            OpenBahnDebugLog.d(
-                "Search",
-                "resolve $label: single API result ${FahrplanDiagnostics.describeLocation(single)} " +
-                    "(query=\"$query\")",
-            )
-            return single
-        }
-        OpenBahnDebugLog.w(
-            "Search",
-            "resolve $label: ambiguous or no match for \"$query\" — ${results.size} result(s): " +
-                results.take(3).joinToString { it.name },
-        )
-        return null
+        results.firstOrNull { it.name.equals(query, ignoreCase = true) }?.let { return it }
+        return results.singleOrNull()
     }
 
     private fun loadSuggestions(query: String, isFrom: Boolean) {

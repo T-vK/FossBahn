@@ -49,6 +49,9 @@
     <string name="show_intermediate_stations">Show %d intermediate stations</string>
     <string name="hide_intermediate_stations">Hide intermediate stations</string>
     <string name="delay_minutes">+%d min delay</string>
+    <string name="scheduled_time_short">Sched. %1$s</string>
+    <string name="load_earlier_connections">Earlier connections</string>
+    <string name="load_later_connections">Later connections</string>
     <string name="filter_transport">Transport modes</string>
     <string name="filter_bike">Bicycle carriage</string>
     <string name="filter_direct">Direct connections only</string>

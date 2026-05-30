@@ -43,7 +43,7 @@ class DbVendoLiveApiTest {
                 destination,
                 JourneySearchOptions(products = setOf(TransportProduct.ICE)),
                 whenTime,
-            )
+            ).journeys
         }
         assertJourneysNotEmpty(journeys, origin, destination)
     }
@@ -58,7 +58,7 @@ class DbVendoLiveApiTest {
         } ?: return@runBlocking
         val whenTime = LiveApiTestSupport.berlinDeparturePlusHours(3)
         val journeys = apiCall {
-            client.searchJourneys(origin, destination, JourneySearchOptions(), whenTime)
+            client.searchJourneys(origin, destination, JourneySearchOptions(), whenTime).journeys
         }
         assertJourneysNotEmpty(journeys, origin, destination)
     }
