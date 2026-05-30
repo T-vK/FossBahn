@@ -45,6 +45,18 @@ class DelayScenarioMay302026VerificationTest {
     }
 
     @Test
+    fun fixture_ice603_refreshUsesEchtzeitForDelays() {
+        val text = readFixture("/dbweb-scenario-ice603-echtzeit.json")
+        val journey = JourneyResponseParser.parse(text).journeys.single()
+        val leg = journey.legs.single()
+        assertEquals("13:56", DelayScenarioDebug.clock(leg.origin.prognosedTime!!))
+        assertEquals(7, leg.origin.delayMinutes)
+        assertEquals("16:42", DelayScenarioDebug.clock(leg.destination.prognosedTime!!))
+        assertEquals(22, leg.destination.delayMinutes)
+        println("✓ ICE 603 echtzeit fixture: delays from refresh shape")
+    }
+
+    @Test
     fun fixture_flx1247_parsesCancellationSignals() {
         DelayScenarioDebug.banner("FIXTURE: FLX 1247 (cancelled)")
         val text = readFixture("/dbweb-scenario-flx1247-cancelled.json")

@@ -295,6 +295,8 @@ def section_times(section: dict) -> dict[str, Any]:
     dep_sched = abfahrt.get("sollzeit") or section.get("abfahrtsZeitpunkt") or fh_sched
     dep_prog = (
         abfahrt.get("prognosezeit")
+        or abfahrt.get("echtzeit")
+        or abfahrt.get("echtZeit")
         or section.get("ezAbfahrtsZeitpunkt")
         or abfahrt.get("ezZeit")
         or fh_prog
@@ -302,6 +304,8 @@ def section_times(section: dict) -> dict[str, Any]:
     arr_sched = ankunft.get("sollzeit") or section.get("ankunftsZeitpunkt") or lh_sched
     arr_prog = (
         ankunft.get("prognosezeit")
+        or ankunft.get("echtzeit")
+        or ankunft.get("echtZeit")
         or section.get("ezAnkunftsZeitpunkt")
         or ankunft.get("ezZeit")
         or lh_prog

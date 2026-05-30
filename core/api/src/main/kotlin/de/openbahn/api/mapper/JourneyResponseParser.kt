@@ -194,6 +194,8 @@ internal object JourneyResponseParser {
         HaltTimeRole.DEPARTURE -> arrayOf(
             "prognosezeit",
             "prognoseZeit",
+            "echtzeit",
+            "echtZeit",
             "istzeit",
             "istZeit",
             "ezZeit",
@@ -205,6 +207,8 @@ internal object JourneyResponseParser {
         HaltTimeRole.ARRIVAL -> arrayOf(
             "prognosezeit",
             "prognoseZeit",
+            "echtzeit",
+            "echtZeit",
             "istzeit",
             "istZeit",
             "ezZeit",
@@ -215,6 +219,8 @@ internal object JourneyResponseParser {
         HaltTimeRole.EITHER -> arrayOf(
             "prognosezeit",
             "prognoseZeit",
+            "echtzeit",
+            "echtZeit",
             "istzeit",
             "istZeit",
             "ezZeit",
@@ -682,6 +688,7 @@ internal object JourneyResponseParser {
                         "zeit",
                         "sollzeit",
                         "istzeit",
+                        "echtzeit",
                         "prognosezeit",
                         "abfahrtsZeitpunkt",
                         "ankunftsZeitpunkt",
