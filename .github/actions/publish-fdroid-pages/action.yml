@@ -20,13 +20,17 @@ runs:
       uses: actions/cache@v4
       with:
         path: |
-          fdroid/keystore.p12
-          fdroid/config.yml
           fdroid/repo
           fdroid/archive
         key: fdroid-repo-state-${{ github.repository }}
         restore-keys: |
           fdroid-repo-state-${{ github.repository }}-
+
+    - name: Configure F-Droid repository signing
+      shell: bash
+      run: |
+        chmod +x .github/scripts/prepare-fdroid-signing.sh
+        .github/scripts/prepare-fdroid-signing.sh
 
     - name: Build F-Droid repo and Pages site
       shell: bash

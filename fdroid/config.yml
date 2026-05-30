@@ -6,5 +6,5 @@ repo_description: Official OpenBahn Navigator APK repository (FOSS, CI-signed re
 repo_maxage: 366
 archive_older: 2
 
-# Repo signing key: fdroid/keystore.p12 (created on first update, cached in CI).
-# repo_keysha256: added automatically
+# Repo index signing: injected by .github/scripts/prepare-fdroid-signing.sh (see .github/signing/).
+# repo_keysha256: added automatically by fdroid update

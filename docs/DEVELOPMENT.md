@@ -123,7 +123,7 @@ Each semver release runs one Gradle build in the **release** job (`assembleDebug
 
 Implementation: [.github/actions/publish-fdroid-pages](../.github/actions/publish-fdroid-pages/action.yml), [.github/scripts/update-fdroid-repo.sh](../.github/scripts/update-fdroid-repo.sh), [`fdroid/`](../fdroid/).
 
-CI caches `fdroid/keystore.p12`, `fdroid/repo/`, and `fdroid/archive/` so older APKs stay available (`archive_older: 2`). Do not delete that cache without planning a repo key rotation.
+CI caches `fdroid/repo/` and `fdroid/archive/` so older APKs stay available (`archive_older: 2`). The repo index signing key is copied each run from [.github/signing/fdroid-repo.p12](../.github/signing/fdroid-repo.p12) (public, like the APK CI key).
 
 ### Main F-Droid.org catalog
 
