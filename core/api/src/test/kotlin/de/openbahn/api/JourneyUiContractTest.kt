@@ -35,6 +35,20 @@ class JourneyUiContractTest {
     }
 
     @Test
+    fun emptyOuterAbschnitteWithNestedVerbindung_yieldsJourneysForUi() {
+        val text = javaClass.getResource("/dbweb-journey-empty-outer-abschnitte.json")!!.readText()
+        val journeys = JourneyResponseParser.parse(text)
+        assertUiContract(journeys, "empty outer abschnitte + nested verbindung")
+    }
+
+    @Test
+    fun nestedOrtAbschnittFixture_yieldsJourneysForUi() {
+        val text = javaClass.getResource("/dbweb-journey-nested-ort-abschnitt.json")!!.readText()
+        val journeys = JourneyResponseParser.parse(text)
+        assertUiContract(journeys, "nested ort abschnitt")
+    }
+
+    @Test
     fun halteOnlyAbschnittFixture_yieldsJourneysForUi() {
         val text = javaClass.getResource("/dbweb-journey-halte-only-abschnitt.json")!!.readText()
         val journeys = JourneyResponseParser.parse(text)
