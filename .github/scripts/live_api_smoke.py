@@ -2,12 +2,15 @@
 """Smoke-test Hamburg Hbf → Berlin Hbf on int.bahn.de (no Gradle)."""
 from __future__ import annotations
 
+import gzip
 import json
 import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+import zlib
 from datetime import datetime, timedelta, timezone
+from email.message import Message
 
 API = "https://int.bahn.de/web/api"
 HAMBURG_EVA = "8002549"
@@ -17,14 +20,49 @@ PRODUCTS = [
 ]
 
 
+def _header_encoding(headers: Message | None) -> str | None:
+    if headers is None:
+        return None
+    enc = headers.get("Content-Encoding")
+    return enc.lower().strip() if enc else None
+
+
+def decode_response_body(data: bytes, content_encoding: str | None = None) -> str:
+    """Decompress gzip/deflate bodies (common from int.bahn.de; Termux urllib may not)."""
+    enc = (content_encoding or "").lower()
+    if enc == "gzip" or (len(data) >= 2 and data[:2] == b"\x1f\x8b"):
+        data = gzip.decompress(data)
+    elif enc in ("deflate", "x-deflate"):
+        data = zlib.decompress(data)
+    elif enc == "br":
+        try:
+            import brotli  # type: ignore[import-not-found]
+        except ImportError as err:
+            raise RuntimeError(
+                "Response uses Brotli (Content-Encoding: br). "
+                "Install with: pkg install python-brotli  # or: pip install brotli",
+            ) from err
+        data = brotli.decompress(data)
+    return data.decode("utf-8")
+
+
 def fetch(url: str, data: bytes | None = None) -> str:
-    headers = {"Accept": "application/json", "Content-Type": "application/json"}
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Accept-Encoding": "gzip",
+    }
     req = urllib.request.Request(url, data=data, headers=headers, method="POST" if data else "GET")
     try:
         with urllib.request.urlopen(req, timeout=60) as resp:
-            return resp.read().decode()
+            raw = resp.read()
+            return decode_response_body(raw, _header_encoding(resp.headers))
     except urllib.error.HTTPError as e:
-        body = e.read().decode() if e.fp else ""
+        raw = e.read() if e.fp else b""
+        try:
+            body = decode_response_body(raw, _header_encoding(e.headers))
+        except Exception:
+            body = raw.decode("utf-8", errors="replace")
         if "OPS_BLOCKED" in body:
             print(f"FAIL: Deutsche Bahn blocked this IP (OPS_BLOCKED) HTTP {e.code}")
             sys.exit(2)
