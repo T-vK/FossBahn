@@ -75,7 +75,9 @@ fdroid update --delete-unknown --verbose
 
 rm -rf "$PAGES"
 mkdir -p "$PAGES/fdroid"
+cp -a pages/site-index.html "$PAGES/index.html"
 cp -a pages/index.html "$PAGES/fdroid/index.html"
+sed -i "s|https://github.com/T-vK/FossBahn|https://github.com/${GITHUB_REPOSITORY_OWNER:-T-vK}/${REPO_NAME}|g" "$PAGES/index.html"
 sed -i "s|https://t-vk.github.io/OpenBahn-Navigator/fdroid/repo|${REPO_URL}|g" "$PAGES/fdroid/index.html"
 cp -a repo "$PAGES/fdroid/repo"
 touch "$PAGES/.nojekyll"

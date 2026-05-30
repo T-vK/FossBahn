@@ -22,7 +22,7 @@ A free, open-source Android app for planning journeys on German railways — wit
    https://t-vk.github.io/OpenBahn-Navigator/fdroid/repo
    ```
 
-   Short instructions: [t-vk.github.io/OpenBahn-Navigator/fdroid/](https://t-vk.github.io/OpenBahn-Navigator/fdroid/)
+   Short instructions: [your Pages site](https://t-vk.github.io/FossBahn/fdroid/) (project root: `https://t-vk.github.io/<repo-name>/`)
 
 3. Search for **OpenBahn Navigator** and install.
 
