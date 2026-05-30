@@ -53,7 +53,7 @@ Changing only docs or non-Android files still triggers CI `assembleDebug` on `ma
 # Live API integration (real int.bahn.de, Hamburg→Berlin; needs JDK 17 + Android SDK)
 .github/scripts/run-live-api-tests.sh
 
-# Live API smoke on Termux / phone (curl + python3 only — no Java)
+# Live API smoke on Termux / phone (curl + python3): /orte + /fahrplan + parseable routes
 .github/scripts/run-live-api-smoke.sh
 
 # UI / E2E (Android emulator or device required; uses fake API, no bahn.de)

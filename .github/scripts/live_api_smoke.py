@@ -1,9 +1,19 @@
 #!/usr/bin/env python3
-"""Smoke-test Hamburg Hbf → Berlin Hbf on int.bahn.de (no Gradle)."""
+"""
+Smoke-test Hamburg Hbf → Berlin Hbf on int.bahn.de (no Gradle).
+
+Steps (same flow as the app):
+  1. GET  /reiseloesung/orte     — resolve departure & destination stations
+  2. POST /angebote/fahrplan     — journey search (route planning)
+  3. Count connections the app can show (parseable legs), not only raw API rows
+
+Leg parsing mirrors JourneyResponseParser.kt — update both when the API shape changes.
+"""
 from __future__ import annotations
 
 import gzip
 import json
+import re
 import sys
 import urllib.error
 import urllib.parse
@@ -11,6 +21,7 @@ import urllib.request
 import zlib
 from datetime import datetime, timedelta, timezone
 from email.message import Message
+from typing import Any
 
 API = "https://int.bahn.de/web/api"
 HAMBURG_EVA = "8002549"
@@ -18,6 +29,7 @@ BERLIN_EVA = "8011160"
 PRODUCTS = [
     "ICE", "EC_IC", "IR", "REGIONAL", "SBAHN", "BUS", "SCHIFF", "UBAHN", "TRAM", "ANRUFPFLICHTIG",
 ]
+HALT_ID_NAME = re.compile(r"@O=([^@]+)@")
 
 
 def _header_encoding(headers: Message | None) -> str | None:
@@ -89,24 +101,182 @@ def search_station(name: str) -> dict:
     return stations[0]
 
 
-def count_connections(d: dict) -> tuple[int, str]:
-    top = d.get("verbindungen") or []
+def extract_connection_elements(root: dict) -> tuple[list[dict], str]:
+    top = root.get("verbindungen") or []
     if top:
-        return len(top), "verbindungen"
-    total = 0
-    source = "none"
+        return [merge_connection(el) for el in top], "verbindungen"
     for key in ("intervalle", "tagesbestPreisIntervalle"):
-        intervals = d.get(key) or []
-        n = sum(len(i.get("verbindungen") or []) for i in intervals)
-        if n > 0:
-            total += n
-            source = key
-    return total, source
+        from_intervals: list[dict] = []
+        for interval in root.get(key) or []:
+            for el in interval.get("verbindungen") or []:
+                from_intervals.append(merge_connection(el))
+        if from_intervals:
+            return from_intervals, key
+    return [], "none"
+
+
+def merge_connection(raw: dict) -> dict:
+    inner = raw.get("verbindung")
+    if not isinstance(inner, dict):
+        return raw
+    merged = dict(inner)
+    for key, value in raw.items():
+        if key == "verbindung":
+            continue
+        if key in ("verbindungsAbschnitte", "segmente", "halte"):
+            incoming = value if isinstance(value, list) else []
+            existing = merged.get(key) if isinstance(merged.get(key), list) else []
+            if incoming:
+                merged[key] = incoming
+            elif existing:
+                merged[key] = existing
+            else:
+                merged[key] = value
+        else:
+            merged[key] = value
+    return merged
+
+
+def flatten_abschnitte(connection: dict) -> list[dict]:
+    top = abschnitte_array(connection)
+    if not top:
+        return []
+    return [a for el in top for a in expand_abschnitt(el)]
+
+
+def abschnitte_array(connection: dict) -> list | None:
+    for key in ("verbindungsAbschnitte", "segmente"):
+        arr = connection.get(key)
+        if isinstance(arr, list) and arr:
+            return arr
+    for key in ("verbindungsAbschnitte", "segmente"):
+        arr = connection.get(key)
+        if isinstance(arr, list):
+            return arr
+    return None
+
+
+def expand_abschnitt(element: Any) -> list[dict]:
+    if not isinstance(element, dict):
+        return []
+    unwrapped = element.get("verbindungsAbschnitt") or element.get("abschnitt") or element
+    if not isinstance(unwrapped, dict):
+        return []
+    nested = unwrapped.get("verbindungsAbschnitte") or unwrapped.get("segmente")
+    if isinstance(nested, list) and nested:
+        return [a for el in nested for a in expand_abschnitt(el)]
+    return [unwrapped]
+
+
+def text_field(obj: dict | None, key: str) -> str | None:
+    if not obj:
+        return None
+    el = obj.get(key)
+    if isinstance(el, str):
+        return el
+    if isinstance(el, (int, float)) and key.lower().endswith("zeit"):
+        return format_time_value(el)
+    if isinstance(el, dict):
+        return text_field(el, "name") or text_field(el, "bezeichnung") or text_field(el, "label")
+    return None
+
+
+def format_time_value(value: Any) -> str | None:
+    if isinstance(value, str):
+        return value if "T" in value else None
+    if isinstance(value, (int, float)):
+        millis = int(value)
+        if millis > 1_000_000_000_000:
+            return datetime.fromtimestamp(millis / 1000, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+        return str(millis)
+    return None
+
+
+def time_field(obj: dict | None, *keys: str) -> str | None:
+    if not obj:
+        return None
+    for key in keys:
+        el = obj.get(key)
+        if isinstance(el, str):
+            return el
+        if isinstance(el, (int, float)):
+            formatted = format_time_value(el)
+            if formatted:
+                return formatted
+        if isinstance(el, dict):
+            for sub in ("zeitpunkt", "zeit", "value"):
+                t = text_field(el, sub)
+                if t:
+                    return t
+    return None
+
+
+def name_from_halt_id(halt_id: str | None) -> str | None:
+    if not halt_id:
+        return None
+    m = HALT_ID_NAME.search(halt_id)
+    return m.group(1).replace("+", " ") if m else None
+
+
+def station_name(section: dict, ort_key: str, halt: dict | None) -> str | None:
+    return (
+        text_field(section, ort_key)
+        or (text_field(section.get(ort_key), "name") if isinstance(section.get(ort_key), dict) else None)
+        or text_field(halt, "name")
+        or text_field(halt, "bezeichnung")
+        or name_from_halt_id(text_field(halt, "id"))
+    )
+
+
+def halte_array(section: dict) -> list[dict]:
+    for key in ("halte", "halt", "stops"):
+        arr = section.get(key)
+        if isinstance(arr, list):
+            return [h for h in arr if isinstance(h, dict)]
+    return []
+
+
+def map_abschnitt(section: dict) -> bool:
+    halte = halte_array(section)
+    first_halt = halte[0] if halte else None
+    last_halt = halte[-1] if halte else None
+    dep_name = station_name(section, "abfahrtsOrt", first_halt) or station_name(section, "abgangsOrt", first_halt)
+    arr_name = station_name(section, "ankunftsOrt", last_halt)
+    dep_time = time_field(section, "abfahrtsZeitpunkt", "abgangsZeitpunkt", "abfahrtsZeit") or time_field(
+        first_halt, "abfahrtsZeitpunkt", "abgangsDatum", "abfahrtsZeit",
+    )
+    arr_time = time_field(section, "ankunftsZeitpunkt", "ankunftsDatum", "ankunftsZeit") or time_field(
+        last_halt, "ankunftsZeitpunkt", "ankunftsDatum", "ankunftsZeit",
+    )
+    return bool(dep_name and arr_name and dep_time and arr_time)
+
+
+def map_summary_leg(connection: dict) -> bool:
+    dep_name = text_field(connection, "abfahrtsOrt") or text_field(connection, "origin")
+    arr_name = text_field(connection, "ankunftsOrt") or text_field(connection, "destination")
+    dep_time = time_field(connection, "abfahrtsZeit", "abfahrtsZeitpunkt")
+    arr_time = time_field(connection, "ankunftsZeit", "ankunftsZeitpunkt")
+    return bool(dep_name and arr_name and dep_time and arr_time)
+
+
+def count_parseable_journeys(root: dict) -> tuple[int, int, str]:
+    """Returns (raw_connections, parseable_journeys, source)."""
+    connections, source = extract_connection_elements(root)
+    raw = len(connections)
+    parseable = 0
+    for conn in connections:
+        legs = [s for s in flatten_abschnitte(conn) if map_abschnitt(s)]
+        if not legs and map_summary_leg(conn):
+            legs = [conn]
+        if legs:
+            parseable += 1
+    return raw, parseable, source
 
 
 def main() -> None:
     when = (datetime.now(timezone.utc) + timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M:%S")
     print("== OpenBahn live API smoke (Hamburg Hbf → Berlin Hbf) ==")
+    print("== Step 1: station search GET /reiseloesung/orte ==")
     h = search_station("Hamburg Hbf")
     b = search_station("Berlin Hbf")
     print(f"From: {h['name']} eva={h.get('extId')} id={h['id'][:56]}…")
@@ -127,7 +297,7 @@ def main() -> None:
         "produktgattungen": PRODUCTS,
     }
 
-    print(f"== POST /angebote/fahrplan (departure {when}) ==")
+    print(f"== Step 2: journey search POST /angebote/fahrplan (departure {when}) ==")
     raw = fetch(
         f"{API}/angebote/fahrplan",
         data=json.dumps(body).encode(),
@@ -139,12 +309,32 @@ def main() -> None:
     if data.get("status") == "ERROR":
         print(f"FAIL: API error code={data.get('code')}")
         sys.exit(1)
-    n, source = count_connections(data)
-    print(f"status={data.get('status', 'ok')} connections={n} source={source}")
-    if n == 0:
-        print('FAIL: no connections (app would show "No connections found")')
+
+    raw_n, parseable, source = count_parseable_journeys(data)
+    print(
+        f"status={data.get('status', 'ok')} rawConnections={raw_n} "
+        f"parseableRoutes={parseable} source={source}",
+    )
+
+    if raw_n == 0:
+        print('FAIL: API returned no connections (app would show "No connections found")')
         sys.exit(1)
-    print(f"OK: {n} connection(s) — bahn.de reachable from this network")
+    if parseable == 0:
+        print(
+            "FAIL: API returned connections but none have parseable legs — "
+            'app would show "No connections found" (parser/schema issue)',
+        )
+        sys.exit(1)
+
+    first = merge_connection((data.get("verbindungen") or [{}])[0])
+    flat = flatten_abschnitte(first)
+    sample = flat[0] if flat else first
+    print(
+        f"== Step 3: route check OK — {parseable} journey(s) with legs "
+        f"(sample: {station_name(sample, 'abfahrtsOrt', halte_array(sample)[0] if halte_array(sample) else None)} "
+        f"→ {station_name(sample, 'ankunftsOrt', halte_array(sample)[-1] if halte_array(sample) else None)}) ==",
+    )
+    print("OK: station search + journey search + parseable routes from this network")
 
 
 if __name__ == "__main__":
