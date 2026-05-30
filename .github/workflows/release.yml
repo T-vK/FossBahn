@@ -87,14 +87,23 @@ jobs:
           git tag "${{ steps.semver.outputs.version }}"
           git push origin "${{ steps.semver.outputs.version }}"
 
-      - name: Build debug APK (GitHub Release)
+      - name: Build APKs (debug for GitHub Release, release for F-Droid)
         if: steps.semver.outputs.skip == 'false'
         env:
           CI: true
         run: |
           chmod +x gradlew
-          ./gradlew :app:assembleDebug --stacktrace
+          ./gradlew :app:assembleDebug :app:assembleRelease --stacktrace
           ls -la app/build/outputs/apk/debug/
+          ls -la app/build/outputs/apk/release/
+
+      - name: Upload release APK for F-Droid job
+        if: steps.semver.outputs.skip == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fdroid-release-apk
+          path: app/build/outputs/apk/release/OpenBahnNavigator-*-release.apk
+          retention-days: 2
 
       - name: Publish GitHub Release
         if: steps.semver.outputs.skip == 'false'
@@ -138,7 +147,22 @@ jobs:
 
       - uses: ./.github/actions/android-build-setup
 
+      - name: Download release APK from release job
+        uses: actions/download-artifact@v4
+        with:
+          name: fdroid-release-apk
+          path: fdroid-release-apk
+
+      - name: Resolve release APK path
+        id: apk
+        run: |
+          APK="$(ls -1 fdroid-release-apk/OpenBahnNavigator-*-release.apk | head -1)"
+          echo "path=$APK" >> "$GITHUB_OUTPUT"
+          echo "F-Droid will index: $APK"
+
       - uses: ./.github/actions/publish-fdroid-pages
+        with:
+          release-apk-path: ${{ steps.apk.outputs.path }}
 
       - name: Deploy to GitHub Pages
         id: deployment

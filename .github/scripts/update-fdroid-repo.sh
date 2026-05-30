@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# Build fdroid/repo index from a release APK and stage output for GitHub Pages.
+# Build or reuse a release APK, refresh fdroid/repo index, stage output for GitHub Pages.
+#
+# Usage:
+#   update-fdroid-repo.sh              # assembleRelease, then index (manual workflow)
+#   update-fdroid-repo.sh --apk PATH   # index only (CI reuses APK from release job)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -8,6 +12,20 @@ PAGES="$ROOT/fdroid-pages"
 OWNER_LC="$(echo "${GITHUB_REPOSITORY_OWNER:-T-vK}" | tr '[:upper:]' '[:lower:]')"
 REPO_NAME="${GITHUB_REPOSITORY_NAME:-OpenBahn-Navigator}"
 REPO_URL="https://${OWNER_LC}.github.io/${REPO_NAME}/fdroid/repo"
+
+APK_ARG=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --apk)
+      APK_ARG="$2"
+      shift 2
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      exit 1
+      ;;
+  esac
+done
 
 echo "== F-Droid repo update =="
 echo "Publish URL: $REPO_URL"
@@ -28,16 +46,24 @@ else
   echo "repo_url: ${REPO_URL}" >> "$FDROID/config.yml"
 fi
 
-cd "$ROOT"
-chmod +x gradlew
-./gradlew :app:assembleRelease --stacktrace
-
-APK="$(ls -1 "$ROOT"/app/build/outputs/apk/release/OpenBahnNavigator-*-release.apk 2>/dev/null | head -1)"
-if [ -z "$APK" ]; then
-  echo "No release APK found under app/build/outputs/apk/release/" >&2
-  exit 1
+if [ -n "$APK_ARG" ]; then
+  APK="$(cd "$(dirname "$APK_ARG")" && pwd)/$(basename "$APK_ARG")"
+  if [ ! -f "$APK" ]; then
+    echo "APK not found: $APK" >&2
+    exit 1
+  fi
+  echo "Using pre-built release APK (no Gradle): $APK"
+else
+  cd "$ROOT"
+  chmod +x gradlew
+  ./gradlew :app:assembleRelease --stacktrace
+  APK="$(ls -1 "$ROOT"/app/build/outputs/apk/release/OpenBahnNavigator-*-release.apk 2>/dev/null | head -1)"
+  if [ -z "$APK" ]; then
+    echo "No release APK found under app/build/outputs/apk/release/" >&2
+    exit 1
+  fi
+  echo "Built release APK: $APK"
 fi
-echo "Using APK: $APK"
 
 mkdir -p "$FDROID/repo"
 cd "$FDROID"

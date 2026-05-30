@@ -1,5 +1,11 @@
 name: Publish F-Droid Pages artifact
-description: Build release APK, update fdroid/repo index, stage fdroid-pages for GitHub Pages
+description: Index a release APK into fdroid/repo and stage fdroid-pages (no Gradle when apk-path is set)
+
+inputs:
+  release-apk-path:
+    description: Pre-built release APK from the release job (skips assembleRelease)
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -24,11 +30,14 @@ runs:
 
     - name: Build F-Droid repo and Pages site
       shell: bash
-      env:
-        CI: true
       run: |
         chmod +x .github/scripts/update-fdroid-repo.sh
-        .github/scripts/update-fdroid-repo.sh
+        APK_PATH="${{ inputs.release-apk-path }}"
+        if [ -n "$APK_PATH" ]; then
+          .github/scripts/update-fdroid-repo.sh --apk "$APK_PATH"
+        else
+          CI=true .github/scripts/update-fdroid-repo.sh
+        fi
 
     - name: Verify F-Droid index
       shell: bash

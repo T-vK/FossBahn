@@ -112,7 +112,7 @@ User-facing install URL:
 
 **Settings → Pages → Build and deployment → Source: GitHub Actions**
 
-Each semver release runs the `publish-fdroid` job in [release.yml](../.github/workflows/release.yml): it builds a **release** APK, runs `fdroid update`, and deploys to Pages at `fdroid/repo/`.
+Each semver release runs one Gradle build in the **release** job (`assembleDebug` + `assembleRelease`). The debug APK goes to GitHub Releases; the release APK is passed to **publish-fdroid**, which only runs `fdroid update` (no second compile).
 
 ### Publish
 
