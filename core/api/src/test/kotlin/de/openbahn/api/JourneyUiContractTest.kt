@@ -42,6 +42,29 @@ class JourneyUiContractTest {
     }
 
     @Test
+    fun nestedAbschnitteWrapperFixture_yieldsJourneysForUi() {
+        val text = javaClass.getResource("/dbweb-journey-nested-abschnitte-wrapper.json")!!.readText()
+        val journeys = JourneyResponseParser.parse(text)
+        assertUiContract(journeys, "nested abschnitte wrapper")
+        assertTrue(journeys.first().legs.size >= 2, "expected multiple legs from nested abschnitte")
+    }
+
+    @Test
+    fun epochMillisAbschnittFixture_yieldsJourneysForUi() {
+        val text = javaClass.getResource("/dbweb-journey-epoch-millis-abschnitt.json")!!.readText()
+        val journeys = JourneyResponseParser.parse(text)
+        assertUiContract(journeys, "epoch millis abschnitt")
+    }
+
+    @Test
+    fun haltIdNamesFixture_yieldsJourneysForUi() {
+        val text = javaClass.getResource("/dbweb-journey-halt-id-names.json")!!.readText()
+        val journeys = JourneyResponseParser.parse(text)
+        assertUiContract(journeys, "halt id names")
+        assertTrue(journeys.first().legs.first().origin.name.contains("Hamburg"))
+    }
+
+    @Test
     fun nestedOrtAbschnittFixture_yieldsJourneysForUi() {
         val text = javaClass.getResource("/dbweb-journey-nested-ort-abschnitt.json")!!.readText()
         val journeys = JourneyResponseParser.parse(text)

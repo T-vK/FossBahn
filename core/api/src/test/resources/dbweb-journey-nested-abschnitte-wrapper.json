@@ -1,0 +1,33 @@
+{
+  "verbindungen": [
+    {
+      "tripId": "nested_wrapper_1",
+      "umstiegsAnzahl": 1,
+      "verbindungsDauerInSeconds": 10800,
+      "verbindungsAbschnitte": [
+        {
+          "verbindungsAbschnitte": [
+            {
+              "abfahrtsOrt": "Hamburg Hbf",
+              "abfahrtsOrtExtId": "8002549",
+              "abfahrtsZeitpunkt": "2026-05-30T10:00:00",
+              "ankunftsOrt": "Berlin-Spandau",
+              "ankunftsOrtExtId": "8010324",
+              "ankunftsZeitpunkt": "2026-05-30T11:30:00",
+              "verkehrsmittel": { "name": "ICE 100", "produktGattung": "ICE" }
+            },
+            {
+              "abfahrtsOrt": "Berlin-Spandau",
+              "abfahrtsOrtExtId": "8010324",
+              "abfahrtsZeitpunkt": "2026-05-30T11:35:00",
+              "ankunftsOrt": "Berlin Hbf",
+              "ankunftsOrtExtId": "8011160",
+              "ankunftsZeitpunkt": "2026-05-30T12:00:00",
+              "verkehrsmittel": { "name": "RE 1", "produktGattung": "REGIONAL" }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
