@@ -20,6 +20,7 @@ Usage:
   python3 scripts/verify-delay-scenarios.py --when "$(date -u -d '+3 hours' +%Y-%m-%dT%H:%M:%S)"  # if 422 (past)
   python3 scripts/verify-delay-scenarios.py --gradle     # Kotlin verifyDelayScenarios (needs JDK 17)
   python3 scripts/verify-delay-scenarios.py --strict       # fail if historical delays cleared from live API
+  python3 scripts/verify-delay-scenarios.py --when 2026-05-30T12:00:00 --board-at-scheduled --dump-raw
 
 Termux (no Java): pkg install openjdk-17 OR use --fixtures only.
 
@@ -351,6 +352,41 @@ def find_connection(connections: list[dict], line: str, dep_clock: str) -> dict 
     return None
 
 
+def dump_delay_fields(section: dict) -> None:
+    """Print raw API objects that may carry Verspätung (for comparing with bahn.de)."""
+    abfahrt = section.get("abfahrt")
+    ankunft = section.get("ankunft")
+    print("\n── raw delay fields (section) ──")
+    if isinstance(abfahrt, dict):
+        print(f"  abfahrt: {json.dumps(abfahrt, ensure_ascii=False)[:400]}")
+    else:
+        print("  abfahrt: (missing)")
+    if isinstance(ankunft, dict):
+        print(f"  ankunft: {json.dumps(ankunft, ensure_ascii=False)[:400]}")
+    halte = section.get("halte") or []
+    if halte:
+        h0 = halte[0] if isinstance(halte[0], dict) else {}
+        h1 = halte[-1] if isinstance(halte[-1], dict) else {}
+        print(f"  first halt keys: {sorted(h0.keys())}")
+        for label, h in (("origin halt", h0), ("dest halt", h1)):
+            snippet = {
+                k: h.get(k)
+                for k in (
+                    "abfahrtsZeitpunkt",
+                    "ankunftsZeitpunkt",
+                    "ezAbfahrtsZeitpunkt",
+                    "ezAnkunftsZeitpunkt",
+                    "ezZeit",
+                    "verspaetung",
+                    "prognosezeit",
+                    "istzeit",
+                )
+                if h.get(k) is not None
+            }
+            if snippet:
+                print(f"  {label}: {json.dumps(snippet, ensure_ascii=False)}")
+
+
 def print_connection_debug(label: str, hit: dict) -> None:
     conn = hit["connection"]
     sec = hit["section"]
@@ -395,8 +431,9 @@ def effective_board_when(scenario_when_iso: str) -> str:
     return scenario_when_iso
 
 
-def board_departures(eva: str, when: str) -> list[dict]:
-    when = effective_board_when(when)
+def board_departures(eva: str, when: str, *, at_scheduled: bool = False) -> list[dict]:
+    if not at_scheduled:
+        when = effective_board_when(when)
     date, time = when[:10], when[11:19]
     params: list[tuple[str, str]] = [
         ("ortExtId", eva),
@@ -412,8 +449,9 @@ def board_departures(eva: str, when: str) -> list[dict]:
     return data.get("abfahrten") or data.get("entries") or []
 
 
-def board_arrivals(eva: str, when: str) -> list[dict]:
-    when = effective_board_when(when)
+def board_arrivals(eva: str, when: str, *, at_scheduled: bool = False) -> list[dict]:
+    if not at_scheduled:
+        when = effective_board_when(when)
     date, time = when[:10], when[11:19]
     params: list[tuple[str, str]] = [
         ("ortExtId", eva),
@@ -545,6 +583,8 @@ def check_scenario(hit: dict | None, spec: dict, *, strict: bool) -> bool:
 
     print_connection_debug("search /fahrplan", hit)
     best = enrich_hit_with_refresh(hit, spec)
+    if "--dump-raw" in sys.argv:
+        dump_delay_fields(best["section"])
     t = best["times"]
     conn = best["connection"]
     sec = best["section"]
@@ -596,6 +636,7 @@ def main() -> None:
     when_iso = parse_when_arg(sys.argv)
     warn_if_past(when_iso)
     strict = strict_mode(sys.argv)
+    board_at_scheduled = "--board-at-scheduled" in sys.argv
 
     run_gradle = "--gradle" in sys.argv
     if run_gradle:
@@ -667,13 +708,15 @@ def main() -> None:
             all_ok = False
 
         dep_when = f"2026-05-30T{spec['dep_clock']}:00"
-        board_when = effective_board_when(dep_when)
+        board_when = dep_when if board_at_scheduled else effective_board_when(dep_when)
         if board_when != dep_when:
-            print(f"  (board uses now={board_when} — API rejects past board times)")
+            print(f"  (board uses now={board_when} — pass --board-at-scheduled to query departure time)")
+        elif board_at_scheduled:
+            print(f"  (board at scheduled departure {board_when})")
 
         banner(f"BOARD abfahrten @ Hamburg (target dep {spec['dep_clock']})")
         try:
-            entries = board_departures(HAMBURG_EVA, dep_when)
+            entries = board_departures(HAMBURG_EVA, board_when, at_scheduled=board_at_scheduled)
             board_hit = match_board(entries, spec["line"], spec["dep_clock"])
             if board_hit:
                 ez = board_hit.get("ezZeit")
