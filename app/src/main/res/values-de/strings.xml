@@ -158,6 +158,10 @@
     <string name="show_intermediate_stations">%d Zwischenstationen anzeigen</string>
     <string name="hide_intermediate_stations">Zwischenstationen ausblenden</string>
     <string name="prior_stations_heading">Frühere Halte dieser Fahrt (vor Ihrer Abfahrt)</string>
+    <string name="trip_route_heading">Alle Halte dieser Fahrt</string>
+    <string name="trip_route_board_here">Ihre Abfahrt</string>
+    <string name="trip_route_alight_here">Ihre Ankunft</string>
+    <string name="trip_route_your_stop">Ihr Halt</string>
     <string name="delay_minutes">+%d Min. Verspätung</string>
     <string name="scheduled_time_short">Plan %1$s</string>
     <string name="load_earlier_connections">Frühere Verbindungen</string>

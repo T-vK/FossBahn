@@ -5,6 +5,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material3.ripple
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -48,6 +50,8 @@ import de.openbahn.api.JourneyRatingOptions
 import de.openbahn.model.RatedJourney
 import de.openbahn.model.StopEvent
 import de.openbahn.model.delayMinutesFromTimes
+import de.openbahn.model.stationNamesMatch
+import de.openbahn.model.tripRouteStops
 import de.openbahn.navigator.R
 import de.openbahn.navigator.ui.util.NavigateToStopIconButton
 import de.openbahn.navigator.ui.util.ShareJourneyIconButton
@@ -378,17 +382,25 @@ private fun LegRemarksBlock(remarks: List<String>) {
 
 @Composable
 private fun LegDetailsBlock(leg: Leg, legIndex: Int) {
-    var showPriorStops by remember(legIndex, leg.priorStops.size) { mutableStateOf(false) }
+    val routeStops = leg.tripRouteStops()
+    var showTripRoute by remember(legIndex, routeStops.size, leg.lineDetail) { mutableStateOf(false) }
+    val canShowTripRoute = leg.lineDetail != null && routeStops.size >= 2
     LegLineHeader(
         leg = leg,
-        onTripNumberClick = {
-            if (leg.priorStops.isNotEmpty()) {
-                showPriorStops = !showPriorStops
-            }
-        },
+        canShowTripRoute = canShowTripRoute,
+        onTripNumberClick = { showTripRoute = !showTripRoute },
     )
-    if (showPriorStops && leg.priorStops.isNotEmpty()) {
-        PriorStopsBlock(stops = leg.priorStops, legIndex = legIndex)
+    AnimatedVisibility(
+        visible = showTripRoute && canShowTripRoute,
+        enter = expandVertically(),
+        exit = shrinkVertically(),
+    ) {
+        TripRouteBlock(
+            stops = routeStops,
+            boardAt = leg.origin.name,
+            alightAt = leg.destination.name,
+            legIndex = legIndex,
+        )
     }
     StopRow(
         label = stringResource(R.string.departure),
@@ -396,7 +408,7 @@ private fun LegDetailsBlock(leg: Leg, legIndex: Int) {
         modifier = Modifier.testTag("leg_${legIndex}_departure"),
         navigateTestTag = "navigate_leg_${legIndex}_departure",
     )
-    if (leg.intermediateStops.isNotEmpty()) {
+    if (!showTripRoute && leg.intermediateStops.isNotEmpty()) {
         IntermediateStopsBlock(stops = leg.intermediateStops, legIndex = legIndex)
     }
     StopRow(
@@ -502,13 +514,15 @@ private fun StopRow(
 @Composable
 private fun LegLineHeader(
     leg: Leg,
+    canShowTripRoute: Boolean,
     onTripNumberClick: () -> Unit,
 ) {
     if (leg.lineName == null && leg.lineDetail == null) return
-    val tripClickable = leg.lineDetail != null && leg.priorStops.isNotEmpty()
+    val tripInteraction = remember { MutableInteractionSource() }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = Modifier.fillMaxWidth(),
     ) {
         leg.lineName?.let { line ->
             Text(
@@ -520,12 +534,29 @@ private fun LegLineHeader(
         }
         leg.lineDetail?.let { trip ->
             val prefix = if (leg.lineName != null) " " else ""
+            val tripStyle = if (canShowTripRoute) {
+                MaterialTheme.typography.bodySmall.copy(
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium,
+                    textDecoration = TextDecoration.Underline,
+                )
+            } else {
+                MaterialTheme.typography.bodySmall.copy(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text(
                 text = "$prefix($trip)",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = if (tripClickable) {
-                    Modifier.clickable(onClick = onTripNumberClick)
+                style = tripStyle,
+                modifier = if (canShowTripRoute) {
+                    Modifier
+                        .clickable(
+                            interactionSource = tripInteraction,
+                            indication = ripple(bounded = true),
+                            onClick = onTripNumberClick,
+                        )
+                        .padding(horizontal = 4.dp, vertical = 4.dp)
+                        .testTag("leg_trip_number")
                 } else {
                     Modifier
                 },
@@ -535,9 +566,14 @@ private fun LegLineHeader(
 }
 
 @Composable
-private fun PriorStopsBlock(stops: List<StopEvent>, legIndex: Int) {
+private fun TripRouteBlock(
+    stops: List<StopEvent>,
+    boardAt: String,
+    alightAt: String,
+    legIndex: Int,
+) {
     Text(
-        stringResource(R.string.prior_stations_heading),
+        stringResource(R.string.trip_route_heading),
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
@@ -546,8 +582,23 @@ private fun PriorStopsBlock(stops: List<StopEvent>, legIndex: Int) {
         Modifier.padding(start = 8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        stops.forEach { stop ->
-            ViaStopRow(stop = stop, modifier = Modifier.testTag("leg_${legIndex}_prior_stop"))
+        stops.forEachIndexed { index, stop ->
+            val isBoard = stationNamesMatch(stop.name, boardAt)
+            val isAlight = stationNamesMatch(stop.name, alightAt)
+            Column(Modifier.testTag("leg_${legIndex}_route_stop_$index")) {
+                if (isBoard || isAlight) {
+                    Text(
+                        text = when {
+                            isBoard && isAlight -> stringResource(R.string.trip_route_your_stop)
+                            isBoard -> stringResource(R.string.trip_route_board_here)
+                            else -> stringResource(R.string.trip_route_alight_here)
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                ViaStopRow(stop = stop)
+            }
         }
     }
 }

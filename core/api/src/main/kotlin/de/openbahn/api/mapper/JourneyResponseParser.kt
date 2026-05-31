@@ -10,6 +10,7 @@ import de.openbahn.model.JourneySearchResult
 import de.openbahn.model.Leg
 import de.openbahn.model.StopEvent
 import de.openbahn.model.TransportProduct
+import de.openbahn.model.stationNamesMatch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -501,7 +502,8 @@ internal object JourneyResponseParser {
                 remarks = haltRemarks(lastHalt ?: zielHalt),
             ),
             intermediateStops = mapIntermediateStops(halte, depName, arrName),
-            priorStops = mapPriorStops(halte, depName),
+            priorStops = mapPriorStops(halte, depName, depTimes.scheduled),
+            routeStops = mapRouteStops(halte),
             lineName = line.primary,
             lineDetail = line.detail,
             product = text(vm, "produktGattung")?.let(::mapProduct),
@@ -524,20 +526,47 @@ internal object JourneyResponseParser {
         if (halte.size <= 2) return emptyList()
         return halte.drop(1).dropLast(1).mapNotNull { halt ->
             val name = stationNameFromHalt(halt) ?: return@mapNotNull null
-            if (name.equals(depName, ignoreCase = true) || name.equals(arrName, ignoreCase = true)) {
+            if (stationNamesMatch(name, depName) || stationNamesMatch(name, arrName)) {
                 return@mapNotNull null
             }
             mapHaltStopEvent(halt)
         }
     }
 
-    private fun mapPriorStops(halte: List<JsonObject>, depName: String): List<StopEvent> {
-        if (halte.isEmpty()) return emptyList()
-        val depIndex = halte.indexOfFirst { halt ->
-            stationNameFromHalt(halt)?.equals(depName, ignoreCase = true) == true
-        }
+    private fun mapRouteStops(halte: List<JsonObject>): List<StopEvent> =
+        halte.mapNotNull(::mapHaltStopEvent)
+
+    private fun mapPriorStops(
+        halte: List<JsonObject>,
+        depName: String,
+        depScheduled: String?,
+    ): List<StopEvent> {
+        val depIndex = boardingHaltIndex(halte, depName, depScheduled)
         if (depIndex <= 0) return emptyList()
         return halte.take(depIndex).mapNotNull(::mapHaltStopEvent)
+    }
+
+    private fun boardingHaltIndex(
+        halte: List<JsonObject>,
+        depName: String,
+        depScheduled: String?,
+    ): Int {
+        if (halte.isEmpty()) return -1
+        val byName = halte.indexOfFirst { halt ->
+            stationNameFromHalt(halt)?.let { stationNamesMatch(it, depName) } == true
+        }
+        if (byName >= 0) return byName
+        if (!depScheduled.isNullOrBlank()) {
+            val byTime = halte.indexOfFirst { halt ->
+                val times = bestStopTimes(
+                    parseStopTimes(halt, HaltTimeRole.DEPARTURE),
+                    parseStopTimes(halt, HaltTimeRole.ARRIVAL),
+                )
+                times?.scheduled == depScheduled || times?.prognosed == depScheduled
+            }
+            if (byTime >= 0) return byTime
+        }
+        return -1
     }
 
     private fun mapHaltStopEvent(halt: JsonObject): StopEvent? {
@@ -567,7 +596,7 @@ internal object JourneyResponseParser {
 
     private fun haltMatchingName(halte: List<JsonObject>, name: String): JsonObject? =
         halte.firstOrNull { halt ->
-            stationNameFromHalt(halt)?.equals(name, ignoreCase = true) == true
+            stationNameFromHalt(halt)?.let { stationNamesMatch(it, name) } == true
         }
 
     private fun sectionDepartureTimes(

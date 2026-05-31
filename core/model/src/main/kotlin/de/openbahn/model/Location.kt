@@ -39,6 +39,8 @@ data class Leg(
     val intermediateStops: List<StopEvent> = emptyList(),
     /** Stops before the passenger boards (earlier on the same train run). */
     val priorStops: List<StopEvent> = emptyList(),
+    /** Full stop sequence for this train section (API haltes), when provided. */
+    val routeStops: List<StopEvent> = emptyList(),
     /** Linienbezeichnung (e.g. RB 31, ICE 523). */
     val lineName: String? = null,
     /** Zug-/Fahrtnummer when distinct from [lineName] (e.g. 81633). */

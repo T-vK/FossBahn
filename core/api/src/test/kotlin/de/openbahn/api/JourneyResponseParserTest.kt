@@ -121,6 +121,7 @@ class JourneyResponseParserTest {
         val leg = JourneyResponseParser.parse(text).journeys.single().legs.single()
         assertEquals("RB 31", leg.lineName)
         assertEquals("81633", leg.lineDetail)
+        assertEquals(4, leg.routeStops.size)
         assertEquals(2, leg.priorStops.size)
         assertEquals("Hamburg Hbf", leg.priorStops.first().name)
         assertEquals(5, leg.priorStops.first().delayMinutes)
