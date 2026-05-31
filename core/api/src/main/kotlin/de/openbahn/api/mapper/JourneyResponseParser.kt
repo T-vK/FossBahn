@@ -155,7 +155,7 @@ internal object JourneyResponseParser {
     }
 
     private fun zugnummerFromTripId(tripId: String): String? =
-        Regex("#ZI#(\\d+)#", RegexOption.IGNORE_CASE)
+        Regex("#Z[IE]#(\\d+)#", RegexOption.IGNORE_CASE)
             .find(tripId)
             ?.groupValues
             ?.getOrNull(1)
