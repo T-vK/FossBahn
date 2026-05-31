@@ -6,7 +6,8 @@ repo_name: OpenBahn Navigator
 repo_icon: icon.png
 repo_description: Official OpenBahn Navigator APK repository (FOSS, CI-signed debug builds)
 repo_maxage: 366
-archive_older: 2
+# APKs older than the newest N stay in fdroid/archive/ (must be deployed next to repo/ on Pages).
+archive_older: 5
 
 # Repo index signing: injected by .github/scripts/prepare-fdroid-signing.sh (see .github/signing/).
 # repo_keysha256: added automatically by fdroid update

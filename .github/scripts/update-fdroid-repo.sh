@@ -97,6 +97,10 @@ cp -a repo/icons/icon.png "$PAGES/fdroid/icons/icon.png"
 sed -i "s|https://github.com/T-vK/FossBahn|https://github.com/${GITHUB_REPOSITORY_OWNER:-T-vK}/${REPO_NAME}|g" "$PAGES/index.html"
 sed -i "s|https://t-vk.github.io/[^/]*/fdroid/repo|${REPO_URL}|g" "$PAGES/fdroid/index.html"
 cp -a repo "$PAGES/fdroid/repo"
+if [ -d archive ] && [ -n "$(ls -A archive 2>/dev/null)" ]; then
+  cp -a archive "$PAGES/fdroid/archive"
+  echo "Published fdroid/archive ($(ls -1 archive/*.apk 2>/dev/null | wc -l) APK(s))"
+fi
 touch "$PAGES/.nojekyll"
 
 echo "Pages artifact ready at $PAGES"

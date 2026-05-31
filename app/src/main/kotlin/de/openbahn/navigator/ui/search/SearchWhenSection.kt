@@ -1,49 +1,37 @@
 package de.openbahn.navigator.ui.search
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimePicker
-import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.openbahn.navigator.R
-import de.openbahn.navigator.ui.util.epochMillisToLocalDateTime
-import de.openbahn.navigator.ui.util.localDateTimeToEpochMillis
+import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.ZoneId
+import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -56,15 +44,42 @@ fun SearchWhenSection(
     onArrivalSearchChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val zone = remember { ZoneId.systemDefault() }
-    var showDatePicker by remember { mutableStateOf(false) }
-    var showTimePicker by remember { mutableStateOf(false) }
-
+    val context = LocalContext.current
     val dateLabel = remember(departureTime) {
         DateTimeFormatter.ofPattern("EEE, d MMM", Locale.getDefault()).format(departureTime)
     }
     val timeLabel = remember(departureTime) {
         DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault()).format(departureTime)
+    }
+
+    val openDatePicker = remember(context, departureTime) {
+        {
+            DatePickerDialog(
+                context,
+                { _, year, month, dayOfMonth ->
+                    val date = LocalDate.of(year, month + 1, dayOfMonth)
+                    onDepartureTimeChange(LocalDateTime.of(date, departureTime.toLocalTime()))
+                },
+                departureTime.year,
+                departureTime.monthValue - 1,
+                departureTime.dayOfMonth,
+            ).show()
+        }
+    }
+
+    val openTimePicker = remember(context, departureTime) {
+        {
+            TimePickerDialog(
+                context,
+                { _, hour, minute ->
+                    val time = LocalTime.of(hour, minute)
+                    onDepartureTimeChange(LocalDateTime.of(departureTime.toLocalDate(), time))
+                },
+                departureTime.hour,
+                departureTime.minute,
+                true,
+            ).show()
+        }
     }
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -95,26 +110,56 @@ fun SearchWhenSection(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            PickerTextField(
-                value = dateLabel,
-                label = stringResource(R.string.search_date),
-                icon = Icons.Outlined.CalendarMonth,
-                onClick = { showDatePicker = true },
+            OutlinedButton(
+                onClick = openDatePicker,
                 modifier = Modifier
                     .weight(1f)
-                    .testTag("search_date_field"),
-                openTestTag = "search_date_open",
-            )
-            PickerTextField(
-                value = timeLabel,
-                label = stringResource(R.string.search_time),
-                icon = Icons.Outlined.Schedule,
-                onClick = { showTimePicker = true },
+                    .heightIn(min = 48.dp)
+                    .testTag("search_date_open"),
+            ) {
+                Icon(
+                    Icons.Outlined.CalendarMonth,
+                    contentDescription = stringResource(R.string.search_pick_date),
+                    modifier = Modifier.padding(end = 8.dp),
+                )
+                Column {
+                    Text(
+                        text = stringResource(R.string.search_date),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = dateLabel,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.testTag("search_date_field"),
+                    )
+                }
+            }
+            OutlinedButton(
+                onClick = openTimePicker,
                 modifier = Modifier
                     .width(128.dp)
-                    .testTag("search_time_field"),
-                openTestTag = "search_time_open",
-            )
+                    .heightIn(min = 48.dp)
+                    .testTag("search_time_open"),
+            ) {
+                Icon(
+                    Icons.Outlined.Schedule,
+                    contentDescription = stringResource(R.string.search_pick_time),
+                    modifier = Modifier.padding(end = 4.dp),
+                )
+                Column {
+                    Text(
+                        text = stringResource(R.string.search_time),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = timeLabel,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.testTag("search_time_field"),
+                    )
+                }
+            }
         }
 
         FilledTonalButton(
@@ -125,108 +170,5 @@ fun SearchWhenSection(
         ) {
             Text(stringResource(R.string.search_time_now))
         }
-    }
-
-    if (showDatePicker) {
-        val dateState = rememberDatePickerState(
-            initialSelectedDateMillis = localDateTimeToEpochMillis(departureTime, zone),
-        )
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val millis = dateState.selectedDateMillis
-                            ?: localDateTimeToEpochMillis(departureTime, zone)
-                        val date = epochMillisToLocalDateTime(millis, zone).toLocalDate()
-                        onDepartureTimeChange(LocalDateTime.of(date, departureTime.toLocalTime()))
-                        showDatePicker = false
-                    },
-                ) {
-                    Text(stringResource(android.R.string.ok))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-            },
-        ) {
-            DatePicker(state = dateState)
-        }
-    }
-
-    if (showTimePicker) {
-        val timeState = rememberTimePickerState(
-            initialHour = departureTime.hour,
-            initialMinute = departureTime.minute,
-            is24Hour = true,
-        )
-        AlertDialog(
-            onDismissRequest = { showTimePicker = false },
-            title = { Text(stringResource(R.string.search_pick_time)) },
-            text = { TimePicker(state = timeState) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val time = java.time.LocalTime.of(timeState.hour, timeState.minute)
-                        onDepartureTimeChange(LocalDateTime.of(departureTime.toLocalDate(), time))
-                        showTimePicker = false
-                    },
-                ) {
-                    Text(stringResource(android.R.string.ok))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-            },
-        )
-    }
-}
-
-@Composable
-private fun PickerTextField(
-    value: String,
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    openTestTag: String? = null,
-) {
-    val fieldColors = OutlinedTextFieldDefaults.colors(
-        disabledTextColor = MaterialTheme.colorScheme.onSurface,
-        disabledContainerColor = MaterialTheme.colorScheme.surface,
-        disabledBorderColor = MaterialTheme.colorScheme.outline,
-        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-    Box(
-        modifier = modifier.heightIn(min = 56.dp),
-    ) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = {},
-            readOnly = true,
-            enabled = false,
-            singleLine = true,
-            label = { Text(label) },
-            leadingIcon = {
-                Icon(icon, contentDescription = label)
-            },
-            colors = fieldColors,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
-                )
-                .then(if (openTestTag != null) Modifier.testTag(openTestTag) else Modifier),
-        )
     }
 }

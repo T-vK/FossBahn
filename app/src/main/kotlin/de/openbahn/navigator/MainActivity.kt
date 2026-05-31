@@ -3,7 +3,7 @@ package de.openbahn.navigator
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ConfirmationNumber
@@ -36,7 +36,7 @@ import de.openbahn.navigator.ui.tickets.TicketsScreen
 import de.openbahn.navigator.ui.tracking.TrackingScreen
 import org.koin.androidx.compose.koinViewModel
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
