@@ -16,6 +16,7 @@ import de.openbahn.model.Journey
 import de.openbahn.model.JourneySearchOptions
 import de.openbahn.model.JourneySearchResult
 import de.openbahn.model.Location
+import de.openbahn.model.StopEvent
 import de.openbahn.model.StationBoard
 import de.openbahn.model.TransportProduct
 import de.openbahn.model.maxDelayMinutes
@@ -194,6 +195,16 @@ class DbVendoClient(
         } catch (e: SerializationException) {
             throw DbParseException(cause = e)
         }
+
+    /** All stops on the vehicle run (before/after your segment), via bahn.de trip id. */
+    suspend fun fetchTripRoute(journeyId: String): List<StopEvent> {
+        if (journeyId.isBlank()) return emptyList()
+        val text = httpClient.get("$baseUrl/reiseloesung/fahrt") {
+            parameter("journeyId", journeyId)
+        }.bodyAsText()
+        if (text.contains("OPS_BLOCKED")) throw DbApiBlockedException("Trip route blocked")
+        return JourneyResponseParser.parseFahrtRoute(text)
+    }
 
     suspend fun refreshJourney(refreshToken: String): Journey? {
         val body = buildJsonObject { put("ctxRecon", refreshToken); put("poly", true) }

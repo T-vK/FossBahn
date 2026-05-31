@@ -33,7 +33,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -50,9 +52,16 @@ import de.openbahn.api.JourneyRatingOptions
 import de.openbahn.model.RatedJourney
 import de.openbahn.model.StopEvent
 import de.openbahn.model.delayMinutesFromTimes
+import de.openbahn.model.RouteStopSegment
+import de.openbahn.model.alightIndexInRoute
+import de.openbahn.model.boardIndexInRoute
+import de.openbahn.model.routeStopSegment
 import de.openbahn.model.stationNamesMatch
 import de.openbahn.model.tripRouteStops
+import de.openbahn.model.withDelaysFrom
 import de.openbahn.navigator.R
+import de.openbahn.navigator.domain.JourneySearchRepository
+import org.koin.compose.koinInject
 import de.openbahn.navigator.ui.util.NavigateToStopIconButton
 import de.openbahn.navigator.ui.util.ShareJourneyIconButton
 import de.openbahn.navigator.ui.util.formatDurationMinutes
@@ -382,25 +391,71 @@ private fun LegRemarksBlock(remarks: List<String>) {
 
 @Composable
 private fun LegDetailsBlock(leg: Leg, legIndex: Int) {
-    val routeStops = leg.tripRouteStops()
-    var showTripRoute by remember(legIndex, routeStops.size, leg.lineDetail) { mutableStateOf(false) }
-    val canShowTripRoute = leg.lineDetail != null && routeStops.size >= 2
+    val journeySearch: JourneySearchRepository = koinInject()
+    val scope = rememberCoroutineScope()
+    val segmentStops = leg.tripRouteStops()
+    var showTripRoute by remember(legIndex, leg.tripId, leg.lineDetail) { mutableStateOf(false) }
+    var loadedStops by remember(legIndex, leg.tripId) { mutableStateOf<List<StopEvent>?>(null) }
+    var routeLoading by remember(legIndex, leg.tripId) { mutableStateOf(false) }
+    val canShowTripRoute = leg.lineDetail != null &&
+        (segmentStops.size >= 2 || !leg.tripId.isNullOrBlank())
+
+    fun loadFullRouteIfNeeded() {
+        if (loadedStops != null || routeLoading) return
+        val tripId = leg.tripId
+        if (tripId.isNullOrBlank()) {
+            loadedStops = segmentStops
+            return
+        }
+        scope.launch {
+            routeLoading = true
+            val fetched = runCatching { journeySearch.fetchTripRoute(tripId) }.getOrDefault(emptyList())
+            val reference = segmentStops.ifEmpty { leg.tripRouteStops() }
+            loadedStops = when {
+                fetched.size >= 2 -> fetched.withDelaysFrom(reference)
+                reference.size >= 2 -> reference
+                else -> fetched
+            }
+            routeLoading = false
+        }
+    }
+
     LegLineHeader(
         leg = leg,
         canShowTripRoute = canShowTripRoute,
-        onTripNumberClick = { showTripRoute = !showTripRoute },
+        onTripNumberClick = {
+            showTripRoute = !showTripRoute
+            if (showTripRoute) loadFullRouteIfNeeded()
+        },
     )
+    val displayStops = loadedStops ?: segmentStops
     AnimatedVisibility(
         visible = showTripRoute && canShowTripRoute,
         enter = expandVertically(),
         exit = shrinkVertically(),
     ) {
-        TripRouteBlock(
-            stops = routeStops,
-            boardAt = leg.origin.name,
-            alightAt = leg.destination.name,
-            legIndex = legIndex,
-        )
+        when {
+            routeLoading && displayStops.size < 2 -> {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    CircularProgressIndicator(Modifier.size(20.dp))
+                }
+            }
+            displayStops.size >= 2 -> {
+                TripRouteBlock(
+                    stops = displayStops,
+                    boardAt = leg.origin.name,
+                    alightAt = leg.destination.name,
+                    boardScheduled = leg.origin.scheduledTime,
+                    alightScheduled = leg.destination.scheduledTime,
+                    legIndex = legIndex,
+                )
+            }
+        }
     }
     StopRow(
         label = stringResource(R.string.departure),
@@ -570,34 +625,50 @@ private fun TripRouteBlock(
     stops: List<StopEvent>,
     boardAt: String,
     alightAt: String,
+    boardScheduled: String,
+    alightScheduled: String,
     legIndex: Int,
 ) {
-    Text(
-        stringResource(R.string.trip_route_heading),
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
-    )
+    val boardIndex = boardIndexInRoute(stops, boardAt, boardScheduled)
+    val alightIndex = alightIndexInRoute(stops, alightAt, alightScheduled, boardIndex)
     Column(
-        Modifier.padding(start = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp, bottom = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        stops.forEachIndexed { index, stop ->
-            val isBoard = stationNamesMatch(stop.name, boardAt)
-            val isAlight = stationNamesMatch(stop.name, alightAt)
-            Column(Modifier.testTag("leg_${legIndex}_route_stop_$index")) {
-                if (isBoard || isAlight) {
-                    Text(
-                        text = when {
-                            isBoard && isAlight -> stringResource(R.string.trip_route_your_stop)
-                            isBoard -> stringResource(R.string.trip_route_board_here)
-                            else -> stringResource(R.string.trip_route_alight_here)
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
+        Text(
+            stringResource(R.string.trip_route_heading),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Column(
+            Modifier.padding(start = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            stops.forEachIndexed { index, stop ->
+                val segment = routeStopSegment(index, boardIndex, alightIndex)
+                val onPassengerSegment = segment == RouteStopSegment.ON_TRIP
+                val isBoard = onPassengerSegment && stationNamesMatch(stop.name, boardAt)
+                val isAlight = onPassengerSegment && stationNamesMatch(stop.name, alightAt)
+                Column(Modifier.testTag("leg_${legIndex}_route_stop_$index")) {
+                    if (isBoard || isAlight) {
+                        Text(
+                            text = when {
+                                isBoard && isAlight -> stringResource(R.string.trip_route_your_stop)
+                                isBoard -> stringResource(R.string.trip_route_board_here)
+                                else -> stringResource(R.string.trip_route_alight_here)
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(bottom = 2.dp),
+                        )
+                    }
+                    ViaStopRow(
+                        stop = stop,
+                        muted = !onPassengerSegment,
                     )
                 }
-                ViaStopRow(stop = stop)
             }
         }
     }
@@ -642,12 +713,18 @@ private fun IntermediateStopsBlock(stops: List<StopEvent>, legIndex: Int) {
 private fun ViaStopRow(
     stop: StopEvent,
     modifier: Modifier = Modifier,
+    muted: Boolean = false,
 ) {
+    val nameColor = when {
+        stop.cancelled -> MaterialTheme.colorScheme.error
+        muted -> MaterialTheme.colorScheme.onSurfaceVariant
+        else -> MaterialTheme.colorScheme.onSurface
+    }
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(
             stop.name,
             style = MaterialTheme.typography.bodySmall,
-            color = if (stop.cancelled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+            color = nameColor,
             textDecoration = if (stop.cancelled) TextDecoration.LineThrough else null,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

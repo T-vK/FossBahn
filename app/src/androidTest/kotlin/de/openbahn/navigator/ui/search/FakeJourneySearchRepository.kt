@@ -44,6 +44,8 @@ class FakeJourneySearchRepository : JourneySearchRepository {
         pagingLater = if (pagingReference == null) "later-fake" else null,
     )
 
+    override suspend fun fetchTripRoute(journeyId: String): List<StopEvent> = emptyList()
+
     override suspend fun rateJourneys(
         journeys: List<Journey>,
         ratingOptions: JourneyRatingOptions,
