@@ -44,6 +44,7 @@
     <string name="favorites_done">Done editing</string>
     <string name="delete">Remove</string>
     <string name="tracking_empty">No active journeys. Track a connection from search results.</string>
+    <string name="tracking_no_refresh_token">Live refresh unavailable for this connection (search again to track).</string>
     <string name="swap_stations">Swap stations</string>
     <string name="error_select_stations">Please pick a station from the suggestions for both origin and destination.</string>
     <string name="error_search_failed">Connection search failed. Please try again.</string>

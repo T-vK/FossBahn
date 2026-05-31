@@ -53,6 +53,6 @@ val appModule = module {
     viewModel { FavoritesViewModel(get(), get(), get()) }
     viewModel { StationBoardViewModel(get()) }
     viewModel { TicketsViewModel(get()) }
-    viewModel { TrackingViewModel(get(), get()) }
+    viewModel { TrackingViewModel(get(), get(), androidContext()) }
     viewModel { SettingsViewModel(get()) }
 }

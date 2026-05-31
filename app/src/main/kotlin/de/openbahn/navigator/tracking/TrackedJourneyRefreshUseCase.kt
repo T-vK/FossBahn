@@ -11,19 +11,14 @@ class TrackedJourneyRefreshUseCase(
     private val client: DbVendoClient,
     private val repository: TrackedJourneyRepository,
 ) {
-    suspend fun refreshJourney(journey: Journey): Journey? {
-        val token = journey.refreshToken?.takeIf { it.isNotBlank() } ?: return null
-        val refreshed = client.refreshJourney(token) ?: return null
-        return journey.withRealtimeFrom(refreshed)
-    }
+    suspend fun refreshJourney(journey: Journey): Journey = refreshWithLiveData(journey)
 
     suspend fun refreshAllActive(): Int {
         var updated = 0
         repository.getActiveForWorker().forEach { entity ->
-            val token = entity.refreshToken?.takeIf { it.isNotBlank() } ?: return@forEach
-            val refreshed = client.refreshJourney(token) ?: return@forEach
             val existing = Json.decodeFromString<Journey>(entity.journeyJson)
-            repository.updateJourney(entity.id, existing.withRealtimeFrom(refreshed))
+            val merged = refreshWithLiveData(existing)
+            repository.updateJourney(entity.id, merged)
             updated++
         }
         return updated
@@ -34,10 +29,9 @@ class TrackedJourneyRefreshUseCase(
         refreshToken: String,
         notificationIncrementMinutes: Int,
     ): Int? {
-        val refreshed = client.refreshJourney(refreshToken) ?: return null
         val active = repository.getActiveForWorker().firstOrNull { it.id == entityId } ?: return null
         val existing = Json.decodeFromString<Journey>(active.journeyJson)
-        val merged = existing.withRealtimeFrom(refreshed)
+        val merged = refreshWithLiveData(existing.copy(refreshToken = refreshToken))
         repository.updateJourney(entityId, merged)
         val maxDelay = merged.maxDelayMinutes()
         val decision = DelayNotificationPolicy.evaluate(
@@ -48,5 +42,21 @@ class TrackedJourneyRefreshUseCase(
         if (!decision.shouldNotify) return null
         repository.updateLastNotifiedDelay(entityId, decision.delayMinutes)
         return decision.delayMinutes
+    }
+
+    /**
+     * DB journey refresh plus station-board enrichment (same pipeline as connection search).
+     */
+    private suspend fun refreshWithLiveData(journey: Journey): Journey {
+        val (from, to) = journey.trackingEndpoints()
+        val token = journey.refreshToken?.takeIf { it.isNotBlank() }
+        val afterRefresh = if (token != null) {
+            client.refreshJourney(token)?.let { journey.withRealtimeFrom(it) } ?: journey
+        } else {
+            journey
+        }
+        if (from == null && to == null) return afterRefresh
+        return client.enrichJourneysWithRealtime(listOf(afterRefresh), from, to).firstOrNull()
+            ?: afterRefresh
     }
 }

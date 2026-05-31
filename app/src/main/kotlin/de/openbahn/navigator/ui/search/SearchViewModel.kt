@@ -315,6 +315,7 @@ class SearchViewModel(
         viewModelScope.launch {
             trackingRepository.track(journey, from, to)
             DelayTrackingWorker.schedule(context)
+            DelayTrackingWorker.runOnce(context)
         }
     }
 

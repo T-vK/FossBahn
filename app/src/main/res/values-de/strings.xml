@@ -44,6 +44,7 @@
     <string name="favorites_done">Bearbeitung beenden</string>
     <string name="delete">Entfernen</string>
     <string name="tracking_empty">Keine aktiven Verbindungen. Verfolgen Sie eine Verbindung in den Suchergebnissen.</string>
+    <string name="tracking_no_refresh_token">Live-Aktualisierung für diese Verbindung nicht verfügbar (erneut suchen und verfolgen).</string>
     <string name="swap_stations">Stationen tauschen</string>
     <string name="error_select_stations">Bitte wählen Sie Start und Ziel aus den Vorschlägen aus.</string>
     <string name="error_search_failed">Die Verbindungssuche ist fehlgeschlagen. Bitte erneut versuchen.</string>

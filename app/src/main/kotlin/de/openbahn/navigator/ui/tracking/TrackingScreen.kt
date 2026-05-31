@@ -40,10 +40,15 @@ fun TrackingScreen(
     viewModel: TrackingViewModel = koinViewModel(),
 ) {
     val tracked by viewModel.tracked.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
     val context = LocalContext.current
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { }
+
+    LaunchedEffect(Unit) {
+        viewModel.ensureBackgroundTracking()
+    }
 
     LaunchedEffect(tracked.isNotEmpty()) {
         if (tracked.isNotEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -56,7 +61,10 @@ fun TrackingScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.tracking_title)) },
                 actions = {
-                    IconButton(onClick = { viewModel.refreshNow() }) {
+                    IconButton(
+                        onClick = { viewModel.refreshNow() },
+                        enabled = !isRefreshing,
+                    ) {
                         Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.refresh))
                     }
                 },
@@ -79,6 +87,13 @@ fun TrackingScreen(
                                     onOpenJourneyDetail()
                                 },
                             )
+                            if (item.entity.refreshToken.isNullOrBlank()) {
+                                Text(
+                                    stringResource(R.string.tracking_no_refresh_token),
+                                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                             TextButton(onClick = { viewModel.stopTracking(item.entity.id) }) {
                                 Text(stringResource(R.string.stop_tracking))
                             }
