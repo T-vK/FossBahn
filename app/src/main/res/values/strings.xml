@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">OpenBahn Navigator</string>
-    <string name="search_title">Journey search</string>
+    <string name="search_title">Connections</string>
     <string name="from">From</string>
     <string name="to">To</string>
     <string name="search">Search</string>
@@ -52,12 +52,13 @@
     <string name="error_parse">Received an unexpected response from Deutsche Bahn. Please update the app if this persists.</string>
     <string name="info_no_connections">No connections found for this route and time. Try different options or a later departure.</string>
     <string name="filters">Options</string>
+    <string name="settings_title">Settings</string>
     <string name="settings_language">Language</string>
     <string name="settings_language_hint">App and station search language. System uses your device setting.</string>
     <string name="settings_language_system">System</string>
     <string name="settings_language_german">Deutsch</string>
     <string name="settings_language_english">English</string>
-    <string name="nav_search">Search</string>
+    <string name="nav_connections">Connections</string>
     <string name="nav_tickets">Tickets</string>
     <string name="nav_tracking">Live Updates</string>
     <string name="board_title">Station board</string>

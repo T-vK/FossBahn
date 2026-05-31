@@ -1,7 +1,8 @@
-package de.openbahn.navigator.ui.search
+package de.openbahn.navigator.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -40,26 +41,24 @@ private fun LanguageChipRow(
     selected: AppLanguage,
     onSelect: (AppLanguage) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        androidx.compose.foundation.layout.Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            FilterChip(
-                selected = selected == AppLanguage.SYSTEM,
-                onClick = { onSelect(AppLanguage.SYSTEM) },
-                label = { Text(stringResource(R.string.settings_language_system)) },
-            )
-            FilterChip(
-                selected = selected == AppLanguage.GERMAN,
-                onClick = { onSelect(AppLanguage.GERMAN) },
-                label = { Text(stringResource(R.string.settings_language_german)) },
-            )
-            FilterChip(
-                selected = selected == AppLanguage.ENGLISH,
-                onClick = { onSelect(AppLanguage.ENGLISH) },
-                label = { Text(stringResource(R.string.settings_language_english)) },
-            )
-        }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        FilterChip(
+            selected = selected == AppLanguage.SYSTEM,
+            onClick = { onSelect(AppLanguage.SYSTEM) },
+            label = { Text(stringResource(R.string.settings_language_system)) },
+        )
+        FilterChip(
+            selected = selected == AppLanguage.GERMAN,
+            onClick = { onSelect(AppLanguage.GERMAN) },
+            label = { Text(stringResource(R.string.settings_language_german)) },
+        )
+        FilterChip(
+            selected = selected == AppLanguage.ENGLISH,
+            onClick = { onSelect(AppLanguage.ENGLISH) },
+            label = { Text(stringResource(R.string.settings_language_english)) },
+        )
     }
 }

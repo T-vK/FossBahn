@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">OpenBahn Navigator</string>
-    <string name="search_title">Verbindungssuche</string>
+    <string name="search_title">Verbindungen</string>
     <string name="from">Von</string>
     <string name="to">Nach</string>
     <string name="search">Suchen</string>
@@ -52,12 +52,13 @@
     <string name="error_parse">Unerwartete Antwort von Deutsche Bahn. Bitte App aktualisieren, falls das anhält.</string>
     <string name="info_no_connections">Keine Verbindungen für diese Route und Zeit gefunden. Andere Optionen oder Abfahrtszeit wählen.</string>
     <string name="filters">Optionen</string>
+    <string name="settings_title">Einstellungen</string>
     <string name="settings_language">Sprache</string>
     <string name="settings_language_hint">Sprache der App und der Bahnhofsuche. „System“ nutzt die Gerätesprache.</string>
     <string name="settings_language_system">System</string>
     <string name="settings_language_german">Deutsch</string>
     <string name="settings_language_english">English</string>
-    <string name="nav_search">Suche</string>
+    <string name="nav_connections">Verbindungen</string>
     <string name="nav_tickets">Tickets</string>
     <string name="nav_tracking">Live-Updates</string>
     <string name="board_title">Bahnhofstafel</string>

@@ -3,12 +3,12 @@ package de.openbahn.navigator
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ConfirmationNumber
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -31,12 +31,13 @@ import de.openbahn.navigator.ui.journey.JourneyDetailScreen
 import de.openbahn.navigator.ui.search.FiltersScreen
 import de.openbahn.navigator.ui.search.SearchScreen
 import de.openbahn.navigator.ui.search.SearchViewModel
+import de.openbahn.navigator.ui.settings.SettingsScreen
 import de.openbahn.navigator.ui.theme.OpenBahnTheme
 import de.openbahn.navigator.ui.tickets.TicketsScreen
 import de.openbahn.navigator.ui.tracking.TrackingScreen
 import org.koin.androidx.compose.koinViewModel
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -48,14 +49,16 @@ class MainActivity : ComponentActivity() {
                 val searchViewModel: SearchViewModel = koinViewModel()
                 val context = LocalContext.current
 
-                val hideBottomBar = currentRoute == Routes.FILTERS || currentRoute == Routes.JOURNEY_DETAIL
+                val hideBottomBar = currentRoute == Routes.FILTERS ||
+                    currentRoute == Routes.SETTINGS ||
+                    currentRoute == Routes.JOURNEY_DETAIL
 
                 Scaffold(
                     bottomBar = {
                         if (!hideBottomBar) {
                             NavigationBar {
                                 listOf(
-                                    Triple(Routes.SEARCH, Icons.Default.Search, R.string.nav_search),
+                                    Triple(Routes.SEARCH, Icons.Default.Route, R.string.nav_connections),
                                     Triple(Routes.FAVORITES, Icons.Default.Star, R.string.nav_favorites),
                                     Triple(Routes.TICKETS, Icons.Default.ConfirmationNumber, R.string.nav_tickets),
                                     Triple(Routes.TRACKING, Icons.Default.Notifications, R.string.nav_tracking),
@@ -85,12 +88,16 @@ class MainActivity : ComponentActivity() {
                         composable(Routes.SEARCH) {
                             SearchScreen(
                                 onOpenFilters = { navController.navigate(Routes.FILTERS) },
+                                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                                 onOpenJourneyDetail = { navController.navigate(Routes.JOURNEY_DETAIL) },
                                 viewModel = searchViewModel,
                             )
                         }
                         composable(Routes.FILTERS) {
                             FiltersScreen(onBack = { navController.popBackStack() })
+                        }
+                        composable(Routes.SETTINGS) {
+                            SettingsScreen(onBack = { navController.popBackStack() })
                         }
                         composable(Routes.FAVORITES) {
                             FavoritesScreen(
@@ -134,6 +141,7 @@ class MainActivity : ComponentActivity() {
 object Routes {
     const val SEARCH = "search"
     const val FILTERS = "filters"
+    const val SETTINGS = "settings"
     const val FAVORITES = "favorites"
     const val TICKETS = "tickets"
     const val TRACKING = "tracking"

@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.activity.ComponentActivity
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -25,7 +24,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.openbahn.model.AccessibilityFilter
@@ -43,8 +41,6 @@ fun FiltersScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val options = state.options
-    val activity = LocalContext.current as? ComponentActivity
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -64,14 +60,6 @@ fun FiltersScreen(
             Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            LanguagePreferenceSection(
-                selected = state.appLanguage,
-                onSelect = { language ->
-                    if (language == state.appLanguage) return@LanguagePreferenceSection
-                    viewModel.setAppLanguage(language)
-                    activity?.recreate()
-                },
-            )
             Text(stringResource(R.string.filter_transport), style = MaterialTheme.typography.titleMedium)
             TransportProduct.entries.chunked(3).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

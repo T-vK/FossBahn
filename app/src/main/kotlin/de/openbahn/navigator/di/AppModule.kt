@@ -17,6 +17,7 @@ import de.openbahn.navigator.domain.PredictionUseCase
 import de.openbahn.navigator.ui.board.StationBoardViewModel
 import de.openbahn.navigator.ui.favorites.FavoritesViewModel
 import de.openbahn.navigator.ui.search.SearchViewModel
+import de.openbahn.navigator.ui.settings.SettingsViewModel
 import de.openbahn.navigator.ui.tickets.TicketsViewModel
 import de.openbahn.navigator.tracking.TrackedJourneyRefreshUseCase
 import de.openbahn.navigator.ui.tracking.TrackingViewModel
@@ -53,4 +54,5 @@ val appModule = module {
     viewModel { StationBoardViewModel(get()) }
     viewModel { TicketsViewModel(get()) }
     viewModel { TrackingViewModel(get(), get()) }
+    viewModel { SettingsViewModel(get()) }
 }
