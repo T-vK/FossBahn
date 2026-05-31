@@ -28,6 +28,22 @@ Exception outcomes always use `LegalDisclaimers` and `requiresUserConfirmation =
 - ≥ 120 min: €2.50
 - Monthly cap: 25 % of €49 ≈ **€12.25** (`MonthlyLedger` in DataStore per month)
 
+## Testing with simulated delays (debug builds)
+
+In **Settings → Simulate delay (debug)** choose a preset:
+
+| Preset | Effect |
+|--------|--------|
+| Off | Live data only |
+| D-Ticket 60 min | +65 min arrival, D-Ticket rules |
+| D-Ticket 120 min | +125 min arrival, D-Ticket rules |
+| Long-distance 60 min | +65 min, EU % rules |
+| Last connection / taxi | +75 min, last connection, no ÖPNV alternative |
+
+Open any **connection detail**: the card shows the simulated delay and the passenger-rights banner when thresholds are met. Tracked journeys use the same simulation during background refresh.
+
+Implementation: `PassengerRightsSimulationConfig` + `Journey.applyPassengerRightsSimulation()` in `core:model`.
+
 ## Extension points
 
 - Set `isLastConnectionOfDay` / `hasPublicAlternativeInWindow` on `PassengerRightsRepository.evaluate()` when route replanning exists

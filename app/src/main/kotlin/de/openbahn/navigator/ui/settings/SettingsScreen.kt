@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import de.openbahn.navigator.BuildConfig
 import de.openbahn.navigator.R
 import org.koin.androidx.compose.koinViewModel
 
@@ -97,6 +98,9 @@ fun SettingsScreen(
                 },
             )
             PassengerRightsSettingsSection(onOpenClaims = onOpenClaims)
+            if (BuildConfig.DEBUG) {
+                PassengerRightsSimulationSection()
+            }
         }
     }
 }

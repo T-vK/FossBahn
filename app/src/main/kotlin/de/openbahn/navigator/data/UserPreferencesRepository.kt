@@ -58,6 +58,10 @@ class UserPreferencesRepository(private val context: Context) {
         it[KEY_PASSENGER_RIGHTS_NOTIFICATIONS] ?: true
     }
 
+    val passengerRightsSimulationJson: Flow<String?> = dataStore.data.map {
+        it[KEY_PASSENGER_RIGHTS_SIMULATION]
+    }
+
     suspend fun currentAppLanguage(): AppLanguage = appLanguage.first()
 
     suspend fun setAppLanguage(language: AppLanguage) {
@@ -97,6 +101,16 @@ class UserPreferencesRepository(private val context: Context) {
         dataStore.edit { it[dticketLedgerKey(yearMonth)] = json }
     }
 
+    suspend fun savePassengerRightsSimulationJson(json: String?) {
+        dataStore.edit { prefs ->
+            if (json == null) {
+                prefs.remove(KEY_PASSENGER_RIGHTS_SIMULATION)
+            } else {
+                prefs[KEY_PASSENGER_RIGHTS_SIMULATION] = json
+            }
+        }
+    }
+
     suspend fun setDeutschlandTicketConnectionsOnly(enabled: Boolean) {
         dataStore.edit { it[KEY_DTICKET_CONNECTIONS_ONLY] = enabled }
     }
@@ -119,6 +133,8 @@ class UserPreferencesRepository(private val context: Context) {
             booleanPreferencesKey("battery_optimization_prompt_dismissed")
         private val KEY_PASSENGER_RIGHTS_NOTIFICATIONS =
             booleanPreferencesKey("passenger_rights_notifications")
+        private val KEY_PASSENGER_RIGHTS_SIMULATION =
+            stringPreferencesKey("passenger_rights_simulation_json")
 
         const val DEFAULT_NEAR_DEPARTURE_CHECK_SECONDS = 5
 

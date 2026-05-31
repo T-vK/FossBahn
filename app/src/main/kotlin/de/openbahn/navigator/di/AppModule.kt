@@ -9,6 +9,7 @@ import de.openbahn.navigator.data.LocationHistoryRepository
 import de.openbahn.navigator.data.MIGRATION_3_4
 import de.openbahn.navigator.data.MIGRATION_4_5
 import de.openbahn.navigator.data.ClaimDraftRepository
+import de.openbahn.navigator.data.PassengerRightsSimulationRepository
 import de.openbahn.navigator.domain.PassengerRightsRepository
 import de.openbahn.navigator.tracking.PassengerRightsNotifier
 import de.openbahn.navigator.tracking.TrackedJourneyRightsCheckUseCase
@@ -61,7 +62,8 @@ val appModule = module {
     single { DelayNotificationNotifier(androidContext()) }
     single { PassengerRightsNotifier(androidContext()) }
     single { ClaimDraftRepository(get(), get()) }
-    single { PassengerRightsRepository(get(), get()) }
+    single { PassengerRightsSimulationRepository(get()) }
+    single { PassengerRightsRepository(get(), get(), get()) }
     single { TrackedJourneyRightsCheckUseCase(get(), get(), get(), get()) }
     single { TrackedJourneyRefreshUseCase(get(), get(), get()) }
     single { TrackedJourneyDelayCheckUseCase(get(), get(), get(), get()) }

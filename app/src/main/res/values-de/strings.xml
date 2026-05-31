@@ -197,4 +197,12 @@
     <string name="passenger_rights_notifications">Rechte-Benachrichtigungen</string>
     <string name="passenger_rights_notifications_desc">Hinweise bei Schwellen — kein Anspruchsgarantie</string>
     <string name="passenger_rights_claims_settings_desc">Entwürfe an Verkehrsunternehmen — Versand nur nach Ihrer Freigabe</string>
+    <string name="passenger_rights_simulation_heading">Verspätung simulieren (Debug)</string>
+    <string name="passenger_rights_simulation_hint">Künstliche Verspätung für Tests der Fahrgastrechte. Nur Debug-Builds.</string>
+    <string name="passenger_rights_simulation_active">Simulation aktiv: +%1$d Min. am Ziel</string>
+    <string name="passenger_rights_sim_off">Aus</string>
+    <string name="passenger_rights_sim_dticket_60">D-Ticket 60 Min.</string>
+    <string name="passenger_rights_sim_dticket_120">D-Ticket 120 Min.</string>
+    <string name="passenger_rights_sim_eu_60">Fernverkehr 60 Min.</string>
+    <string name="passenger_rights_sim_taxi">Letzte Verbindung / Taxi</string>
 </resources>
