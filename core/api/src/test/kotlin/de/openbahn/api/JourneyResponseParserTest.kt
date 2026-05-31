@@ -1,6 +1,8 @@
 package de.openbahn.api
 
 import de.openbahn.api.mapper.JourneyResponseParser
+import de.openbahn.model.Leg
+import de.openbahn.model.StopEvent
 import de.openbahn.model.tripRouteStops
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -146,6 +148,32 @@ class JourneyResponseParserTest {
         val wrapped = """{"fahrt": ${javaClass.getResource("/dbweb-fahrt-rb31.json")!!.readText()}}"""
         val stops = JourneyResponseParser.parseFahrtRoute(wrapped)
         assertEquals(6, stops.size)
+    }
+
+    @Test
+    fun buildRouteFromBoard_matchesSegmentScopedTripIdByZugnummer() {
+        val leg = Leg(
+            origin = StopEvent("Hamburg Hbf", id = "8002549", scheduledTime = "2026-05-31T16:34:00"),
+            destination = StopEvent("Lüneburg", scheduledTime = "2026-05-31T16:55:00"),
+            routeStops = listOf(
+                StopEvent("Hamburg Hbf", scheduledTime = "2026-05-31T16:34:00"),
+                StopEvent("Lüneburg", scheduledTime = "2026-05-31T16:55:00"),
+            ),
+            tripId = "2|#VN#1#ST#1779908603#PI#0#ZI#445871#TA#0#DA#310526#1S#8002549#1T#1634#L",
+            lineDetail = "445871",
+        )
+        val segment = leg.tripRouteStops()
+        val arrivals = """{"ankuenfte":[{"journeyId":"2|#ZB#ICE#ZE#445871#","ueber":["Celle"],"zeit":"2026-05-31T16:34:00"}]}"""
+        val departures = """{"abfahrten":[{"journeyId":"2|#ZB#ICE#ZE#445871#","ueber":["Uelzen"],"zeit":"2026-05-31T16:34:00"}]}"""
+        val extended = JourneyResponseParser.buildRouteFromBoard(
+            arrivalsText = arrivals,
+            departuresText = departures,
+            tripId = leg.tripId!!,
+            leg = leg,
+            segment = segment,
+        )
+        assertEquals("Celle", extended.first().name)
+        assertEquals("Uelzen", extended.last().name)
     }
 
     @Test

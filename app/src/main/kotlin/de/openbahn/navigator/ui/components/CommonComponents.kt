@@ -425,10 +425,7 @@ private fun LegDetailsBlock(leg: Leg, legIndex: Int) {
             if (showTripRoute) loadFullRouteIfNeeded()
         },
     )
-    val displayStops = when {
-        routeLoading -> emptyList()
-        else -> loadedStops ?: segmentStops
-    }
+    val displayStops = loadedStops ?: segmentStops
     AnimatedVisibility(
         visible = showTripRoute && canShowTripRoute,
         enter = expandVertically(),

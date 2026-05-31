@@ -133,6 +133,10 @@ internal object JourneyResponseParser {
         val vm = entry["verkehrsmittel"]?.jsonObject ?: entry["verkehrmittel"]?.jsonObject
         val line = lineDisplay(vm, entryTrip).primary
         val detail = lineDisplay(vm, entryTrip).detail
+        if (leg.lineDetail != null) {
+            val entryZug = entryTrip?.let(::zugnummerFromTripId)
+            if (entryZug != null && leg.lineDetail == entryZug) return true
+        }
         if (leg.lineName != null && line != null && leg.lineName.equals(line, ignoreCase = true)) return true
         if (leg.lineDetail != null && detail != null && leg.lineDetail == detail) return true
         return false
@@ -143,8 +147,18 @@ internal object JourneyResponseParser {
         val na = a.trim()
         val nb = b.trim()
         if (na == nb) return true
-        return na.contains(nb) || nb.contains(na)
+        if (na.contains(nb) || nb.contains(na)) return true
+        val zugA = zugnummerFromTripId(na)
+        val zugB = zugnummerFromTripId(nb)
+        if (zugA != null && zugB != null && zugA == zugB) return true
+        return false
     }
+
+    private fun zugnummerFromTripId(tripId: String): String? =
+        Regex("#Z[IE]#(\\d+)#", RegexOption.IGNORE_CASE)
+            .find(tripId)
+            ?.groupValues
+            ?.getOrNull(1)
 
     /** Parses a single connection from `/reiseloesung/verbindung` (refresh / live). */
     fun parseRefresh(response: JsonObject): Journey? {
