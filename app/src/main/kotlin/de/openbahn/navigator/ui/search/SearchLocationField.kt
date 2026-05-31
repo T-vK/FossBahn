@@ -6,11 +6,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import de.openbahn.navigator.R
@@ -25,6 +28,7 @@ fun SearchLocationField(
     modifier: Modifier = Modifier,
     testTag: String? = null,
     leadingTrailing: (@Composable () -> Unit)? = null,
+    onImeDone: (() -> Unit)? = null,
 ) {
     OutlinedTextField(
         value = value,
@@ -35,6 +39,10 @@ fun SearchLocationField(
             .then(if (testTag != null) Modifier.testTag(testTag) else Modifier)
             .onFocusChanged { onFocusChanged(it.isFocused) },
         singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(
+            onDone = { onImeDone?.invoke() },
+        ),
         trailingIcon = {
             Row {
                 leadingTrailing?.invoke()

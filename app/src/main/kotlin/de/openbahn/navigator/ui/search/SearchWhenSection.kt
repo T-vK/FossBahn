@@ -49,6 +49,7 @@ fun SearchWhenSection(
     arrivalSearch: Boolean,
     onDepartureTimeChange: (LocalDateTime) -> Unit,
     onArrivalSearchChange: (Boolean) -> Unit,
+    onDismissKeyboard: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -102,14 +103,20 @@ fun SearchWhenSection(
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             SegmentedButton(
                 selected = !arrivalSearch,
-                onClick = { onArrivalSearchChange(false) },
+                onClick = {
+                    onDismissKeyboard()
+                    onArrivalSearchChange(false)
+                },
                 shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                 modifier = Modifier.testTag("search_time_mode_departure"),
                 label = { Text(stringResource(R.string.search_time_departure)) },
             )
             SegmentedButton(
                 selected = arrivalSearch,
-                onClick = { onArrivalSearchChange(true) },
+                onClick = {
+                    onDismissKeyboard()
+                    onArrivalSearchChange(true)
+                },
                 shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                 modifier = Modifier.testTag("search_time_mode_arrival"),
                 label = { Text(stringResource(R.string.search_time_arrival)) },
@@ -125,7 +132,10 @@ fun SearchWhenSection(
         ) {
             SegmentedButton(
                 checked = false,
-                onCheckedChange = { openDatePicker() },
+                onCheckedChange = {
+                    onDismissKeyboard()
+                    openDatePicker()
+                },
                 shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
                 modifier = Modifier
                     .weight(1f)
@@ -148,7 +158,10 @@ fun SearchWhenSection(
             )
             SegmentedButton(
                 checked = false,
-                onCheckedChange = { openTimePicker() },
+                onCheckedChange = {
+                    onDismissKeyboard()
+                    openTimePicker()
+                },
                 shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3),
                 modifier = Modifier
                     .weight(1f)
@@ -172,7 +185,10 @@ fun SearchWhenSection(
             SegmentedButton(
                 checked = isNow,
                 onCheckedChange = { checked ->
-                    if (checked) onDepartureTimeChange(JourneySearchTime.nowBerlin())
+                    if (checked) {
+                        onDismissKeyboard()
+                        onDepartureTimeChange(JourneySearchTime.nowBerlin())
+                    }
                 },
                 shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
                 modifier = Modifier

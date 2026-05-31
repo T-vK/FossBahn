@@ -77,6 +77,7 @@ fun SearchScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val listState = rememberLazyListState()
+    val dismissKeyboard = rememberDismissSearchKeyboard()
     var pendingLocationAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -118,6 +119,10 @@ fun SearchScreen(
         listState.animateScrollToItem(index)
     }
 
+    LaunchedEffect(state.isLoading) {
+        if (state.isLoading) dismissKeyboard()
+    }
+
     if (state.showOnboarding) {
         DeutschlandTicketOnboardingDialog(
             onDismissOnly = viewModel::dismissOnboarding,
@@ -131,10 +136,16 @@ fun SearchScreen(
                 modifier = Modifier.testTag("search_screen_title"),
                 title = { Text(stringResource(R.string.search_title)) },
                 actions = {
-                    IconButton(onClick = onOpenSettings) {
+                    IconButton(onClick = {
+                        dismissKeyboard()
+                        onOpenSettings()
+                    }) {
                         Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings_title))
                     }
-                    IconButton(onClick = onOpenFilters) {
+                    IconButton(onClick = {
+                        dismissKeyboard()
+                        onOpenFilters()
+                    }) {
                         Icon(Icons.Default.FilterList, contentDescription = stringResource(R.string.filters))
                     }
                 },
@@ -146,6 +157,7 @@ fun SearchScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .dismissKeyboardOnTap(dismissKeyboard)
                 .testTag("search_results"),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -156,10 +168,15 @@ fun SearchScreen(
                     onValueChange = viewModel::setFromQuery,
                     label = stringResource(R.string.from),
                     onFocusChanged = viewModel::onFromFocusChanged,
-                    onUseCurrentLocation = { requestLocationThen { viewModel.useCurrentLocationForFrom() } },
+                    onUseCurrentLocation = {
+                        dismissKeyboard()
+                        requestLocationThen { viewModel.useCurrentLocationForFrom() }
+                    },
+                    onImeDone = dismissKeyboard,
                     testTag = "search_from",
                     leadingTrailing = {
                         IconButton(onClick = {
+                            dismissKeyboard()
                             val from = state.from
                             val to = state.to
                             if (from != null && to != null) {
@@ -178,13 +195,19 @@ fun SearchScreen(
                         suggestions = state.fromSuggestions,
                         favoriteKeys = state.favoriteLocationKeys,
                         showSectionHeaders = state.fromQuery.isBlank(),
-                        onSelect = viewModel::selectFrom,
+                        onSelect = { loc ->
+                            dismissKeyboard()
+                            viewModel.selectFrom(loc)
+                        },
                         onToggleFavorite = viewModel::toggleFavoriteLocation,
                     )
                 }
                 if (state.cachedRecent.isNotEmpty()) {
                     item(key = "clear_recent_from") {
-                        TextButton(onClick = viewModel::clearRecentLocations) {
+                        TextButton(onClick = {
+                            dismissKeyboard()
+                            viewModel.clearRecentLocations()
+                        }) {
                             Text(stringResource(R.string.clear_recent_locations))
                         }
                     }
@@ -196,12 +219,19 @@ fun SearchScreen(
                     onValueChange = viewModel::setToQuery,
                     label = stringResource(R.string.to),
                     onFocusChanged = viewModel::onToFocusChanged,
-                    onUseCurrentLocation = { requestLocationThen { viewModel.useCurrentLocationForTo() } },
+                    onUseCurrentLocation = {
+                        dismissKeyboard()
+                        requestLocationThen { viewModel.useCurrentLocationForTo() }
+                    },
+                    onImeDone = dismissKeyboard,
                     testTag = "search_to",
                 )
             }
             item(key = "via_toggle") {
-                TextButton(onClick = viewModel::toggleViaStopsEditor) {
+                TextButton(onClick = {
+                    dismissKeyboard()
+                    viewModel.toggleViaStopsEditor()
+                }) {
                     Text(
                         if (state.showViaStopsEditor) {
                             stringResource(R.string.search_hide_via_stops)
@@ -220,11 +250,16 @@ fun SearchScreen(
                             label = stringResource(R.string.search_via_stop, index + 1),
                             onFocusChanged = { focused -> viewModel.onViaFocusChanged(index, focused) },
                             onUseCurrentLocation = {
+                                dismissKeyboard()
                                 requestLocationThen { viewModel.useCurrentLocationForVia(index) }
                             },
+                            onImeDone = dismissKeyboard,
                             testTag = "search_via_$index",
                             leadingTrailing = {
-                                IconButton(onClick = { viewModel.removeViaStop(index) }) {
+                                IconButton(onClick = {
+                                    dismissKeyboard()
+                                    viewModel.removeViaStop(index)
+                                }) {
                                     Icon(Icons.Default.Close, contentDescription = stringResource(R.string.remove))
                                 }
                             },
@@ -237,13 +272,19 @@ fun SearchScreen(
                             suggestions = state.viaSuggestions,
                             favoriteKeys = state.favoriteLocationKeys,
                             showSectionHeaders = false,
-                            onSelect = { loc -> viewModel.selectVia(state.activeViaIndex!!, loc) },
+                            onSelect = { loc ->
+                                dismissKeyboard()
+                                viewModel.selectVia(state.activeViaIndex!!, loc)
+                            },
                             onToggleFavorite = viewModel::toggleFavoriteLocation,
                         )
                     }
                 }
                 item(key = "via_add") {
-                    TextButton(onClick = viewModel::addViaStop) {
+                    TextButton(onClick = {
+                        dismissKeyboard()
+                        viewModel.addViaStop()
+                    }) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Add, contentDescription = null)
                             Text(stringResource(R.string.search_add_another_via))
@@ -257,13 +298,19 @@ fun SearchScreen(
                         suggestions = state.toSuggestions,
                         favoriteKeys = state.favoriteLocationKeys,
                         showSectionHeaders = state.toQuery.isBlank(),
-                        onSelect = viewModel::selectTo,
+                        onSelect = { loc ->
+                            dismissKeyboard()
+                            viewModel.selectTo(loc)
+                        },
                         onToggleFavorite = viewModel::toggleFavoriteLocation,
                     )
                 }
                 if (state.cachedRecent.isNotEmpty()) {
                     item(key = "clear_recent_to") {
-                        TextButton(onClick = viewModel::clearRecentLocations) {
+                        TextButton(onClick = {
+                            dismissKeyboard()
+                            viewModel.clearRecentLocations()
+                        }) {
                             Text(stringResource(R.string.clear_recent_locations))
                         }
                     }
@@ -277,12 +324,16 @@ fun SearchScreen(
                     onArrivalSearchChange = { arrival ->
                         viewModel.updateOptions(state.options.copy(arrivalSearch = arrival))
                     },
+                    onDismissKeyboard = dismissKeyboard,
                     modifier = Modifier.testTag("search_when_section"),
                 )
             }
             item(key = "search_button") {
                 Button(
-                    onClick = { viewModel.search() },
+                    onClick = {
+                        dismissKeyboard()
+                        viewModel.search()
+                    },
                     modifier = Modifier.fillMaxWidth().testTag("search_button"),
                     enabled = !state.isLoading,
                 ) {
@@ -295,7 +346,10 @@ fun SearchScreen(
             }
             if (state.from != null && state.to != null && state.hasSearched) {
                 item(key = "save_favorite_route") {
-                    TextButton(onClick = { viewModel.saveCurrentRouteAsFavorite() }) {
+                    TextButton(onClick = {
+                        dismissKeyboard()
+                        viewModel.saveCurrentRouteAsFavorite()
+                    }) {
                         Text(stringResource(R.string.save_favorite_route))
                     }
                 }
@@ -329,7 +383,10 @@ fun SearchScreen(
                     item(key = "load_earlier") {
                         PagingConnectionsButton(
                             label = stringResource(R.string.load_earlier_connections),
-                            onClick = { viewModel.loadEarlierConnections() },
+                            onClick = {
+                                dismissKeyboard()
+                                viewModel.loadEarlierConnections()
+                            },
                             enabled = !state.isLoading && !state.isLoadingEarlier,
                             isLoading = state.isLoadingEarlier,
                             testTag = "load_earlier_connections",
@@ -348,6 +405,7 @@ fun SearchScreen(
                         minTransferMinutes = minTransferMinutes,
                         onOpenDetail = onOpenJourneyDetail,
                         onTrack = { viewModel.trackJourney(ratedJourney.journey) },
+                        dismissKeyboard = dismissKeyboard,
                     )
                 }
             } else {
@@ -356,6 +414,7 @@ fun SearchScreen(
                         journey = journey,
                         predictionsRequested = predictionsRequested,
                         onOpenFullscreen = {
+                            dismissKeyboard()
                             JourneyNavigation.set(
                                 journey,
                                 predictionsRequested = predictionsRequested,
@@ -363,7 +422,10 @@ fun SearchScreen(
                             )
                             onOpenJourneyDetail()
                         },
-                        onTrack = { viewModel.trackJourney(journey) },
+                        onTrack = {
+                            dismissKeyboard()
+                            viewModel.trackJourney(journey)
+                        },
                     )
                 }
             }
@@ -371,7 +433,10 @@ fun SearchScreen(
                 item(key = "load_later") {
                     PagingConnectionsButton(
                         label = stringResource(R.string.load_later_connections),
-                        onClick = { viewModel.loadLaterConnections() },
+                        onClick = {
+                            dismissKeyboard()
+                            viewModel.loadLaterConnections()
+                        },
                         enabled = !state.isLoading && !state.isLoadingLater,
                         isLoading = state.isLoadingLater,
                         testTag = "load_later_connections",
@@ -450,12 +515,14 @@ private fun JourneyResultItem(
     minTransferMinutes: Int?,
     onOpenDetail: () -> Unit,
     onTrack: () -> Unit,
+    dismissKeyboard: () -> Unit,
 ) {
     JourneyCard(
         journey = ratedJourney.journey,
         prediction = ratedJourney,
         predictionsRequested = predictionsRequested,
         onOpenFullscreen = {
+            dismissKeyboard()
             JourneyNavigation.set(
                 ratedJourney.journey,
                 prediction = ratedJourney,
@@ -464,7 +531,10 @@ private fun JourneyResultItem(
             )
             onOpenDetail()
         },
-        onTrack = onTrack,
+        onTrack = {
+            dismissKeyboard()
+            onTrack()
+        },
     )
 }
 
