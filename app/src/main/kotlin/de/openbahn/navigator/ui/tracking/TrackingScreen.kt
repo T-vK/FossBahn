@@ -49,6 +49,7 @@ fun TrackingScreen(
     val tracked by viewModel.tracked.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val showBatteryBanner by viewModel.showBatteryOptimizationBanner.collectAsState()
+    val highlightId by viewModel.highlightTrackedJourneyId.collectAsState()
     var showInfoDialog by remember { mutableStateOf(false) }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -59,6 +60,15 @@ fun TrackingScreen(
     LaunchedEffect(tracked.isNotEmpty()) {
         if (tracked.isNotEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    LaunchedEffect(highlightId, tracked) {
+        val id = highlightId ?: return@LaunchedEffect
+        val index = tracked.indexOfFirst { it.entity.id == id }
+        if (index >= 0) {
+            listState.animateScrollToItem(index)
+            viewModel.clearHighlight()
         }
     }
 

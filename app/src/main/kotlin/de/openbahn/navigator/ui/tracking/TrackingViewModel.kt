@@ -35,6 +35,9 @@ class TrackingViewModel(
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
+    private val _highlightTrackedJourneyId = MutableStateFlow<String?>(null)
+    val highlightTrackedJourneyId: StateFlow<String?> = _highlightTrackedJourneyId.asStateFlow()
+
     init {
         viewModelScope.launch {
             trackingCoordinator.restoreOnLaunch()
@@ -77,6 +80,14 @@ class TrackingViewModel(
         viewModelScope.launch {
             userPreferences.setBatteryOptimizationPromptDismissed(true)
         }
+    }
+
+    fun applyNotificationHighlight(journeyId: String) {
+        _highlightTrackedJourneyId.value = journeyId
+    }
+
+    fun clearHighlight() {
+        _highlightTrackedJourneyId.value = null
     }
 
     fun openAlternatives(trackedId: String, onNavigateToSearch: () -> Unit) {

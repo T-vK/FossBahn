@@ -28,8 +28,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import de.openbahn.navigator.data.TrackedJourneyRepository
-import de.openbahn.navigator.navigation.JourneyNavigation
 import de.openbahn.navigator.tracking.TrackingNotificationIntent
 import de.openbahn.navigator.ui.favorites.FavoritesScreen
 import de.openbahn.navigator.ui.journey.JourneyDetailScreen
@@ -40,13 +38,10 @@ import de.openbahn.navigator.ui.settings.SettingsScreen
 import de.openbahn.navigator.ui.theme.OpenBahnTheme
 import de.openbahn.navigator.ui.tickets.TicketsScreen
 import de.openbahn.navigator.ui.tracking.TrackingScreen
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import org.koin.android.ext.android.inject
+import de.openbahn.navigator.ui.tracking.TrackingViewModel
 import org.koin.androidx.compose.koinViewModel
 
 class MainActivity : AppCompatActivity() {
-    private val trackedJourneyRepository: TrackedJourneyRepository by inject()
     private val pendingOpenTrackedJourneyId = mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,22 +54,20 @@ class MainActivity : AppCompatActivity() {
                 val backStack by navController.currentBackStackEntryAsState()
                 val currentRoute = backStack?.destination?.route
                 val searchViewModel: SearchViewModel = koinViewModel()
+                val trackingViewModel: TrackingViewModel = koinViewModel()
                 val context = LocalContext.current
                 val openTrackedJourneyId by pendingOpenTrackedJourneyId
 
                 LaunchedEffect(openTrackedJourneyId) {
                     val journeyId = openTrackedJourneyId ?: return@LaunchedEffect
                     pendingOpenTrackedJourneyId.value = null
-                    val tracked = withContext(Dispatchers.IO) {
-                        trackedJourneyRepository.findActiveWithJourney(journeyId)
-                    } ?: return@LaunchedEffect
-                    JourneyNavigation.set(tracked.journey, predictionsRequested = true)
+                    trackingViewModel.applyNotificationHighlight(journeyId)
+                    trackingViewModel.refreshNow(force = true)
                     navController.navigate(Routes.TRACKING) {
                         popUpTo(Routes.SEARCH) { saveState = true }
                         launchSingleTop = true
                         restoreState = true
                     }
-                    navController.navigate(Routes.JOURNEY_DETAIL)
                 }
 
                 val hideBottomBar = currentRoute == Routes.FILTERS ||
@@ -140,6 +133,7 @@ class MainActivity : AppCompatActivity() {
                         composable(Routes.TICKETS) { TicketsScreen() }
                         composable(Routes.TRACKING) {
                             TrackingScreen(
+                                viewModel = trackingViewModel,
                                 onOpenJourneyDetail = { navController.navigate(Routes.JOURNEY_DETAIL) },
                                 onShowAlternatives = {
                                     navController.navigate(Routes.SEARCH) {
@@ -151,7 +145,9 @@ class MainActivity : AppCompatActivity() {
                             )
                         }
                         composable(Routes.JOURNEY_DETAIL) { entry ->
-                            val payload = remember(entry.id) { JourneyNavigation.consume() }
+                            val payload = remember(entry.id) {
+                                de.openbahn.navigator.navigation.JourneyNavigation.consume()
+                            }
                             if (payload != null) {
                                 JourneyDetailScreen(
                                     payload = payload,
@@ -177,10 +173,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun consumeTrackedJourneyId(intent: Intent?): String? {
-        val id = intent?.getStringExtra(TrackingNotificationIntent.EXTRA_TRACKED_JOURNEY_ID)
+        if (intent == null) return null
+        val fromNotification = intent.action == TrackingNotificationIntent.ACTION_OPEN_TRACKED_JOURNEY ||
+            intent.hasExtra(TrackingNotificationIntent.EXTRA_TRACKED_JOURNEY_ID)
+        if (!fromNotification) return null
+        val id = intent.getStringExtra(TrackingNotificationIntent.EXTRA_TRACKED_JOURNEY_ID)
             ?.takeIf { it.isNotBlank() }
             ?: return null
         intent.removeExtra(TrackingNotificationIntent.EXTRA_TRACKED_JOURNEY_ID)
+        intent.action = null
         return id
     }
 }
