@@ -18,7 +18,7 @@ class TicketsViewModel(private val repository: TicketRepository) : ViewModel() {
         viewModelScope.launch { repository.importFromUri(uri, type) }
     }
 
-    fun importDeutschlandTicket(holderName: String?, photoUri: String?, validUntil: String?) {
+    fun importDeutschlandTicket(holderName: String?, photoUri: Uri?, validUntil: String?) {
         viewModelScope.launch {
             repository.saveDeutschlandTicket(holderName, photoUri, validUntil)
         }

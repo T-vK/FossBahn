@@ -38,22 +38,43 @@ class TicketRepository(
 
     suspend fun saveDeutschlandTicket(
         holderName: String?,
-        photoUri: String?,
+        photoUri: Uri?,
         validUntil: String?,
-    ): StoredTicket {
+    ): StoredTicket = withContext(Dispatchers.IO) {
+        val id = UUID.randomUUID().toString()
+        val persistedPhoto = photoUri?.let { uri ->
+            persistUri(uri, id, context.contentResolver.getType(uri).orEmpty().ifBlank { "image/*" })
+        }
         val ticket = StoredTicket(
-            id = UUID.randomUUID().toString(),
+            id = id,
             title = "Deutschland-Ticket",
             type = TicketType.DEUTSCHLAND_TICKET,
             holderName = holderName,
-            photoUri = photoUri,
+            photoUri = persistedPhoto?.uri,
             validUntil = validUntil,
         )
         dao.upsert(ticket.toEntity())
-        return ticket
+        ticket
     }
 
-    suspend fun delete(id: String) = dao.delete(id)
+    suspend fun delete(id: String) = withContext(Dispatchers.IO) {
+        dao.getById(id)?.let { entity ->
+            deleteStoredFile(entity.pdfUri)
+            deleteStoredFile(entity.photoUri)
+        }
+        dao.delete(id)
+    }
+
+    private fun deleteStoredFile(uriString: String?) {
+        if (uriString.isNullOrBlank()) return
+        runCatching {
+            val file = when {
+                uriString.startsWith("file:") -> java.io.File(Uri.parse(uriString).path ?: return)
+                else -> null
+            }
+            file?.delete()
+        }
+    }
 
     private data class PersistedFile(val uri: String, val fileName: String?)
 
