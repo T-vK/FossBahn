@@ -58,6 +58,19 @@ runs:
         echo "F-Droid index OK ($ACTUAL)"
         test -f fdroid-pages/fdroid/repo/icons/icon.png
         echo "F-Droid repo icon present"
+        python3 <<'PY'
+import json
+from pathlib import Path
+
+idx = json.loads(Path("fdroid-pages/fdroid/repo/index-v2.json").read_text())
+versions = sum(len(p.get("versions", {})) for p in idx.get("packages", {}).values())
+repo = len(list(Path("fdroid/repo").glob("*.apk")))
+archive = len(list(Path("fdroid/archive").glob("*.apk"))) if Path("fdroid/archive").is_dir() else 0
+on_disk = repo + archive
+print(f"Indexed versions: {versions} (APKs on disk: {on_disk})")
+if on_disk >= 2 and versions < 2:
+    raise SystemExit("APKs on disk but index lists fewer than 2 versions")
+PY
 
     - name: Upload GitHub Pages artifact
       uses: actions/upload-pages-artifact@v3

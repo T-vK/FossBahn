@@ -126,23 +126,11 @@ jobs:
 
             **One-time:** If you installed an older release built before stable CI signing, uninstall once, then install this APK. Later releases upgrade without uninstalling as long as `versionCode` increases.
 
-      - name: Configure F-Droid repository signing
+      - name: Build F-Droid repo and Pages artifact
         if: steps.semver.outputs.skip == 'false'
-        run: |
-          chmod +x .github/scripts/prepare-fdroid-signing.sh
-          .github/scripts/prepare-fdroid-signing.sh
-
-      - name: Update F-Droid repo index
-        if: steps.semver.outputs.skip == 'false'
-        run: |
-          chmod +x .github/scripts/update-fdroid-repo.sh
-          .github/scripts/update-fdroid-repo.sh --apk "${{ steps.build.outputs.apk }}"
-
-      - name: Upload GitHub Pages artifact
-        if: steps.semver.outputs.skip == 'false'
-        uses: actions/upload-pages-artifact@v3
+        uses: ./.github/actions/publish-fdroid-pages
         with:
-          path: fdroid-pages
+          release-apk-path: ${{ steps.build.outputs.apk }}
 
   # Deploys fdroid-pages artifact from the release job (GitHub Pages → Source: GitHub Actions).
   deploy-fdroid-pages:

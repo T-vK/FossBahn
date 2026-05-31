@@ -149,7 +149,7 @@ Implementation: [.github/actions/publish-fdroid-pages](../.github/actions/publis
 
 Repo and app icons match the Android launcher (red background, white mark). Sources: [`fdroid/icons/`](../fdroid/icons/), [`fdroid/metadata/de.openbahn.navigator.debug/en-US/images/`](../fdroid/metadata/de.openbahn.navigator.debug/en-US/images/). Regenerate with `python3 .github/scripts/generate-fdroid-icons.py` (requires Pillow).
 
-CI caches `fdroid/repo/` and `fdroid/archive/` so older APKs stay available (`archive_older: 5`). Each publish copies **both** `repo/` and `archive/` to GitHub Pages (`fdroid/archive/` must be reachable at the same base URL as `fdroid/repo/`). The repo index signing key is copied each run from [.github/signing/fdroid-repo.p12](../.github/signing/fdroid-repo.p12) (public, like the APK CI key).
+CI caches `fdroid/repo/` and `fdroid/archive/` so older APKs stay available (`archive_older: 5`). The **Release** workflow uses [.github/actions/publish-fdroid-pages](../.github/actions/publish-fdroid-pages/action.yml), which restores that cache before indexing. If the cache is empty, [.github/scripts/bootstrap-fdroid-apks-from-releases.sh](../.github/scripts/bootstrap-fdroid-apks-from-releases.sh) downloads recent GitHub Release APKs so the index lists multiple versions. Each publish copies **both** `repo/` and `archive/` to GitHub Pages (`archive_url` points at `…/fdroid/archive/`). The repo index signing key is copied each run from [.github/signing/fdroid-repo.p12](../.github/signing/fdroid-repo.p12) (public, like the APK CI key).
 
 In the F-Droid client: app page → **Versions** to pick an older APK (not only the latest).
 
