@@ -1,6 +1,7 @@
 package de.openbahn.rights.engine
 
 import de.openbahn.rights.model.PassengerRightsAssessment
+import de.openbahn.rights.model.RightsNotificationKind
 import de.openbahn.rights.model.RightsNotificationSuggestion
 
 /**
@@ -23,15 +24,23 @@ object PassengerRightsNotificationPolicy {
             return Decision(false, null)
         }
         val priority = listOf(
-            de.openbahn.rights.model.RightsNotificationKind.TAXI_MAY_BE_REQUIRED,
-            de.openbahn.rights.model.RightsNotificationKind.NO_PUBLIC_TRANSPORT,
-            de.openbahn.rights.model.RightsNotificationKind.FERNVERKEHR_FALLBACK_AVAILABLE,
-            de.openbahn.rights.model.RightsNotificationKind.DTICKET_CAP_WARNING,
-            de.openbahn.rights.model.RightsNotificationKind.DELAY_60_THRESHOLD,
+            RightsNotificationKind.TAXI_MAY_BE_REQUIRED,
+            RightsNotificationKind.NO_PUBLIC_TRANSPORT,
+            RightsNotificationKind.FERNVERKEHR_FALLBACK_AVAILABLE,
+            RightsNotificationKind.DTICKET_CAP_WARNING,
+            RightsNotificationKind.DELAY_60_THRESHOLD,
         )
-        val chosen = priority.firstNotNullOrNull { kind ->
+        val chosen = priority.firstNotNull { kind ->
             assessment.notifications.firstOrNull { it.kind == kind }
         } ?: assessment.notifications.first()
         return Decision(true, chosen)
+    }
+
+    private inline fun <T, R : Any> Iterable<T>.firstNotNull(transform: (T) -> R?): R? {
+        for (element in this) {
+            val result = transform(element)
+            if (result != null) return result
+        }
+        return null
     }
 }

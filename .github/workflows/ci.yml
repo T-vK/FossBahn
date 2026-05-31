@@ -24,7 +24,7 @@ jobs:
         run: chmod +x .github/scripts/test-next-semver.sh && .github/scripts/test-next-semver.sh
 
       - name: Unit tests and assemble debug APK
-        run: ./gradlew :core:api:testDebugUnitTest :app:assembleDebug --stacktrace
+        run: ./gradlew :core:model:testDebugUnitTest :core:rights:testDebugUnitTest :core:api:testDebugUnitTest :app:assembleDebug --stacktrace
 
       - uses: actions/upload-artifact@v4
         with:
