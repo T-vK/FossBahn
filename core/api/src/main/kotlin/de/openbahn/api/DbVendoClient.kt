@@ -226,13 +226,14 @@ class DbVendoClient(
         departures: Boolean,
         mitVias: Boolean,
         locale: String = "de",
+        durationMinutes: Int = BOARD_LOOKUP_MINUTES,
     ): String {
         val path = if (departures) "abfahrten" else "ankuenfte"
         return httpClient.get("$baseUrl/reiseloesung/$path") {
             parameter("ortExtId", stationExtId)
             parameter("datum", whenTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")))
             parameter("zeit", whenTime.format(DateTimeFormatter.ofPattern("HH:mm:ss")))
-            parameter("dauer", 60)
+            parameter("dauer", durationMinutes)
             if (mitVias) parameter("mitVias", true)
             parameter("locale", locale)
         }.bodyAsText()
@@ -408,6 +409,7 @@ class DbVendoClient(
             install(HttpTimeout) {
                 requestTimeoutMillis = 30_000
                 connectTimeoutMillis = 15_000
+                socketTimeoutMillis = 20_000
             }
             install(ContentNegotiation) {
                 json(Json {

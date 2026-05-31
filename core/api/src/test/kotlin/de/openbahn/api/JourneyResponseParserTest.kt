@@ -149,6 +149,32 @@ class JourneyResponseParserTest {
     }
 
     @Test
+    fun buildRouteFromBoard_matchesSegmentScopedTripIdByZugnummer() {
+        val leg = Leg(
+            origin = StopEvent("Hamburg Hbf", id = "8002549", scheduledTime = "2026-05-31T16:34:00"),
+            destination = StopEvent("Lüneburg", scheduledTime = "2026-05-31T16:55:00"),
+            routeStops = listOf(
+                StopEvent("Hamburg Hbf", scheduledTime = "2026-05-31T16:34:00"),
+                StopEvent("Lüneburg", scheduledTime = "2026-05-31T16:55:00"),
+            ),
+            tripId = "2|#VN#1#ST#1779908603#PI#0#ZI#445871#TA#0#DA#310526#1S#8002549#1T#1634#L",
+            lineDetail = "445871",
+        )
+        val segment = leg.tripRouteStops()
+        val arrivals = """{"ankuenfte":[{"journeyId":"2|#ZB#ICE#ZE#445871#","ueber":["Celle"],"zeit":"2026-05-31T16:34:00"}]}"""
+        val departures = """{"abfahrten":[{"journeyId":"2|#ZB#ICE#ZE#445871#","ueber":["Uelzen"],"zeit":"2026-05-31T16:34:00"}]}"""
+        val extended = JourneyResponseParser.buildRouteFromBoard(
+            arrivalsText = arrivals,
+            departuresText = departures,
+            tripId = leg.tripId!!,
+            leg = leg,
+            segment = segment,
+        )
+        assertEquals("Celle", extended.first().name)
+        assertEquals("Uelzen", extended.last().name)
+    }
+
+    @Test
     fun buildRouteFromBoard_extendsSegmentWithViaNames() {
         val leg = JourneyResponseParser.parse(
             javaClass.getResource("/dbweb-journey-regional-rb31.json")!!.readText(),

@@ -11,9 +11,11 @@ import de.openbahn.model.Location
 import de.openbahn.model.RatedJourney
 import de.openbahn.model.StopEvent
 import java.time.LocalDateTime
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 
 interface JourneySearchRepository {
     suspend fun searchLocations(query: String, locale: String): List<Location>
@@ -71,7 +73,7 @@ class JourneySearchUseCase(
         dbClient.fetchTripRoute(journeyId)
 
     override suspend fun fetchFullLegRoute(leg: Leg): List<StopEvent> =
-        dbClient.fetchFullLegRoute(leg)
+        withContext(Dispatchers.IO) { dbClient.fetchFullLegRoute(leg) }
 }
 
 class PredictionUseCase(private val client: BahnVorhersageClient) {

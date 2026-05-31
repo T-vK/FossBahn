@@ -98,4 +98,54 @@ class TripRouteFetcherTest {
         assertEquals("Alpha", route.first().name)
         assertEquals("Omega", route.last().name)
     }
+
+    @Test
+    fun fetchFullLegRoute_mergesPriorStopsWhenFahrtMatchesSegmentOnly() = runTest {
+        val segmentJson = """{
+          "halte": [
+            {"name": "Hamburg Hbf", "extId": "8002549", "abfahrtsZeitpunkt": "2026-05-31T16:34:00"},
+            {"name": "Bardowick", "abfahrtsZeitpunkt": "2026-05-31T16:45:00"},
+            {"name": "Lüneburg", "extId": "8000238", "ankunftsZeitpunkt": "2026-05-31T16:55:00"}
+          ]
+        }"""
+        val engine = MockEngine { request ->
+            when {
+                request.url.encodedPath.endsWith("/reiseloesung/fahrt") -> respond(
+                    content = segmentJson,
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+                else -> respond(
+                    content = """{"abfahrten":[],"ankuenfte":[]}""",
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            }
+        }
+        val client = DbVendoClient(
+            httpClient = HttpClient(engine) {
+                install(ContentNegotiation) {
+                    json(Json { ignoreUnknownKeys = true; isLenient = true })
+                }
+            },
+        )
+        val leg = Leg(
+            origin = StopEvent("Hamburg Hbf", id = "8002549", scheduledTime = "2026-05-31T16:34:00"),
+            destination = StopEvent("Lüneburg", id = "8000238", scheduledTime = "2026-05-31T16:55:00"),
+            priorStops = listOf(
+                StopEvent("Celle", scheduledTime = "2026-05-31T16:10:00"),
+            ),
+            routeStops = listOf(
+                StopEvent("Hamburg Hbf", id = "8002549", scheduledTime = "2026-05-31T16:34:00"),
+                StopEvent("Bardowick", scheduledTime = "2026-05-31T16:45:00"),
+                StopEvent("Lüneburg", id = "8000238", scheduledTime = "2026-05-31T16:55:00"),
+            ),
+            tripId = "trip-segment",
+            lineDetail = "445871",
+        )
+        val route = client.fetchFullLegRoute(leg)
+        assertEquals(4, route.size)
+        assertEquals("Celle", route.first().name)
+        assertEquals("Lüneburg", route.last().name)
+    }
 }
