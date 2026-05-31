@@ -58,8 +58,27 @@ classify() {
 }
 
 collect_log() {
-  # First-parent matches what actually landed on main (merge commits + direct pushes).
-  git log "$RANGE" --first-parent --pretty=format:%s%n 2>/dev/null || true
+  local seen_subjects=$'\n'
+  append_subject() {
+    local subject="$1"
+    [ -z "$subject" ] && return 0
+    case "$seen_subjects" in
+      *$'\n'"$subject"$'\n'*) return 0 ;;
+    esac
+    seen_subjects="${seen_subjects}${subject}"$'\n'
+    printf '%s\n' "$subject"
+  }
+
+  while IFS= read -r subject; do
+    append_subject "$subject"
+  done < <(git log "$RANGE" --no-merges --pretty=format:%s 2>/dev/null || true)
+
+  while IFS= read -r merge_hash; do
+    [ -z "$merge_hash" ] && continue
+    while IFS= read -r subject; do
+      append_subject "$subject"
+    done < <(git log "${merge_hash}^2" --not "${merge_hash}^1" --no-merges --pretty=format:%s 2>/dev/null || true)
+  done < <(git log "$RANGE" --merges --pretty=format:%H 2>/dev/null || true)
 }
 
 while IFS= read -r subject; do

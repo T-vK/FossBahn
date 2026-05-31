@@ -35,6 +35,16 @@ class JourneyResponseParserTest {
     }
 
     @Test
+    fun prefersPublicLineLabelFromRealFixture() {
+        val text = javaClass.getResource("/dbweb-journey-db-vendo-real.json")!!.readText()
+        val railLegs = JourneyResponseParser.parse(text).journeys.first().legs.filter { !it.isWalking }
+        val sBahn = railLegs.first { it.lineName?.startsWith("S") == true }
+        assertEquals("S 12", sBahn.lineName)
+        val ice = railLegs.first { it.lineName?.startsWith("ICE") == true }
+        assertEquals("ICE 523", ice.lineName)
+    }
+
+    @Test
     fun parsesHamburgBerlinWithNumericPlatform() {
         val text = javaClass.getResource("/dbweb-journey-hamburg-berlin.json")!!.readText()
         val journeys = JourneyResponseParser.parse(text).journeys

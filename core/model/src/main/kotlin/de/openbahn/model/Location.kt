@@ -37,7 +37,10 @@ data class Leg(
     val destination: StopEvent,
     /** Stations between origin and destination (excluding endpoints). */
     val intermediateStops: List<StopEvent> = emptyList(),
+    /** Primary line label shown on trains (e.g. RE 1, ICE 523). */
     val lineName: String? = null,
+    /** Secondary label when it adds info (e.g. train number vs line designation). */
+    val lineDetail: String? = null,
     val product: TransportProduct? = null,
     val operator: String? = null,
     val loadFactor: String? = null,
