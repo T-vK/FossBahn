@@ -9,8 +9,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
@@ -32,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -61,6 +65,13 @@ fun SearchScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(state.scrollToResultsToken) {
+        if (state.scrollToResultsToken == 0L) return@LaunchedEffect
+        val index = firstResultListIndex(state) ?: return@LaunchedEffect
+        listState.animateScrollToItem(index)
+    }
 
     if (state.showOnboarding) {
         DeutschlandTicketOnboardingDialog(
@@ -86,6 +97,7 @@ fun SearchScreen(
         },
     ) { padding ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
@@ -223,19 +235,13 @@ fun SearchScreen(
             if (state.hasSearched && state.journeys.isNotEmpty()) {
                 if (state.pagingEarlier != null) {
                     item(key = "load_earlier") {
-                        OutlinedButton(
+                        PagingConnectionsButton(
+                            label = stringResource(R.string.load_earlier_connections),
                             onClick = { viewModel.loadEarlierConnections() },
-                            modifier = Modifier.fillMaxWidth().testTag("load_earlier_connections"),
                             enabled = !state.isLoading && !state.isLoadingEarlier,
-                        ) {
-                            if (state.isLoadingEarlier) {
-                                androidx.compose.material3.CircularProgressIndicator(
-                                    modifier = Modifier.padding(end = 8.dp),
-                                    strokeWidth = 2.dp,
-                                )
-                            }
-                            Text(stringResource(R.string.load_earlier_connections))
-                        }
+                            isLoading = state.isLoadingEarlier,
+                            testTag = "load_earlier_connections",
+                        )
                     }
                 }
             }
@@ -271,19 +277,13 @@ fun SearchScreen(
             }
             if (state.hasSearched && state.journeys.isNotEmpty() && state.pagingLater != null) {
                 item(key = "load_later") {
-                    OutlinedButton(
+                    PagingConnectionsButton(
+                        label = stringResource(R.string.load_later_connections),
                         onClick = { viewModel.loadLaterConnections() },
-                        modifier = Modifier.fillMaxWidth().testTag("load_later_connections"),
                         enabled = !state.isLoading && !state.isLoadingLater,
-                    ) {
-                        if (state.isLoadingLater) {
-                            androidx.compose.material3.CircularProgressIndicator(
-                                modifier = Modifier.padding(end = 8.dp),
-                                strokeWidth = 2.dp,
-                            )
-                        }
-                        Text(stringResource(R.string.load_later_connections))
-                    }
+                        isLoading = state.isLoadingLater,
+                        testTag = "load_later_connections",
+                    )
                 }
             }
             item(key = "list_bottom_spacer") {
@@ -291,6 +291,64 @@ fun SearchScreen(
             }
         }
     }
+}
+
+@Composable
+private fun PagingConnectionsButton(
+    label: String,
+    onClick: () -> Unit,
+    enabled: Boolean,
+    isLoading: Boolean,
+    testTag: String,
+) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(36.dp)
+            .testTag(testTag),
+        enabled = enabled,
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+    ) {
+        if (isLoading) {
+            androidx.compose.material3.CircularProgressIndicator(
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .size(16.dp),
+                strokeWidth = 2.dp,
+            )
+        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+        )
+    }
+}
+
+/** List index of the first connection card, matching [SearchScreen] item order. */
+private fun firstResultListIndex(state: SearchUiState): Int? {
+    if (!state.hasSearched || state.isLoading) return null
+    if (state.journeys.isEmpty() && state.ratedJourneys.isEmpty()) return null
+
+    var index = 0
+    index++ // from_field
+    if (state.activeLocationField == ActiveLocationField.FROM && state.fromSuggestions.isNotEmpty()) {
+        index++
+        if (state.cachedRecent.isNotEmpty()) index++
+    }
+    index++ // to_field
+    if (state.activeLocationField == ActiveLocationField.TO && state.toSuggestions.isNotEmpty()) {
+        index++
+        if (state.cachedRecent.isNotEmpty()) index++
+    }
+    index++ // when_section
+    index++ // search_button
+    if (state.from != null && state.to != null && state.hasSearched) index++
+    if (state.error != null) index++
+    if (state.info != null) index++
+    if (state.isLoading) index++
+    if (state.hasSearched && state.journeys.isNotEmpty() && state.pagingEarlier != null) index++
+    return index
 }
 
 @Composable

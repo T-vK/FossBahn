@@ -4,11 +4,11 @@ import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Schedule
@@ -23,6 +23,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -109,18 +110,20 @@ fun SearchWhenSection(
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedButton(
                 onClick = openDatePicker,
                 modifier = Modifier
                     .weight(1f)
-                    .heightIn(min = 48.dp)
+                    .heightIn(min = 40.dp)
                     .testTag("search_date_open"),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
             ) {
                 Icon(
                     Icons.Outlined.CalendarMonth,
                     contentDescription = stringResource(R.string.search_pick_date),
-                    modifier = Modifier.padding(end = 8.dp),
+                    modifier = Modifier.padding(end = 6.dp),
                 )
                 Column {
                     Text(
@@ -130,7 +133,7 @@ fun SearchWhenSection(
                     )
                     Text(
                         text = dateLabel,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.testTag("search_date_field"),
                     )
                 }
@@ -138,9 +141,10 @@ fun SearchWhenSection(
             OutlinedButton(
                 onClick = openTimePicker,
                 modifier = Modifier
-                    .width(128.dp)
-                    .heightIn(min = 48.dp)
+                    .weight(0.85f)
+                    .heightIn(min = 40.dp)
                     .testTag("search_time_open"),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
             ) {
                 Icon(
                     Icons.Outlined.Schedule,
@@ -155,20 +159,23 @@ fun SearchWhenSection(
                     )
                     Text(
                         text = timeLabel,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.testTag("search_time_field"),
                     )
                 }
             }
-        }
-
-        FilledTonalButton(
-            onClick = { onDepartureTimeChange(LocalDateTime.now()) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("search_time_now"),
-        ) {
-            Text(stringResource(R.string.search_time_now))
+            FilledTonalButton(
+                onClick = { onDepartureTimeChange(LocalDateTime.now()) },
+                modifier = Modifier
+                    .heightIn(min = 40.dp)
+                    .testTag("search_time_now"),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            ) {
+                Text(
+                    stringResource(R.string.search_time_now),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
         }
     }
 }

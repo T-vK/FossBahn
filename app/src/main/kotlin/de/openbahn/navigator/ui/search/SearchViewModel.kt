@@ -66,6 +66,8 @@ data class SearchUiState(
     val hasSearched: Boolean = false,
     val showOnboarding: Boolean = false,
     val punctualityToleranceMinutes: Int = JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES,
+    /** Incremented when a new search returns results; UI scrolls to the first connection. */
+    val scrollToResultsToken: Long = 0L,
 )
 
 class SearchViewModel(
@@ -341,6 +343,9 @@ class SearchViewModel(
                 error = null,
                 info = null,
                 hasSearched = true,
+                activeLocationField = ActiveLocationField.NONE,
+                fromSuggestions = emptyList(),
+                toSuggestions = emptyList(),
                 journeys = if (replaceResults) emptyList() else it.journeys,
                 ratedJourneys = if (replaceResults) emptyList() else it.ratedJourneys,
                 pagingEarlier = if (replaceResults) null else it.pagingEarlier,
@@ -406,6 +411,11 @@ class SearchViewModel(
                 emptyList()
             }
             logSearchOutcome(mergedJourneys.size, mergedJourneys.isEmpty() && replaceResults)
+            val scrollToken = if (replaceResults && mergedJourneys.isNotEmpty()) {
+                _state.value.scrollToResultsToken + 1
+            } else {
+                _state.value.scrollToResultsToken
+            }
             _state.update {
                 it.copy(
                     journeys = mergedJourneys,
@@ -424,6 +434,7 @@ class SearchViewModel(
                     isLoadingEarlier = false,
                     isLoadingLater = false,
                     info = if (mergedJourneys.isEmpty() && replaceResults) "info_no_connections" else null,
+                    scrollToResultsToken = scrollToken,
                 )
             }
         } catch (e: DbApiBlockedException) {
