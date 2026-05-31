@@ -105,6 +105,12 @@
     <string name="settings_near_departure_check_default">%d s (Standard)</string>
     <string name="stop_tracking">Verfolgung beenden</string>
     <string name="track_journey">Verbindung verfolgen</string>
+    <string name="share_journey">Verbindung teilen</string>
+    <string name="share_journey_chooser">Verbindung teilen über</string>
+    <string name="share_route">%1$s → %2$s</string>
+    <string name="share_times">%1$s – %2$s (%3$s)</string>
+    <string name="share_direct">Direktverbindung</string>
+    <string name="share_transfer_separator">———</string>
     <string name="transfers_count">%d Umstiege</string>
     <string name="dticket_valid">Mit Deutschland-Ticket gültig</string>
     <string name="transfer_probability">Anschlusswahrscheinlichkeit: %d%%</string>
@@ -120,6 +126,9 @@
     <string name="prediction_summary_transfer_buffer">Anschluss (≥%1$d Min.): %2$d%%</string>
     <string name="prediction_summary_punctuality">Pünktlich (≤%1$d Min.): %2$d%%</string>
     <string name="prediction_summary_punctuality_exact">Pünktlich (minutengenau): %d%%</string>
+    <string name="prediction_summary_punctuality_estimate">Pünktlich (≤%1$d Min., geschätzt): %2$d%%</string>
+    <string name="prediction_summary_punctuality_estimate_exact">Pünktlich (minutengenau, geschätzt): %d%%</string>
+    <string name="prediction_arrival_forecast">Ankunftsprognose</string>
     <string name="settings_punctuality">Pünktlichkeitsdefinition</string>
     <string name="settings_punctuality_hint">Welche Verspätung am Ziel noch als pünktlich gilt (für Ankunftswahrscheinlichkeit in Suchergebnissen).</string>
     <string name="settings_punctuality_exact">Minutengenau</string>
