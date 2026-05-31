@@ -116,6 +116,19 @@ class JourneyResponseParserTest {
     }
 
     @Test
+    fun parsesRegionalLineAndPriorStopsWithDelays() {
+        val text = javaClass.getResource("/dbweb-journey-regional-rb31.json")!!.readText()
+        val leg = JourneyResponseParser.parse(text).journeys.single().legs.single()
+        assertEquals("RB 31", leg.lineName)
+        assertEquals("81633", leg.lineDetail)
+        assertEquals(2, leg.priorStops.size)
+        assertEquals("Hamburg Hbf", leg.priorStops.first().name)
+        assertEquals(5, leg.priorStops.first().delayMinutes)
+        assertEquals(3, leg.priorStops[1].delayMinutes)
+        assertEquals("Uelzen", leg.origin.name)
+    }
+
+    @Test
     fun parsesFlx1247CancellationFixture() {
         val text = javaClass.getResource("/dbweb-scenario-flx1247-cancelled.json")!!.readText()
         val leg = JourneyResponseParser.parse(text).journeys.single().legs.single()

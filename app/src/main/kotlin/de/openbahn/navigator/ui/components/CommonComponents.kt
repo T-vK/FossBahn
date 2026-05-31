@@ -378,24 +378,17 @@ private fun LegRemarksBlock(remarks: List<String>) {
 
 @Composable
 private fun LegDetailsBlock(leg: Leg, legIndex: Int) {
-    if (leg.lineName != null || leg.lineDetail != null) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            leg.lineName?.let { line ->
-                Text(
-                    line,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+    var showPriorStops by remember(legIndex, leg.priorStops.size) { mutableStateOf(false) }
+    LegLineHeader(
+        leg = leg,
+        onTripNumberClick = {
+            if (leg.priorStops.isNotEmpty()) {
+                showPriorStops = !showPriorStops
             }
-            leg.lineDetail?.let { detail ->
-                Text(
-                    detail,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
+        },
+    )
+    if (showPriorStops && leg.priorStops.isNotEmpty()) {
+        PriorStopsBlock(stops = leg.priorStops, legIndex = legIndex)
     }
     StopRow(
         label = stringResource(R.string.departure),
@@ -507,6 +500,59 @@ private fun StopRow(
 }
 
 @Composable
+private fun LegLineHeader(
+    leg: Leg,
+    onTripNumberClick: () -> Unit,
+) {
+    if (leg.lineName == null && leg.lineDetail == null) return
+    val tripClickable = leg.lineDetail != null && leg.priorStops.isNotEmpty()
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        leg.lineName?.let { line ->
+            Text(
+                line,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        leg.lineDetail?.let { trip ->
+            val prefix = if (leg.lineName != null) " " else ""
+            Text(
+                text = "$prefix($trip)",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = if (tripClickable) {
+                    Modifier.clickable(onClick = onTripNumberClick)
+                } else {
+                    Modifier
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun PriorStopsBlock(stops: List<StopEvent>, legIndex: Int) {
+    Text(
+        stringResource(R.string.prior_stations_heading),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
+    )
+    Column(
+        Modifier.padding(start = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        stops.forEach { stop ->
+            ViaStopRow(stop = stop, modifier = Modifier.testTag("leg_${legIndex}_prior_stop"))
+        }
+    }
+}
+
+@Composable
 private fun IntermediateStopsBlock(stops: List<StopEvent>, legIndex: Int) {
     var expanded by remember(legIndex, stops.size) { mutableStateOf(false) }
     Text(
@@ -532,26 +578,44 @@ private fun IntermediateStopsBlock(stops: List<StopEvent>, legIndex: Int) {
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             stops.forEach { stop ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(stop.name, style = MaterialTheme.typography.bodySmall)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (stop.scheduledTime.isNotBlank()) {
-                            StopTimeText(
-                                scheduled = stop.scheduledTime,
-                                prognosed = stop.prognosedTime,
-                                delayMinutes = stop.delayMinutes ?: 0,
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
-                        stop.platform?.let {
-                            Text(
-                                stringResource(R.string.platform_label, it),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
+                ViaStopRow(
+                    stop = stop,
+                    modifier = Modifier.testTag("leg_${legIndex}_via_stop"),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ViaStopRow(
+    stop: StopEvent,
+    modifier: Modifier = Modifier,
+) {
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(
+            stop.name,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (stop.cancelled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+            textDecoration = if (stop.cancelled) TextDecoration.LineThrough else null,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (stop.scheduledTime.isNotBlank()) {
+                StopTimeText(
+                    scheduled = stop.scheduledTime,
+                    prognosed = stop.prognosedTime,
+                    delayMinutes = stop.delayMinutes
+                        ?: delayMinutesFromTimes(stop.scheduledTime, stop.prognosedTime)
+                        ?: 0,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            stop.platform?.let {
+                Text(
+                    stringResource(R.string.platform_label, it),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

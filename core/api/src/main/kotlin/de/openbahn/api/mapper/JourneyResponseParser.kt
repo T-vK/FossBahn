@@ -501,6 +501,7 @@ internal object JourneyResponseParser {
                 remarks = haltRemarks(lastHalt ?: zielHalt),
             ),
             intermediateStops = mapIntermediateStops(halte, depName, arrName),
+            priorStops = mapPriorStops(halte, depName),
             lineName = line.primary,
             lineDetail = line.detail,
             product = text(vm, "produktGattung")?.let(::mapProduct),
@@ -526,24 +527,36 @@ internal object JourneyResponseParser {
             if (name.equals(depName, ignoreCase = true) || name.equals(arrName, ignoreCase = true)) {
                 return@mapNotNull null
             }
-            run {
-                val times = bestStopTimes(
-                    parseStopTimes(halt, HaltTimeRole.DEPARTURE),
-                    parseStopTimes(halt, HaltTimeRole.ARRIVAL),
-                )
-                    ?: timeText(halt, "abfahrtsZeitpunkt", "ankunftsZeitpunkt", "ankunftsZeit")
-                        ?.let { ParsedStopTimes(scheduled = it) }
-                    ?: return@mapNotNull null
-                stopEventFromParsed(
-                    name = name,
-                    id = stationExtIdFromHalt(halt) ?: text(halt, "id"),
-                    platform = text(halt, "gleis"),
-                    times = times,
-                    cancelled = hasCancellationSignal(halt),
-                    remarks = haltRemarks(halt),
-                )
-            }
+            mapHaltStopEvent(halt)
         }
+    }
+
+    private fun mapPriorStops(halte: List<JsonObject>, depName: String): List<StopEvent> {
+        if (halte.isEmpty()) return emptyList()
+        val depIndex = halte.indexOfFirst { halt ->
+            stationNameFromHalt(halt)?.equals(depName, ignoreCase = true) == true
+        }
+        if (depIndex <= 0) return emptyList()
+        return halte.take(depIndex).mapNotNull(::mapHaltStopEvent)
+    }
+
+    private fun mapHaltStopEvent(halt: JsonObject): StopEvent? {
+        val name = stationNameFromHalt(halt) ?: return null
+        val times = bestStopTimes(
+            parseStopTimes(halt, HaltTimeRole.DEPARTURE),
+            parseStopTimes(halt, HaltTimeRole.ARRIVAL),
+        )
+            ?: timeText(halt, "abfahrtsZeitpunkt", "ankunftsZeitpunkt", "ankunftsZeit")
+                ?.let { ParsedStopTimes(scheduled = it) }
+            ?: return null
+        return stopEventFromParsed(
+            name = name,
+            id = stationExtIdFromHalt(halt) ?: text(halt, "id"),
+            platform = text(halt, "gleis"),
+            times = times,
+            cancelled = hasCancellationSignal(halt),
+            remarks = haltRemarks(halt),
+        )
     }
 
     private fun halteArray(section: JsonObject): List<JsonObject> =
@@ -627,9 +640,14 @@ internal object JourneyResponseParser {
             ?: text(halt, "id")?.takeIf { it.all(Char::isDigit) }
     }
 
+    private fun ortJsonObject(section: JsonObject, ortKey: String): JsonObject? {
+        val element = section[ortKey] ?: return null
+        return runCatching { element.jsonObject }.getOrNull()
+    }
+
     private fun stationName(section: JsonObject, ortKey: String, halt: JsonObject?): String? =
         text(section, ortKey)
-            ?: section[ortKey]?.jsonObject?.let { text(it, "name") ?: text(it, "bezeichnung") }
+            ?: ortJsonObject(section, ortKey)?.let { text(it, "name") ?: text(it, "bezeichnung") }
             ?: text(halt, "name")
             ?: text(halt, "bezeichnung")
             ?: halt?.get("ort")?.jsonObject?.let { text(it, "name") }
@@ -645,7 +663,7 @@ internal object JourneyResponseParser {
         halt: JsonObject?,
     ): String? =
         text(section, extIdKey)
-            ?: section[ortKey]?.jsonObject?.let { text(it, "extId") ?: text(it, "id") }
+            ?: ortJsonObject(section, ortKey)?.let { text(it, "extId") ?: text(it, "id") }
             ?: text(halt, "extId")
 
     private fun lineDisplay(vm: JsonObject?, journeyId: String?): LineDisplay =

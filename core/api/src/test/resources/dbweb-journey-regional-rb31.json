@@ -1,0 +1,55 @@
+{
+  "verbindungen": [
+    {
+      "tripId": "rb31_81633",
+      "verbindungsAbschnitte": [
+        {
+          "abfahrtsOrt": "Uelzen",
+          "abfahrtsOrtExtId": "8000314",
+          "ankunftsOrt": "Wieren",
+          "ankunftsOrtExtId": "8000412",
+          "abfahrtsZeitpunkt": "2026-06-15T10:15:00",
+          "ankunftsZeitpunkt": "2026-06-15T11:05:00",
+          "gleis": "3",
+          "halte": [
+            {
+              "name": "Hamburg Hbf",
+              "extId": "8002549",
+              "abfahrtsZeitpunkt": "2026-06-15T09:40:00",
+              "prognose": { "abfahrtsZeitpunkt": "2026-06-15T09:45:00", "verspaetung": 5 },
+              "gleis": "12"
+            },
+            {
+              "name": "Lüneburg",
+              "extId": "8000237",
+              "ankunftsZeitpunkt": "2026-06-15T10:02:00",
+              "abfahrtsZeitpunkt": "2026-06-15T10:04:00",
+              "prognose": { "abfahrtsZeitpunkt": "2026-06-15T10:07:00", "verspaetung": 3 },
+              "gleis": "2"
+            },
+            {
+              "name": "Uelzen",
+              "extId": "8000314",
+              "abfahrtsZeitpunkt": "2026-06-15T10:15:00",
+              "gleis": "3"
+            },
+            {
+              "name": "Wieren",
+              "extId": "8000412",
+              "ankunftsZeitpunkt": "2026-06-15T11:05:00",
+              "gleis": "1"
+            }
+          ],
+          "verkehrsmittel": {
+            "name": "81633",
+            "kurzText": "RB",
+            "mittelText": "RB 31",
+            "produktGattung": "REGIONAL",
+            "linienNummer": "31"
+          },
+          "journeyId": "2|#ZB#RB    31#ZE#81633#"
+        }
+      ]
+    }
+  ]
+}

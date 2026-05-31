@@ -86,8 +86,11 @@ private fun StringBuilder.appendLegSection(
     resources: android.content.res.Resources,
     leg: Leg,
 ) {
-    leg.lineName?.let { appendLine(it) }
-    leg.lineDetail?.takeIf { it != leg.lineName }?.let { appendLine(it) }
+    when {
+        leg.lineName != null && leg.lineDetail != null -> appendLine("${leg.lineName} (${leg.lineDetail})")
+        leg.lineName != null -> appendLine(leg.lineName!!)
+        leg.lineDetail != null -> appendLine(leg.lineDetail!!)
+    }
     appendStopLine(resources, R.string.departure, leg.origin)
     appendStopLine(resources, R.string.arrival, leg.destination)
 }

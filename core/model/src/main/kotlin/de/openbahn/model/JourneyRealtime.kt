@@ -26,6 +26,9 @@ fun Journey.withRealtimeFrom(refreshed: Journey): Journey {
             intermediateStops = leg.intermediateStops.mapIndexed { stopIndex, stop ->
                 ref.intermediateStops.getOrNull(stopIndex)?.let { stop.withRealtimeFrom(it) } ?: stop
             },
+            priorStops = leg.priorStops.mapIndexed { stopIndex, stop ->
+                ref.priorStops.getOrNull(stopIndex)?.let { stop.withRealtimeFrom(it) } ?: stop
+            },
         )
     }
     val first = mergedLegs.first()

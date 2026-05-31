@@ -157,6 +157,7 @@
     <string name="platform_departure_short">Dep. pl. %1$s</string>
     <string name="show_intermediate_stations">Show %d intermediate stations</string>
     <string name="hide_intermediate_stations">Hide intermediate stations</string>
+    <string name="prior_stations_heading">Earlier stops on this train (before your departure)</string>
     <string name="delay_minutes">+%d min delay</string>
     <string name="scheduled_time_short">Sched. %1$s</string>
     <string name="load_earlier_connections">Earlier connections</string>

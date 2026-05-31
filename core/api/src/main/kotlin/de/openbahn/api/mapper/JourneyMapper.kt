@@ -11,6 +11,7 @@ import de.openbahn.model.TransportProduct
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -88,7 +89,7 @@ internal object JourneyMapper {
 
     private fun lineDisplay(vm: DbVerkehrsmittel?, journeyId: String?): LineDisplay {
         if (vm == null) return LineDisplay(null)
-        val json = kotlinx.serialization.json.buildJsonObject {
+        val json = buildJsonObject {
             vm.name?.let { put("name", JsonPrimitive(it)) }
             vm.kurzText?.let { put("kurzText", JsonPrimitive(it)) }
             vm.produktGattung?.let { put("produktGattung", JsonPrimitive(it)) }

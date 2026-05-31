@@ -9,6 +9,20 @@ import org.junit.jupiter.api.Test
 
 class LineDisplayMapperTest {
     @Test
+    fun regionalLineAndTripNumber() {
+        val vm = buildJsonObject {
+            put("name", "81633")
+            put("mittelText", "RB 31")
+            put("kurzText", "RB")
+            put("linienNummer", "31")
+            put("produktGattung", "REGIONAL")
+        }
+        val display = LineDisplayMapper.fromVerkehrsmittel(vm)
+        assertEquals("RB 31", display.primary)
+        assertEquals("81633", display.detail)
+    }
+
+    @Test
     fun prefersMittelTextOverTrainNumberName() {
         val vm = buildJsonObject {
             put("name", "RE 19073")
@@ -23,7 +37,7 @@ class LineDisplayMapperTest {
     }
 
     @Test
-    fun singleLabelWhenNameMatchesMittelText() {
+    fun iceKeepsSingleLabel() {
         val vm = buildJsonObject {
             put("name", "ICE 523")
             put("mittelText", "ICE 523")

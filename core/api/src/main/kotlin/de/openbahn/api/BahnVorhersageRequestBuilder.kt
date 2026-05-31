@@ -130,7 +130,7 @@ internal object BahnVorhersageRequestBuilder {
         val instant = parseInstant(timeStr) ?: return null
         val zdt = instant.atZone(berlin)
         return RateEvent(
-            number = lineNumber(leg.lineName),
+            number = lineNumber(leg.lineDetail) ?: lineNumber(leg.lineName),
             lat = lat,
             lon = lon,
             stopSequence = stopSequence,
@@ -145,7 +145,9 @@ internal object BahnVorhersageRequestBuilder {
             isArrival = isArrival,
             operator = leg.operator?.takeIf { it.isNotBlank() } ?: "DB",
             category = leg.product?.vendoCode ?: categoryFromLine(leg.lineName),
-            line = leg.lineName?.takeIf { it.isNotBlank() } ?: "UNKNOWN",
+            line = leg.lineName?.takeIf { it.isNotBlank() }
+                ?: leg.lineDetail?.takeIf { it.isNotBlank() }
+                ?: "UNKNOWN",
             prognosedTransferMinutes = prognosedTransferMinutes,
             minimalTransferMinutes = minimalTransferMinutes,
         )
