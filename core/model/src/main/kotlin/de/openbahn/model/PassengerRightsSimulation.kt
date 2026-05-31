@@ -87,7 +87,7 @@ fun Journey.withSimulatedArrivalDelay(delayMinutes: Int): Journey {
             destination = leg.destination.withSimulatedDelayMinutes(delayMinutes),
         )
     }
-    return result.copy(
+    return copy(
         legs = updatedLegs,
         arrival = updatedLegs[lastRailIndex].destination.prognosedTime
             ?: updatedLegs[lastRailIndex].destination.scheduledTime,
