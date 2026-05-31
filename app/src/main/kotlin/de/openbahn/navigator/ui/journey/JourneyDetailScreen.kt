@@ -2,8 +2,11 @@ package de.openbahn.navigator.ui.journey
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -18,11 +21,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -34,6 +39,9 @@ import de.openbahn.navigator.R
 import de.openbahn.navigator.data.UserPreferencesRepository
 import de.openbahn.navigator.navigation.JourneyDetailPayload
 import de.openbahn.navigator.tracking.TrackedJourneyRefreshUseCase
+import de.openbahn.model.applyPassengerRightsSimulation
+import de.openbahn.navigator.BuildConfig
+import de.openbahn.navigator.data.PassengerRightsSimulationRepository
 import de.openbahn.navigator.domain.PassengerRightsRepository
 import de.openbahn.navigator.ui.components.JourneyCard
 import de.openbahn.navigator.ui.rights.PassengerRightsBanner
@@ -54,7 +62,12 @@ fun JourneyDetailScreen(
     predictionClient: BahnVorhersageClient = koinInject(),
     userPreferences: UserPreferencesRepository = koinInject(),
     passengerRights: PassengerRightsRepository = koinInject(),
+    simulationRepository: PassengerRightsSimulationRepository = koinInject(),
 ) {
+    val simulationConfig by simulationRepository.config.collectAsState(
+        initial = de.openbahn.model.PassengerRightsSimulationConfig.Disabled,
+    )
+    var rawJourney by remember(payload.journey.id) { mutableStateOf(payload.journey) }
     var journey by remember(payload.journey.id) { mutableStateOf(payload.journey) }
     var prediction by remember(payload.journey.id) { mutableStateOf(payload.prediction) }
     var rightsAssessment by remember(payload.journey.id) { mutableStateOf<PassengerRightsAssessment?>(null) }
@@ -67,8 +80,9 @@ fun JourneyDetailScreen(
         if (isRefreshing) return
         isRefreshing = true
         try {
-            val refreshed = refreshUseCase.refreshJourney(journey) ?: return
-            journey = refreshed
+            val refreshed = refreshUseCase.refreshJourney(rawJourney) ?: return
+            rawJourney = refreshed
+            journey = refreshed.applyPassengerRightsSimulation(simulationConfig)
             val assessment = passengerRights.evaluate(
                 journey = refreshed,
                 minTransferMinutes = payload.minTransferMinutes ?: 0,
@@ -92,6 +106,21 @@ fun JourneyDetailScreen(
 
     LaunchedEffect(payload.journey.id, payload.journey.refreshToken) {
         refreshConnection()
+    }
+
+    LaunchedEffect(simulationConfig, rawJourney.id) {
+        journey = rawJourney.applyPassengerRightsSimulation(simulationConfig)
+        if (!simulationConfig.enabled) {
+            showRightsBanner = false
+            rightsAssessment = null
+            return@LaunchedEffect
+        }
+        val assessment = passengerRights.evaluate(
+            journey = rawJourney,
+            minTransferMinutes = payload.minTransferMinutes ?: 0,
+        )
+        rightsAssessment = assessment
+        showRightsBanner = passengerRights.shouldSurfaceRightsUi(assessment)
     }
 
     Scaffold(
@@ -133,6 +162,28 @@ fun JourneyDetailScreen(
                 .padding(padding),
             contentPadding = PaddingValues(16.dp),
         ) {
+            if (BuildConfig.DEBUG && simulationConfig.enabled) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp)
+                            .testTag("passenger_rights_simulation_banner"),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        ),
+                    ) {
+                        Text(
+                            stringResource(
+                                R.string.passenger_rights_simulation_active,
+                                simulationConfig.arrivalDelayMinutes,
+                            ),
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.padding(12.dp),
+                        )
+                    }
+                }
+            }
             item {
                 JourneyCard(
                     journey = journey,

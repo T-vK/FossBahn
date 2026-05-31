@@ -197,4 +197,12 @@
     <string name="passenger_rights_notifications">Rights notifications</string>
     <string name="passenger_rights_notifications_desc">Alerts when thresholds are reached (not a guarantee of compensation)</string>
     <string name="passenger_rights_claims_settings_desc">Draft letters for operators — you confirm before sending</string>
+    <string name="passenger_rights_simulation_heading">Simulate delay (debug)</string>
+    <string name="passenger_rights_simulation_hint">Applies fake delays to connections for testing passenger rights. Debug builds only.</string>
+    <string name="passenger_rights_simulation_active">Simulation active: +%1$d min at destination</string>
+    <string name="passenger_rights_sim_off">Off</string>
+    <string name="passenger_rights_sim_dticket_60">D-Ticket 60 min</string>
+    <string name="passenger_rights_sim_dticket_120">D-Ticket 120 min</string>
+    <string name="passenger_rights_sim_eu_60">Long-distance 60 min</string>
+    <string name="passenger_rights_sim_taxi">Last connection / taxi</string>
 </resources>

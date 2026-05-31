@@ -1,7 +1,10 @@
 package de.openbahn.navigator.domain
 
 import de.openbahn.model.Journey
+import de.openbahn.model.PassengerRightsSimulationConfig
+import de.openbahn.model.applyPassengerRightsSimulation
 import de.openbahn.navigator.data.ClaimDraftRepository
+import de.openbahn.navigator.data.PassengerRightsSimulationRepository
 import de.openbahn.navigator.data.UserPreferencesRepository
 import de.openbahn.rights.claims.ClaimDraftBuilder
 import de.openbahn.rights.engine.PassengerRightsEngine
@@ -19,6 +22,7 @@ import java.time.format.DateTimeFormatter
 class PassengerRightsRepository(
     private val claimDrafts: ClaimDraftRepository,
     private val userPreferences: UserPreferencesRepository,
+    private val simulationRepository: PassengerRightsSimulationRepository,
 ) {
     private val berlinZone = ZoneId.of("Europe/Berlin")
     private val yearMonthFormatter = DateTimeFormatter.ofPattern("yyyy-MM")
@@ -28,18 +32,26 @@ class PassengerRightsRepository(
         minTransferMinutes: Int = 0,
         isLastConnectionOfDay: Boolean = false,
         hasPublicAlternativeInWindow: Boolean = true,
+        simulationOverride: PassengerRightsSimulationConfig? = null,
     ): PassengerRightsAssessment {
-        val ownsDticket = userPreferences.deutschlandTicketConnectionsOnly.first()
+        val simulation = simulationOverride ?: simulationRepository.currentConfig()
+        val journeyForRules = journey.applyPassengerRightsSimulation(simulation)
+        val ownsDticket = userPreferences.deutschlandTicketConnectionsOnly.first() ||
+            simulation.forceDeutschlandTicket
         val ticketContext = JourneyRightsAdapter.resolveTicketContext(
-            journey = journey,
+            journey = journeyForRules,
             userOwnsDeutschlandTicket = ownsDticket,
         )
         val stream = JourneyRightsAdapter.toTripEventStream(
-            journey = journey,
+            journey = journeyForRules,
             ticketContext = ticketContext,
             minTransferMinutes = minTransferMinutes,
-            isLastConnectionOfDay = isLastConnectionOfDay,
-            hasPublicAlternativeInWindow = hasPublicAlternativeInWindow,
+            isLastConnectionOfDay = isLastConnectionOfDay || simulation.isLastConnectionOfDay,
+            hasPublicAlternativeInWindow = if (simulation.enabled) {
+                simulation.hasPublicAlternativeInWindow
+            } else {
+                hasPublicAlternativeInWindow
+            },
         )
         val yearMonth = yearMonth(stream)
         val ledger = claimDrafts.loadMonthlyLedger(yearMonth)
