@@ -55,6 +55,10 @@
     <string name="settings_title">Settings</string>
     <string name="settings_dticket_only">D-Ticket connections only (default)</string>
     <string name="settings_dticket_only_hint">Applies to new searches and is remembered. You can still change it per search under Options.</string>
+    <string name="settings_delay_notification_increment">Delay alert step (Live Updates)</string>
+    <string name="settings_delay_notification_increment_hint">Notify again when a tracked connection’s delay increases by at least this many minutes since the last alert.</string>
+    <string name="settings_delay_notification_increment_minutes">+%d min</string>
+    <string name="settings_delay_notification_increment_default">+%d min (default)</string>
     <string name="settings_language">Language</string>
     <string name="settings_language_hint">App and station search language. System uses your device setting.</string>
     <string name="settings_language_system">System</string>
@@ -73,7 +77,7 @@
     <string name="dticket_import_hint">Import PDF tickets from DB Navigator or add your Deutschland-Ticket with photo (Lichtbild) for inspection.</string>
     <string name="dticket_photo">Ticket photo</string>
     <string name="tracking_title">Live Updates</string>
-    <string name="tracking_description">Tracked journeys are checked every 15 minutes. You receive a notification when delays exceed your threshold.</string>
+    <string name="tracking_description">Tracked journeys are checked every 15 minutes. You get a notification when a delay appears, and again each time the delay grows by your chosen amount.</string>
     <string name="stop_tracking">Stop tracking</string>
     <string name="track_journey">Track journey</string>
     <string name="transfers_count">%d transfers</string>
@@ -121,7 +125,7 @@
     <string name="filter_accessibility">Accessibility</string>
     <string name="filter_routing">Routing</string>
     <string name="notification_channel_delays">Delay alerts</string>
-    <string name="notification_channel_delays_desc">Notifications when your tracked journey is delayed</string>
+    <string name="notification_channel_delays_desc">Notifications when a tracked journey is delayed or the delay increases further</string>
     <string name="notification_channel_tracking">Journey tracking</string>
     <string name="delay_notification_title">Delay on your journey</string>
     <string name="delay_notification_body">%1$s → %2$s: delay of %3$d minutes</string>

@@ -32,9 +32,7 @@ class TrackedJourneyRefreshUseCase(
     suspend fun refreshAndCheckDelayNotification(
         entityId: String,
         refreshToken: String,
-        fromName: String,
-        toName: String,
-        notifyThresholdMinutes: Int,
+        notificationIncrementMinutes: Int,
     ): Int? {
         val refreshed = client.refreshJourney(refreshToken) ?: return null
         val active = repository.getActiveForWorker().firstOrNull { it.id == entityId } ?: return null
@@ -42,6 +40,13 @@ class TrackedJourneyRefreshUseCase(
         val merged = existing.withRealtimeFrom(refreshed)
         repository.updateJourney(entityId, merged)
         val maxDelay = merged.maxDelayMinutes()
-        return maxDelay.takeIf { it >= notifyThresholdMinutes }
+        val decision = DelayNotificationPolicy.evaluate(
+            currentDelayMinutes = maxDelay,
+            lastNotifiedDelayMinutes = active.lastNotifiedDelayMinutes,
+            incrementMinutes = notificationIncrementMinutes,
+        )
+        if (!decision.shouldNotify) return null
+        repository.updateLastNotifiedDelay(entityId, decision.delayMinutes)
+        return decision.delayMinutes
     }
 }

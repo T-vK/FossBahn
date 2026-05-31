@@ -55,6 +55,10 @@
     <string name="settings_title">Einstellungen</string>
     <string name="settings_dticket_only">Nur D-Ticket-Verbindungen (Standard)</string>
     <string name="settings_dticket_only_hint">Gilt für neue Suchen und wird gespeichert. Pro Suche können Sie es weiterhin unter Optionen ändern.</string>
+    <string name="settings_delay_notification_increment">Verspätungs-Schwelle (Live-Updates)</string>
+    <string name="settings_delay_notification_increment_hint">Erneute Benachrichtigung, wenn sich die Verspätung einer verfolgten Verbindung seit der letzten Meldung um mindestens so viele Minuten erhöht.</string>
+    <string name="settings_delay_notification_increment_minutes">+%d Min.</string>
+    <string name="settings_delay_notification_increment_default">+%d Min. (Standard)</string>
     <string name="settings_language">Sprache</string>
     <string name="settings_language_hint">Sprache der App und der Bahnhofsuche. „System“ nutzt die Gerätesprache.</string>
     <string name="settings_language_system">System</string>
@@ -73,7 +77,7 @@
     <string name="dticket_import_hint">Importieren Sie PDF-Tickets aus dem DB Navigator oder fügen Sie Ihr Deutschland-Ticket mit Lichtbild zur Kontrolle hinzu.</string>
     <string name="dticket_photo">Ticket-Foto</string>
     <string name="tracking_title">Live-Updates</string>
-    <string name="tracking_description">Verfolgte Verbindungen werden alle 15 Minuten geprüft. Bei Verspätungen erhalten Sie eine Benachrichtigung.</string>
+    <string name="tracking_description">Verfolgte Verbindungen werden alle 15 Minuten geprüft. Sie erhalten eine Meldung bei Verspätung und erneut, wenn die Verspätung um den eingestellten Betrag steigt.</string>
     <string name="stop_tracking">Verfolgung beenden</string>
     <string name="track_journey">Verbindung verfolgen</string>
     <string name="transfers_count">%d Umstiege</string>
@@ -121,7 +125,7 @@
     <string name="filter_accessibility">Barrierefreiheit</string>
     <string name="filter_routing">Routing</string>
     <string name="notification_channel_delays">Verspätungsalarme</string>
-    <string name="notification_channel_delays_desc">Benachrichtigungen bei Verspätung Ihrer verfolgten Verbindung</string>
+    <string name="notification_channel_delays_desc">Benachrichtigungen bei Verspätung oder weiter steigender Verspätung einer verfolgten Verbindung</string>
     <string name="notification_channel_tracking">Reiseverfolgung</string>
     <string name="delay_notification_title">Verspätung auf Ihrer Reise</string>
     <string name="delay_notification_body">%1$s → %2$s: %3$d Minuten Verspätung</string>

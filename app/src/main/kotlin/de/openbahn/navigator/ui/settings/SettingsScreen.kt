@@ -34,6 +34,7 @@ fun SettingsScreen(
     val appLanguage by viewModel.appLanguage.collectAsState()
     val punctualityTolerance by viewModel.punctualityToleranceMinutes.collectAsState()
     val deutschlandTicketOnly by viewModel.deutschlandTicketConnectionsOnly.collectAsState()
+    val delayNotificationIncrement by viewModel.delayNotificationIncrementMinutes.collectAsState()
     val activity = LocalContext.current as? AppCompatActivity
 
     Scaffold(
@@ -78,6 +79,13 @@ fun SettingsScreen(
             DeutschlandTicketDefaultSection(
                 enabled = deutschlandTicketOnly,
                 onEnabledChange = viewModel::setDeutschlandTicketConnectionsOnly,
+            )
+            DelayNotificationIncrementSection(
+                selectedMinutes = delayNotificationIncrement,
+                onSelect = { minutes ->
+                    if (minutes == delayNotificationIncrement) return@DelayNotificationIncrementSection
+                    viewModel.setDelayNotificationIncrementMinutes(minutes)
+                },
             )
         }
     }

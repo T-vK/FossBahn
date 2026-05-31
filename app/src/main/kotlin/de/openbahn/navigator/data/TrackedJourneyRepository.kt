@@ -20,7 +20,7 @@ class TrackedJourneyRepository(private val dao: TrackedJourneyDao) {
         }
     }
 
-    suspend fun track(journey: Journey, fromName: String, toName: String, notifyDelayMinutes: Int = 5) {
+    suspend fun track(journey: Journey, fromName: String, toName: String) {
         if (isJourneyLongArrived(journey)) return
         val entity = TrackedJourneyEntity(
             id = journey.id,
@@ -29,10 +29,15 @@ class TrackedJourneyRepository(private val dao: TrackedJourneyDao) {
             departureIso = journey.departure,
             refreshToken = journey.refreshToken,
             journeyJson = Json.encodeToString(journey),
-            notifyOnDelayMinutes = notifyDelayMinutes,
+            lastNotifiedDelayMinutes = null,
             active = true,
         )
         dao.upsert(entity)
+    }
+
+    suspend fun updateLastNotifiedDelay(id: String, delayMinutes: Int) {
+        val active = dao.getActive().firstOrNull { it.id == id } ?: return
+        dao.upsert(active.copy(lastNotifiedDelayMinutes = delayMinutes))
     }
 
     suspend fun stopTracking(id: String) = dao.deactivate(id)

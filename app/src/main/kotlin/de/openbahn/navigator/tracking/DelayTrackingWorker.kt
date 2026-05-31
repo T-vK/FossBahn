@@ -13,7 +13,11 @@ import de.openbahn.navigator.OpenBahnApplication
 import de.openbahn.navigator.R
 import de.openbahn.navigator.data.OpenBahnDatabase
 import de.openbahn.navigator.data.TrackedJourneyRepository
+import de.openbahn.navigator.data.UserPreferencesRepository
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import org.koin.java.KoinJavaComponent.getKoin
 
 class DelayTrackingWorker(
     context: Context,
@@ -31,15 +35,16 @@ class DelayTrackingWorker(
         val client = de.openbahn.api.DbVendoClient()
         val refreshUseCase = TrackedJourneyRefreshUseCase(client, repo)
         val active = repo.getActiveForWorker()
+        val incrementMinutes = runBlocking {
+            getKoin().get<UserPreferencesRepository>().delayNotificationIncrementMinutes.first()
+        }
 
         active.forEach { tracked ->
             val token = tracked.refreshToken?.takeIf { it.isNotBlank() } ?: return@forEach
             val delayMinutes = refreshUseCase.refreshAndCheckDelayNotification(
                 entityId = tracked.id,
                 refreshToken = token,
-                fromName = tracked.fromName,
-                toName = tracked.toName,
-                notifyThresholdMinutes = tracked.notifyOnDelayMinutes,
+                notificationIncrementMinutes = incrementMinutes,
             ) ?: return@forEach
             notifyDelay(tracked.fromName, tracked.toName, delayMinutes)
         }

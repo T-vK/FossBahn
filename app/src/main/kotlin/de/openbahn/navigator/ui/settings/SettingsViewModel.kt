@@ -28,6 +28,14 @@ class SettingsViewModel(
         userPreferences.deutschlandTicketConnectionsOnly
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    val delayNotificationIncrementMinutes: StateFlow<Int> =
+        userPreferences.delayNotificationIncrementMinutes
+            .stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5_000),
+                de.openbahn.navigator.tracking.DelayNotificationPolicy.DEFAULT_INCREMENT_MINUTES,
+            )
+
     fun setAppLanguage(language: AppLanguage, onApplied: () -> Unit = {}) {
         viewModelScope.launch {
             userPreferences.setAppLanguage(language)
@@ -45,6 +53,12 @@ class SettingsViewModel(
     fun setDeutschlandTicketConnectionsOnly(enabled: Boolean) {
         viewModelScope.launch {
             userPreferences.setDeutschlandTicketConnectionsOnly(enabled)
+        }
+    }
+
+    fun setDelayNotificationIncrementMinutes(minutes: Int) {
+        viewModelScope.launch {
+            userPreferences.setDelayNotificationIncrementMinutes(minutes)
         }
     }
 }
