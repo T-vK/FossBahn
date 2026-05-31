@@ -6,6 +6,7 @@ import de.openbahn.api.DbVendoClient
 import de.openbahn.navigator.BuildConfig
 import de.openbahn.navigator.data.FavoriteRouteRepository
 import de.openbahn.navigator.data.LocationHistoryRepository
+import de.openbahn.navigator.data.MIGRATION_3_4
 import de.openbahn.navigator.data.OpenBahnDatabase
 import de.openbahn.navigator.data.PendingSearchRepository
 import de.openbahn.navigator.data.TicketRepository
@@ -34,7 +35,9 @@ val appModule = module {
     single { BahnVorhersageClient(baseUrl = BuildConfig.BAHN_VORHERSAGE_API_URL) }
     single {
         Room.databaseBuilder(androidContext(), OpenBahnDatabase::class.java, "openbahn.db")
+            .addMigrations(MIGRATION_3_4)
             .fallbackToDestructiveMigration()
+            .fallbackToDestructiveMigrationOnDowngrade()
             .build()
     }
     single { get<OpenBahnDatabase>().ticketDao() }

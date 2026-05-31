@@ -16,7 +16,7 @@ import kotlinx.serialization.json.Json
         FavoriteLocationEntity::class,
         FavoriteRouteEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
