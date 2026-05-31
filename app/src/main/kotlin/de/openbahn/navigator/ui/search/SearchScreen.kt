@@ -2,7 +2,6 @@ package de.openbahn.navigator.ui.search
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -27,7 +26,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -35,9 +33,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
@@ -53,8 +48,6 @@ import de.openbahn.navigator.ui.components.ErrorBanner
 import de.openbahn.navigator.ui.components.JourneyCard
 import de.openbahn.navigator.ui.components.LoadingIndicator
 import de.openbahn.navigator.data.stableKey
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,14 +59,6 @@ fun SearchScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
-    var showDateTimePicker by remember { mutableStateOf(false) }
-    val whenLabel = DateTimeFormatter.ofPattern("EEE d MMM, HH:mm", Locale.getDefault())
-        .format(state.departureTime)
-    val whenCaption = if (state.options.arrivalSearch) {
-        stringResource(R.string.search_arrival_at, whenLabel)
-    } else {
-        stringResource(R.string.search_departure_at, whenLabel)
-    }
 
     if (state.showOnboarding) {
         DeutschlandTicketOnboardingDialog(
@@ -81,17 +66,6 @@ fun SearchScreen(
             onEnableFilter = { viewModel.completeOnboarding(deutschlandTicketOnly = true) },
         )
     }
-
-    DateTimePickerDialog(
-        visible = showDateTimePicker,
-        selected = state.departureTime,
-        arrivalSearch = state.options.arrivalSearch,
-        onDismiss = { showDateTimePicker = false },
-        onConfirm = { time, arrival ->
-            viewModel.setWhen(time, arrival)
-            showDateTimePicker = false
-        },
-    )
 
     Scaffold(
         topBar = {
@@ -184,32 +158,16 @@ fun SearchScreen(
                     }
                 }
             }
-            item(key = "when_field") {
-                val fieldColors = OutlinedTextFieldDefaults.colors(
-                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                    disabledContainerColor = MaterialTheme.colorScheme.surface,
-                    disabledBorderColor = MaterialTheme.colorScheme.outline,
-                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            item(key = "when_section") {
+                SearchWhenSection(
+                    departureTime = state.departureTime,
+                    arrivalSearch = state.options.arrivalSearch,
+                    onDepartureTimeChange = viewModel::setDepartureTime,
+                    onArrivalSearchChange = { arrival ->
+                        viewModel.updateOptions(state.options.copy(arrivalSearch = arrival))
+                    },
+                    modifier = Modifier.testTag("search_when_section"),
                 )
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(
-                        value = whenCaption,
-                        onValueChange = {},
-                        readOnly = true,
-                        enabled = false,
-                        label = { Text(stringResource(R.string.search_when)) },
-                        colors = fieldColors,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("search_when_field"),
-                    )
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .clickable { showDateTimePicker = true }
-                            .testTag("search_when_open"),
-                    )
-                }
             }
             item(key = "search_button") {
                 Button(
