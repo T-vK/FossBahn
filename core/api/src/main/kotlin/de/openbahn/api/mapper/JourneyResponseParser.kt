@@ -54,14 +54,96 @@ internal object JourneyResponseParser {
     private val isoLocalFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
 
     /** Full vehicle route from `/reiseloesung/fahrt?journeyId=…` (all stops, not only your segment). */
-    fun parseFahrtRoute(text: String): List<StopEvent> {
+    fun parseFahrtRoute(text: String): List<StopEvent> = parseHalteArray(extractFahrtHalteArray(text))
+
+    private fun extractFahrtHalteArray(text: String): JsonArray? {
         val trimmed = text.trim()
-        if (trimmed.isEmpty() || trimmed.contains("OPS_BLOCKED")) return emptyList()
-        val root = runCatching { json.parseToJsonElement(trimmed).jsonObject }.getOrNull() ?: return emptyList()
-        val halte = root["halte"]?.jsonArray ?: return emptyList()
+        if (trimmed.isEmpty() || trimmed.contains("OPS_BLOCKED")) return null
+        val root = runCatching { json.parseToJsonElement(trimmed).jsonObject }.getOrNull() ?: return null
+        root["halte"]?.jsonArray?.let { return it }
+        root["fahrt"]?.jsonObject?.get("halte")?.jsonArray?.let { return it }
+        root["verbindung"]?.jsonObject?.get("halte")?.jsonArray?.let { return it }
+        val abschnitte = root["verbindungsAbschnitte"]?.jsonArray
+            ?: root["segmente"]?.jsonArray
+        abschnitte?.firstOrNull()?.jsonObject?.get("halte")?.jsonArray?.let { return it }
+        return null
+    }
+
+    private fun parseHalteArray(halte: JsonArray?): List<StopEvent> {
+        if (halte == null || halte.isEmpty()) return emptyList()
         return halte.mapNotNull { element ->
             runCatching { element.jsonObject }.getOrNull()?.let(::mapHaltStopEvent)
         }
+    }
+
+    /**
+     * Extends [segment] with prior/upcoming stop names from abfahrten/ankünfte (`mitVias=true`).
+     */
+    fun buildRouteFromBoard(
+        arrivalsText: String,
+        departuresText: String,
+        tripId: String,
+        leg: Leg,
+        segment: List<StopEvent>,
+    ): List<StopEvent> {
+        val priorNames = boardViaNames(arrivalsText, tripId, leg, arrivals = true)
+        val nextNames = boardViaNames(departuresText, tripId, leg, arrivals = false)
+        if (priorNames.isEmpty() && nextNames.isEmpty()) return emptyList()
+        return buildList {
+            priorNames.forEach { name ->
+                if (segment.none { stationNamesMatch(it.name, name) }) {
+                    add(StopEvent(name = name, scheduledTime = ""))
+                }
+            }
+            addAll(segment)
+            nextNames.forEach { name ->
+                if (none { stationNamesMatch(it.name, name) }) {
+                    add(StopEvent(name = name, scheduledTime = ""))
+                }
+            }
+        }
+    }
+
+    private fun boardViaNames(
+        text: String,
+        tripId: String,
+        leg: Leg,
+        arrivals: Boolean,
+    ): List<String> {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty() || trimmed.contains("OPS_BLOCKED")) return emptyList()
+        val root = runCatching { json.parseToJsonElement(trimmed).jsonObject }.getOrNull() ?: return emptyList()
+        val entries = when {
+            arrivals -> root["ankuenfte"]?.jsonArray ?: root["entries"]?.jsonArray
+            else -> root["abfahrten"]?.jsonArray ?: root["entries"]?.jsonArray
+        } ?: return emptyList()
+        for (element in entries) {
+            val entry = runCatching { element.jsonObject }.getOrNull() ?: continue
+            if (!boardEntryMatchesLeg(entry, tripId, leg)) continue
+            return entry["ueber"]?.jsonArray.orEmpty().mapNotNull { via ->
+                runCatching { via.jsonPrimitive.contentOrNull?.trim() }.getOrNull()?.takeIf { it.isNotEmpty() }
+            }
+        }
+        return emptyList()
+    }
+
+    private fun boardEntryMatchesLeg(entry: JsonObject, tripId: String, leg: Leg): Boolean {
+        val entryTrip = text(entry, "journeyId") ?: text(entry, "fahrtId") ?: text(entry, "journeyID")
+        if (entryTrip != null && tripIdsLooselyMatch(entryTrip, tripId)) return true
+        val vm = entry["verkehrsmittel"]?.jsonObject ?: entry["verkehrmittel"]?.jsonObject
+        val line = lineDisplay(vm, entryTrip).primary
+        val detail = lineDisplay(vm, entryTrip).detail
+        if (leg.lineName != null && line != null && leg.lineName.equals(line, ignoreCase = true)) return true
+        if (leg.lineDetail != null && detail != null && leg.lineDetail == detail) return true
+        return false
+    }
+
+    private fun tripIdsLooselyMatch(a: String, b: String): Boolean {
+        if (a == b) return true
+        val na = a.trim()
+        val nb = b.trim()
+        if (na == nb) return true
+        return na.contains(nb) || nb.contains(na)
     }
 
     /** Parses a single connection from `/reiseloesung/verbindung` (refresh / live). */
@@ -374,7 +456,8 @@ internal object JourneyResponseParser {
         val raw = element.jsonObject
         val inner = raw["verbindung"]?.jsonObject
         val v = if (inner != null) mergeConnectionObjects(inner, raw) else raw
-        val legs = flattenAbschnitte(v).mapNotNull { mapAbschnitt(it) }.ifEmpty {
+        val connectionTripId = text(v, "tripId")
+        val legs = flattenAbschnitte(v).mapNotNull { mapAbschnitt(it, connectionTripId) }.ifEmpty {
             listOfNotNull(mapVerbindungSummaryLeg(v))
         }
         if (legs.isEmpty()) return null
@@ -459,7 +542,7 @@ internal object JourneyResponseParser {
             ),
         )
 
-    private fun mapAbschnitt(a: JsonObject): Leg? {
+    private fun mapAbschnitt(a: JsonObject, connectionTripId: String? = null): Leg? {
         val halte = halteArray(a)
         val firstHalt = halte.firstOrNull()
         val lastHalt = halte.lastOrNull()
@@ -521,7 +604,11 @@ internal object JourneyResponseParser {
             operator = text(vm, "betreiber"),
             loadFactor = text(vm, "auslastung"),
             bikeAllowed = bool(vm, "fahrradErlaubt"),
-            tripId = text(a, "journeyId"),
+            tripId = text(a, "journeyId")
+                ?: text(a, "zuglaufId")
+                ?: text(a, "fahrtId")
+                ?: text(vm, "journeyId")
+                ?: connectionTripId,
             isWalking = isWalking,
             durationMinutes = durationMinutes,
             distanceMeters = intVal(a, "distanz"),

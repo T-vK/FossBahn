@@ -409,13 +409,10 @@ private fun LegDetailsBlock(leg: Leg, legIndex: Int) {
         }
         scope.launch {
             routeLoading = true
-            val fetched = runCatching { journeySearch.fetchTripRoute(tripId) }.getOrDefault(emptyList())
             val reference = segmentStops.ifEmpty { leg.tripRouteStops() }
-            loadedStops = when {
-                fetched.size >= 2 -> fetched.withDelaysFrom(reference)
-                reference.size >= 2 -> reference
-                else -> fetched
-            }
+            val fetched = runCatching { journeySearch.fetchFullLegRoute(leg) }
+                .getOrElse { reference }
+            loadedStops = if (fetched.size >= 2) fetched else reference
             routeLoading = false
         }
     }
@@ -428,14 +425,17 @@ private fun LegDetailsBlock(leg: Leg, legIndex: Int) {
             if (showTripRoute) loadFullRouteIfNeeded()
         },
     )
-    val displayStops = loadedStops ?: segmentStops
+    val displayStops = when {
+        routeLoading -> emptyList()
+        else -> loadedStops ?: segmentStops
+    }
     AnimatedVisibility(
         visible = showTripRoute && canShowTripRoute,
         enter = expandVertically(),
         exit = shrinkVertically(),
     ) {
         when {
-            routeLoading && displayStops.size < 2 -> {
+            routeLoading -> {
                 Row(
                     Modifier
                         .fillMaxWidth()

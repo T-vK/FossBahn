@@ -15,6 +15,7 @@ import de.openbahn.model.BoardEntry
 import de.openbahn.model.Journey
 import de.openbahn.model.JourneySearchOptions
 import de.openbahn.model.JourneySearchResult
+import de.openbahn.model.Leg
 import de.openbahn.model.Location
 import de.openbahn.model.StopEvent
 import de.openbahn.model.StationBoard
@@ -62,6 +63,7 @@ class DbVendoClient(
     private val baseUrl: String = DEFAULT_BASE_URL,
     private val httpClient: HttpClient = createDefaultClient(),
 ) {
+    private val tripRouteFetcher = TripRouteFetcher(this)
     private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
@@ -203,7 +205,37 @@ class DbVendoClient(
             parameter("journeyId", journeyId)
         }.bodyAsText()
         if (text.contains("OPS_BLOCKED")) throw DbApiBlockedException("Trip route blocked")
-        return JourneyResponseParser.parseFahrtRoute(text)
+        val stops = JourneyResponseParser.parseFahrtRoute(text)
+        if (stops.isEmpty()) {
+            OpenBahnDebugLog.w(
+                "DbVendo",
+                "fahrt returned 0 stops for journeyId=${journeyId.take(72)} body=${text.take(160)}",
+            )
+        } else {
+            OpenBahnDebugLog.d("DbVendo", "fahrt ${stops.size} stops for journeyId=${journeyId.take(48)}")
+        }
+        return stops
+    }
+
+    /** Full vehicle route: `/fahrt` plus board `mitVias` fallback when needed. */
+    suspend fun fetchFullLegRoute(leg: Leg): List<StopEvent> = tripRouteFetcher.fetchFullLegRoute(leg)
+
+    internal suspend fun fetchBoardRaw(
+        stationExtId: String,
+        whenTime: LocalDateTime,
+        departures: Boolean,
+        mitVias: Boolean,
+        locale: String = "de",
+    ): String {
+        val path = if (departures) "abfahrten" else "ankuenfte"
+        return httpClient.get("$baseUrl/reiseloesung/$path") {
+            parameter("ortExtId", stationExtId)
+            parameter("datum", whenTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")))
+            parameter("zeit", whenTime.format(DateTimeFormatter.ofPattern("HH:mm:ss")))
+            parameter("dauer", 60)
+            if (mitVias) parameter("mitVias", true)
+            parameter("locale", locale)
+        }.bodyAsText()
     }
 
     suspend fun refreshJourney(refreshToken: String): Journey? {

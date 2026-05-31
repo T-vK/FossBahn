@@ -1,6 +1,7 @@
 package de.openbahn.api
 
 import de.openbahn.api.mapper.JourneyResponseParser
+import de.openbahn.model.tripRouteStops
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -138,6 +139,33 @@ class JourneyResponseParserTest {
         assertEquals("Salzwedel", stops.last().name)
         assertEquals(5, stops[1].delayMinutes)
         assertEquals(3, stops[2].delayMinutes)
+    }
+
+    @Test
+    fun parseFahrtRoute_readsHalteFromNestedFahrtWrapper() {
+        val wrapped = """{"fahrt": ${javaClass.getResource("/dbweb-fahrt-rb31.json")!!.readText()}}"""
+        val stops = JourneyResponseParser.parseFahrtRoute(wrapped)
+        assertEquals(6, stops.size)
+    }
+
+    @Test
+    fun buildRouteFromBoard_extendsSegmentWithViaNames() {
+        val leg = JourneyResponseParser.parse(
+            javaClass.getResource("/dbweb-journey-regional-rb31.json")!!.readText(),
+        ).journeys.single().legs.single()
+        val segment = leg.tripRouteStops()
+        val arrivals = """{"ankuenfte":[{"journeyId":"2|#ZB#RB    31#ZE#81633#","ueber":["Celle","Lüneburg"],"zeit":"2026-06-15T10:15:00"}]}"""
+        val departures = """{"abfahrten":[{"journeyId":"2|#ZB#RB    31#ZE#81633#","ueber":["Wieren","Salzwedel"],"zeit":"2026-06-15T10:15:00"}]}"""
+        val extended = JourneyResponseParser.buildRouteFromBoard(
+            arrivalsText = arrivals,
+            departuresText = departures,
+            tripId = leg.tripId!!,
+            leg = leg,
+            segment = segment,
+        )
+        assertTrue(extended.size > segment.size)
+        assertEquals("Celle", extended.first().name)
+        assertEquals("Salzwedel", extended.last().name)
     }
 
     @Test

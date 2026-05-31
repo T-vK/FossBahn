@@ -6,6 +6,7 @@ import de.openbahn.api.JourneyRatingOptions
 import de.openbahn.model.Journey
 import de.openbahn.model.JourneySearchOptions
 import de.openbahn.model.JourneySearchResult
+import de.openbahn.model.Leg
 import de.openbahn.model.Location
 import de.openbahn.model.RatedJourney
 import de.openbahn.model.StopEvent
@@ -29,6 +30,7 @@ interface JourneySearchRepository {
         ratingOptions: JourneyRatingOptions = JourneyRatingOptions(),
     ): List<RatedJourney>
     suspend fun fetchTripRoute(journeyId: String): List<StopEvent>
+    suspend fun fetchFullLegRoute(leg: Leg): List<StopEvent>
 }
 
 class JourneySearchUseCase(
@@ -67,6 +69,9 @@ class JourneySearchUseCase(
 
     override suspend fun fetchTripRoute(journeyId: String): List<StopEvent> =
         dbClient.fetchTripRoute(journeyId)
+
+    override suspend fun fetchFullLegRoute(leg: Leg): List<StopEvent> =
+        dbClient.fetchFullLegRoute(leg)
 }
 
 class PredictionUseCase(private val client: BahnVorhersageClient) {
