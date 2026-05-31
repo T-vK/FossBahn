@@ -85,6 +85,9 @@ interface FavoriteLocationDao {
     @Query("SELECT * FROM favorite_locations ORDER BY addedAt DESC")
     fun observeAll(): Flow<List<FavoriteLocationEntity>>
 
+    @Query("SELECT * FROM favorite_locations ORDER BY addedAt DESC")
+    suspend fun getAll(): List<FavoriteLocationEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: FavoriteLocationEntity)
 
@@ -131,12 +134,49 @@ class LocationHistoryRepository(
         )
     }
 
-    suspend fun recentMatching(query: String, limit: Int = 8): List<Location> {
+    suspend fun recentMatching(query: String, limit: Int = 8): List<Location> =
+        rankedForAutocomplete(query, limit)
+
+    /**
+     * Favorites first (by recent use), then other recent stations.
+     * When [query] is non-empty, prefix matches rank above substring matches.
+     */
+    suspend fun rankedForAutocomplete(query: String, limit: Int = 8): List<Location> {
         val q = query.trim()
-        if (q.length < 1) return emptyList()
-        return recentDao.getRecent(40)
-            .map { it.toLocation() }
-            .filter { it.name.contains(q, ignoreCase = true) }
+        val recentEntities = recentDao.getRecent(50)
+        val recentByKey = recentEntities.associateBy { it.locationKey }
+        val favoriteEntities = favoriteLocationDao.getAll()
+        val favoriteKeys = favoriteEntities.map { it.locationKey }.toSet()
+
+        data class Candidate(val location: Location, val recent: RecentLocationEntity?, val favoriteAddedAt: Long?)
+
+        val candidates = mutableListOf<Candidate>()
+        for (fav in favoriteEntities) {
+            candidates += Candidate(
+                location = fav.toLocation(),
+                recent = recentByKey[fav.locationKey],
+                favoriteAddedAt = fav.addedAt,
+            )
+        }
+        for (entity in recentEntities) {
+            if (entity.locationKey !in favoriteKeys) {
+                candidates += Candidate(entity.toLocation(), entity, null)
+            }
+        }
+
+        return candidates
+            .filter { (loc, _, _) -> q.isEmpty() || loc.name.matchesAutocompleteQuery(q) }
+            .sortedWith(
+                compareBy<Candidate> { (loc, _, _) -> loc.name.autocompleteMatchRank(q) }
+                    .thenByDescending { (_, recent, favAdded) ->
+                        recent?.useCount ?: 0
+                    }
+                    .thenByDescending { (_, recent, favAdded) ->
+                        recent?.lastUsedAt ?: favAdded ?: 0L
+                    }
+                    .thenBy { (loc, _, _) -> loc.name.lowercase() },
+            )
+            .map { it.location }
             .distinctBy { it.stableKey() }
             .take(limit)
     }
@@ -164,6 +204,22 @@ class LocationHistoryRepository(
     suspend fun isFavoriteLocation(location: Location): Boolean =
         favoriteLocationDao.isFavorite(location.stableKey()) > 0
 }
+
+/** 0 = name starts with query; 1 = word-prefix; 2 = contains; 3 = no match (filtered out). */
+internal fun String.autocompleteMatchRank(query: String): Int {
+    if (query.isEmpty()) return 0
+    val name = this
+    val q = query
+    return when {
+        name.startsWith(q, ignoreCase = true) -> 0
+        name.split(Regex("\\s+")).any { it.startsWith(q, ignoreCase = true) } -> 1
+        name.contains(q, ignoreCase = true) -> 2
+        else -> 3
+    }
+}
+
+internal fun String.matchesAutocompleteQuery(query: String): Boolean =
+    query.isEmpty() || autocompleteMatchRank(query) < 3
 
 class FavoriteRouteRepository(private val dao: FavoriteRouteDao) {
     fun observeAll(): Flow<List<FavoriteRoute>> =

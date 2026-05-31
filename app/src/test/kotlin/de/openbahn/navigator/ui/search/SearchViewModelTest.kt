@@ -65,6 +65,7 @@ class SearchViewModelTest {
         every { locationHistory.observeRecent() } returns flowOf(emptyList())
         every { locationHistory.observeFavoriteLocations() } returns flowOf(emptyList())
         coEvery { locationHistory.recentMatching(any()) } returns emptyList()
+        coEvery { locationHistory.rankedForAutocomplete(any()) } returns emptyList()
         coEvery { searchRepository.searchLocations(any(), any()) } answers {
             val q = firstArg<String>()
             when {

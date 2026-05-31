@@ -2,10 +2,11 @@ package de.openbahn.navigator.ui.search
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -18,6 +19,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -97,11 +99,8 @@ fun SearchWhenSection(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            OutlinedTextField(
+            PickerTextField(
                 value = dateLabel,
-                onValueChange = {},
-                readOnly = true,
-                singleLine = true,
                 label = { Text(stringResource(R.string.search_date)) },
                 leadingIcon = {
                     Icon(
@@ -109,16 +108,14 @@ fun SearchWhenSection(
                         contentDescription = stringResource(R.string.search_pick_date),
                     )
                 },
+                onClick = { showDatePicker = true },
+                openTestTag = "search_date_open",
                 modifier = Modifier
                     .weight(1f)
-                    .clickable { showDatePicker = true }
                     .testTag("search_date_field"),
             )
-            OutlinedTextField(
+            PickerTextField(
                 value = timeLabel,
-                onValueChange = {},
-                readOnly = true,
-                singleLine = true,
                 label = { Text(stringResource(R.string.search_time)) },
                 leadingIcon = {
                     Icon(
@@ -126,9 +123,10 @@ fun SearchWhenSection(
                         contentDescription = stringResource(R.string.search_pick_time),
                     )
                 },
+                onClick = { showTimePicker = true },
+                openTestTag = "search_time_open",
                 modifier = Modifier
                     .widthIn(min = 112.dp)
-                    .clickable { showTimePicker = true }
                     .testTag("search_time_field"),
             )
             FilledTonalButton(
@@ -195,6 +193,43 @@ fun SearchWhenSection(
                     Text(stringResource(android.R.string.cancel))
                 }
             },
+        )
+    }
+}
+
+@Composable
+private fun PickerTextField(
+    value: String,
+    onClick: () -> Unit,
+    label: @Composable () -> Unit,
+    leadingIcon: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    openTestTag: String? = null,
+) {
+    val colors = OutlinedTextFieldDefaults.colors(
+        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+        disabledContainerColor = MaterialTheme.colorScheme.surface,
+        disabledBorderColor = MaterialTheme.colorScheme.outline,
+        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Box(modifier = modifier) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            readOnly = true,
+            enabled = false,
+            singleLine = true,
+            label = label,
+            leadingIcon = leadingIcon,
+            colors = colors,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(onClick = onClick)
+                .then(if (openTestTag != null) Modifier.testTag(openTestTag) else Modifier),
         )
     }
 }

@@ -13,6 +13,9 @@ import de.openbahn.model.RatedJourney
 import de.openbahn.navigator.data.FavoriteRoute
 import de.openbahn.navigator.data.FavoriteRouteRepository
 import de.openbahn.navigator.data.LocationHistoryRepository
+import de.openbahn.navigator.data.autocompleteMatchRank
+import de.openbahn.navigator.data.matchesAutocompleteQuery
+import de.openbahn.navigator.data.stableKey
 import de.openbahn.navigator.data.PendingSearchRepository
 import de.openbahn.navigator.data.TrackedJourneyRepository
 import de.openbahn.navigator.data.UserPreferencesRepository
@@ -127,34 +130,30 @@ class SearchViewModel(
     }
 
     fun onFromFocusChanged(focused: Boolean) {
-        _state.update { state ->
-            if (focused) {
-                state.copy(
+        if (focused) {
+            _state.update {
+                it.copy(
                     activeLocationField = ActiveLocationField.FROM,
                     toSuggestions = emptyList(),
-                    fromSuggestions = suggestionsForField(ActiveLocationField.FROM, state.fromQuery),
                 )
-            } else if (state.activeLocationField == ActiveLocationField.FROM) {
-                state.copy(activeLocationField = ActiveLocationField.NONE, fromSuggestions = emptyList())
-            } else {
-                state
             }
+            refreshSuggestionsFor(ActiveLocationField.FROM)
+        } else if (_state.value.activeLocationField == ActiveLocationField.FROM) {
+            _state.update { it.copy(activeLocationField = ActiveLocationField.NONE, fromSuggestions = emptyList()) }
         }
     }
 
     fun onToFocusChanged(focused: Boolean) {
-        _state.update { state ->
-            if (focused) {
-                state.copy(
+        if (focused) {
+            _state.update {
+                it.copy(
                     activeLocationField = ActiveLocationField.TO,
                     fromSuggestions = emptyList(),
-                    toSuggestions = suggestionsForField(ActiveLocationField.TO, state.toQuery),
                 )
-            } else if (state.activeLocationField == ActiveLocationField.TO) {
-                state.copy(activeLocationField = ActiveLocationField.NONE, toSuggestions = emptyList())
-            } else {
-                state
             }
+            refreshSuggestionsFor(ActiveLocationField.TO)
+        } else if (_state.value.activeLocationField == ActiveLocationField.TO) {
+            _state.update { it.copy(activeLocationField = ActiveLocationField.NONE, toSuggestions = emptyList()) }
         }
     }
 
@@ -166,7 +165,6 @@ class SearchViewModel(
                 from = if (keepSelection) state.from else null,
                 activeLocationField = ActiveLocationField.FROM,
                 toSuggestions = emptyList(),
-                fromSuggestions = suggestionsForField(ActiveLocationField.FROM, query),
             )
         }
         loadSuggestions(query, isFrom = true)
@@ -180,7 +178,6 @@ class SearchViewModel(
                 to = if (keepSelection) state.to else null,
                 activeLocationField = ActiveLocationField.TO,
                 fromSuggestions = emptyList(),
-                toSuggestions = suggestionsForField(ActiveLocationField.TO, query),
             )
         }
         loadSuggestions(query, isFrom = false)
@@ -288,28 +285,23 @@ class SearchViewModel(
         }
     }
 
-    private fun suggestionsForField(field: ActiveLocationField, query: String): List<Location> {
-        if (_state.value.activeLocationField != field) return emptyList()
-        val recent = _state.value.cachedRecent
-        val q = query.trim()
-        return if (q.isEmpty()) {
-            recent.take(8)
-        } else {
-            recent.filter { it.name.contains(q, ignoreCase = true) }.take(8)
+    private fun refreshInstantSuggestions() {
+        when (_state.value.activeLocationField) {
+            ActiveLocationField.FROM -> refreshSuggestionsFor(ActiveLocationField.FROM)
+            ActiveLocationField.TO -> refreshSuggestionsFor(ActiveLocationField.TO)
+            ActiveLocationField.NONE -> Unit
         }
     }
 
-    private fun refreshInstantSuggestions() {
-        _state.update { state ->
-            when (state.activeLocationField) {
-                ActiveLocationField.FROM -> state.copy(
-                    fromSuggestions = mergeSuggestions(state.fromQuery, suggestionsForField(ActiveLocationField.FROM, state.fromQuery)),
-                )
-                ActiveLocationField.TO -> state.copy(
-                    toSuggestions = mergeSuggestions(state.toQuery, suggestionsForField(ActiveLocationField.TO, state.toQuery)),
-                )
-                ActiveLocationField.NONE -> state
+    private fun refreshSuggestionsFor(field: ActiveLocationField) {
+        viewModelScope.launch {
+            val query = when (field) {
+                ActiveLocationField.FROM -> _state.value.fromQuery
+                ActiveLocationField.TO -> _state.value.toQuery
+                ActiveLocationField.NONE -> return@launch
             }
+            val ranked = locationHistory.rankedForAutocomplete(query)
+            applySuggestions(field, ranked)
         }
     }
 
@@ -489,33 +481,46 @@ class SearchViewModel(
         val field = if (isFrom) ActiveLocationField.FROM else ActiveLocationField.TO
         if (_state.value.activeLocationField != field) return
         suggestJob?.cancel()
-        val instant = mergeSuggestions(query, suggestionsForField(field, query))
-        _state.update {
-            if (isFrom) it.copy(fromSuggestions = instant) else it.copy(toSuggestions = instant)
-        }
-        if (query.length < 2) {
-            return
-        }
         suggestJob = viewModelScope.launch {
+            val local = locationHistory.rankedForAutocomplete(query)
+            applySuggestions(field, local)
+            if (query.trim().length < 2) return@launch
             delay(300)
+            if (_state.value.activeLocationField != field) return@launch
             try {
-                val recent = locationHistory.recentMatching(query)
                 val api = searchUseCase.searchLocations(query, _state.value.locale)
-                val merged = mergeSuggestions(query, recent + api)
-                _state.update {
-                    if (isFrom) it.copy(fromSuggestions = merged) else it.copy(toSuggestions = merged)
-                }
+                val merged = mergeWithApiResults(local, api, query)
+                applySuggestions(field, merged)
             } catch (_: Exception) {
             }
         }
     }
 
-    private fun mergeSuggestions(query: String, suggestions: List<Location>): List<Location> {
-        val q = query.trim()
-        val recent = _state.value.cachedRecent.filter {
-            q.isEmpty() || it.name.contains(q, ignoreCase = true)
+    private fun applySuggestions(field: ActiveLocationField, suggestions: List<Location>) {
+        _state.update { state ->
+            when {
+                field == ActiveLocationField.FROM && state.activeLocationField == ActiveLocationField.FROM ->
+                    state.copy(fromSuggestions = suggestions)
+                field == ActiveLocationField.TO && state.activeLocationField == ActiveLocationField.TO ->
+                    state.copy(toSuggestions = suggestions)
+                else -> state
+            }
         }
-        val combined = (recent + suggestions).distinctBy { it.evaNumber ?: it.id }
-        return combined.take(8)
+    }
+
+    private fun mergeWithApiResults(
+        local: List<Location>,
+        api: List<Location>,
+        query: String,
+    ): List<Location> {
+        val q = query.trim()
+        val seen = local.map { it.stableKey() }.toMutableSet()
+        val fromApi = api
+            .filter { it.stableKey() !in seen && it.name.matchesAutocompleteQuery(q) }
+            .sortedWith(
+                compareBy<Location> { it.name.autocompleteMatchRank(q) }
+                    .thenBy { it.name.lowercase() },
+            )
+        return (local + fromApi).take(8)
     }
 }
