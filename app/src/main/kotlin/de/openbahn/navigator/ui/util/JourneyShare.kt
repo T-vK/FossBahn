@@ -87,6 +87,7 @@ private fun StringBuilder.appendLegSection(
     leg: Leg,
 ) {
     leg.lineName?.let { appendLine(it) }
+    leg.lineDetail?.takeIf { it != leg.lineName }?.let { appendLine(it) }
     appendStopLine(resources, R.string.departure, leg.origin)
     appendStopLine(resources, R.string.arrival, leg.destination)
 }

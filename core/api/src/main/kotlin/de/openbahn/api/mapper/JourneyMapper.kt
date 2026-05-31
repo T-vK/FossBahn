@@ -76,7 +76,8 @@ internal object JourneyMapper {
                 id = a.ankunftsOrtExtId,
                 scheduledTime = arrTime,
             ),
-            lineName = lineLabel(vm),
+            lineName = lineDisplay(vm, a.journeyId).primary,
+            lineDetail = lineDisplay(vm, a.journeyId).detail,
             product = vm?.produktGattung?.let(::mapProduct),
             operator = vm?.betreiber,
             loadFactor = vm?.auslastung,
@@ -85,8 +86,17 @@ internal object JourneyMapper {
         )
     }
 
-    private fun lineLabel(vm: DbVerkehrsmittel?): String? =
-        vm?.name ?: vm?.kurzText ?: vm?.linienNummer?.let { "Line $it" }
+    private fun lineDisplay(vm: DbVerkehrsmittel?, journeyId: String?): LineDisplay {
+        if (vm == null) return LineDisplay(null)
+        val json = kotlinx.serialization.json.buildJsonObject {
+            vm.name?.let { put("name", JsonPrimitive(it)) }
+            vm.kurzText?.let { put("kurzText", JsonPrimitive(it)) }
+            vm.produktGattung?.let { put("produktGattung", JsonPrimitive(it)) }
+            vm.linienNummer?.let { put("linienNummer", JsonPrimitive(it)) }
+            vm.nummer?.let { put("nummer", JsonPrimitive(it)) }
+        }
+        return LineDisplayMapper.fromVerkehrsmittel(json, journeyId)
+    }
 
     private fun mapProduct(code: String): TransportProduct? =
         TransportProduct.entries.find { it.vendoCode.equals(code, ignoreCase = true) }

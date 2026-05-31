@@ -378,13 +378,24 @@ private fun LegRemarksBlock(remarks: List<String>) {
 
 @Composable
 private fun LegDetailsBlock(leg: Leg, legIndex: Int) {
-    leg.lineName?.let { line ->
-        Text(
-            line,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.primary,
-        )
+    if (leg.lineName != null || leg.lineDetail != null) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            leg.lineName?.let { line ->
+                Text(
+                    line,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            leg.lineDetail?.let { detail ->
+                Text(
+                    detail,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
     StopRow(
         label = stringResource(R.string.departure),

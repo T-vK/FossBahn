@@ -58,6 +58,11 @@ jobs:
           if [ "$LAST" != "(none)" ]; then
             git log "${LAST}..HEAD" --oneline --no-merges || true
           fi
+          if [ "$LAST" != "(none)" ]; then
+            echo "prev_tag=$LAST" >> "$GITHUB_OUTPUT"
+          else
+            echo "prev_tag=v0.0.0" >> "$GITHUB_OUTPUT"
+          fi
           eval "$(.github/scripts/next-semver.sh)"
           echo "Computed: bump=$bump version=$version"
           echo "bump=$bump" >> "$GITHUB_OUTPUT"
@@ -108,8 +113,7 @@ jobs:
         run: |
           chmod +x .github/scripts/release-changelog.sh .github/scripts/test-release-changelog.sh
           .github/scripts/test-release-changelog.sh
-          LAST=$(git describe --tags --match 'v*' --abbrev=0 2>/dev/null || echo "v0.0.0")
-          .github/scripts/release-changelog.sh "$LAST" "${{ steps.semver.outputs.version }}" release-notes.md
+          .github/scripts/release-changelog.sh "${{ steps.semver.outputs.prev_tag }}" "${{ steps.semver.outputs.version }}" release-notes.md
           cat release-notes.md
 
       - name: Publish GitHub Release

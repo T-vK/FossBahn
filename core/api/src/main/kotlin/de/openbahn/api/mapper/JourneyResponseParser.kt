@@ -478,6 +478,7 @@ internal object JourneyResponseParser {
             ?: text(a, "zielGleis")
             ?: text(lastHalt, "gleis")
             ?: text(zielHalt, "gleis")
+        val line = lineDisplay(vm, text(a, "journeyId"))
         return Leg(
             origin = stopEventFromParsed(
                 name = depName,
@@ -500,7 +501,8 @@ internal object JourneyResponseParser {
                 remarks = haltRemarks(lastHalt ?: zielHalt),
             ),
             intermediateStops = mapIntermediateStops(halte, depName, arrName),
-            lineName = lineLabel(vm),
+            lineName = line.primary,
+            lineDetail = line.detail,
             product = text(vm, "produktGattung")?.let(::mapProduct),
             operator = text(vm, "betreiber"),
             loadFactor = text(vm, "auslastung"),
@@ -646,13 +648,8 @@ internal object JourneyResponseParser {
             ?: section[ortKey]?.jsonObject?.let { text(it, "extId") ?: text(it, "id") }
             ?: text(halt, "extId")
 
-    private fun lineLabel(vm: JsonObject?): String? {
-        if (vm == null) return null
-        return text(vm, "name")
-            ?: text(vm, "kurzText")
-            ?: text(vm, "mittelText")
-            ?: text(vm, "linienNummer")?.let { "Line $it" }
-    }
+    private fun lineDisplay(vm: JsonObject?, journeyId: String?): LineDisplay =
+        LineDisplayMapper.fromVerkehrsmittel(vm, journeyId)
 
     private fun mapProduct(code: String): TransportProduct? =
         TransportProduct.entries.find { it.vendoCode.equals(code, ignoreCase = true) }
