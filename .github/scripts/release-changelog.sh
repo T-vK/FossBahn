@@ -12,7 +12,12 @@ if [ ! -d .git ]; then
   exit 1
 fi
 
-RANGE="${PREV_TAG}..HEAD"
+# End at the release tag when it exists (CI tags before this script runs).
+if git rev-parse "${NEW_VERSION}^{commit}" >/dev/null 2>&1; then
+  RANGE="${PREV_TAG}..${NEW_VERSION}"
+else
+  RANGE="${PREV_TAG}..HEAD"
+fi
 seen=$'\n'
 features=()
 fixes=()
@@ -71,14 +76,15 @@ collect_log() {
 
   while IFS= read -r subject; do
     append_subject "$subject"
-  done < <(git log "$RANGE" --no-merges --pretty=format:%s 2>/dev/null || true)
+  # %s%n — last subject must end with newline or `while read` drops the final line.
+  done < <(git log "$RANGE" --no-merges --pretty=format:%s%n 2>/dev/null || true)
 
   while IFS= read -r merge_hash; do
     [ -z "$merge_hash" ] && continue
     while IFS= read -r subject; do
       append_subject "$subject"
-    done < <(git log "${merge_hash}^2" --not "${merge_hash}^1" --no-merges --pretty=format:%s 2>/dev/null || true)
-  done < <(git log "$RANGE" --merges --pretty=format:%H 2>/dev/null || true)
+    done < <(git log "${merge_hash}^2" --not "${merge_hash}^1" --no-merges --pretty=format:%s%n 2>/dev/null || true)
+  done < <(git log "$RANGE" --merges --pretty=format:%H%n 2>/dev/null || true)
 }
 
 while IFS= read -r subject; do

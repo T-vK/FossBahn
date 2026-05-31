@@ -22,4 +22,15 @@ if git rev-parse v0.19.6^{commit} >/dev/null 2>&1 && git rev-parse v0.20.0^{comm
   grep -qE '^### (New|Fixes)' /tmp/changelog-range.md
 fi
 
+# Regression: single user-facing commit is the last `git log` line (no trailing newline without %n).
+if git rev-parse 86505f2^{commit} >/dev/null 2>&1 && git rev-parse 492bab7^{commit} >/dev/null 2>&1; then
+  .github/scripts/release-changelog.sh 86505f2 492bab7 /tmp/changelog-single-feat.md
+  if grep -q "No user-facing commit messages" /tmp/changelog-single-feat.md; then
+    echo "expected feat bullet for single-commit release range" >&2
+    cat /tmp/changelog-single-feat.md >&2
+    exit 1
+  fi
+  grep -q "line designation" /tmp/changelog-single-feat.md
+fi
+
 echo "release-changelog.sh OK"
