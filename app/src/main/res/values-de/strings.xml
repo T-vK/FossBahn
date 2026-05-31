@@ -51,8 +51,8 @@
     <string name="error_api_blocked">Deutsche Bahn hat die Anfrage blockiert. Später erneut versuchen oder anderes Netz nutzen.</string>
     <string name="error_network">Netzwerkfehler. Verbindung prüfen und erneut versuchen.</string>
     <string name="error_parse">Unerwartete Antwort von Deutsche Bahn. Bitte App aktualisieren, falls das anhält.</string>
-    <string name="error_location_permission">Standortberechtigung wird benötigt, um Ihre aktuelle Position zu verwenden.</string>
-    <string name="error_location_unavailable">Kein Bahnhof in der Nähe Ihres Standorts gefunden.</string>
+    <string name="error_location_permission">Standortberechtigung wird benötigt, um deine aktuelle Position zu verwenden.</string>
+    <string name="error_location_unavailable">Standort konnte nicht ermittelt werden. Bitte erneut versuchen oder einen Bahnhof manuell wählen.</string>
     <string name="ok">OK</string>
     <string name="remove">Entfernen</string>
     <string name="use_current_location">Aktuellen Standort verwenden</string>
@@ -112,12 +112,17 @@
     <string name="share_direct">Direktverbindung</string>
     <string name="share_transfer_separator">———</string>
     <string name="transfers_count">%d Umstiege</string>
+    <string name="transfers_with_walks">%1$d Umstiege · %2$d Fußweg(e)</string>
+    <string name="walk_leg_title">Zu Fuß</string>
+    <string name="navigate_to_stop">In Karten öffnen</string>
+    <string name="navigate_chooser">Navigation mit</string>
     <string name="dticket_valid">Mit Deutschland-Ticket gültig</string>
     <string name="transfer_probability">Anschlusswahrscheinlichkeit: %d%%</string>
     <string name="transfer_probability_with_buffer">Anschlusswahrscheinlichkeit (≥%1$d Min. Umstieg): %2$d%%</string>
     <string name="transfer_probability_estimate">Geschätzte Anschlusschance: %d%% (Umsteigezeit)</string>
     <string name="transfer_probability_estimate_with_buffer">Geschätzte Anschlusschance (≥%1$d Min. Umstieg): %2$d%%</string>
     <string name="direct_connection">Direktverbindung</string>
+    <string name="prediction_arrival_forecast">Ankunftsprognose</string>
     <string name="punctuality_probability">Pünktlichkeit (≤%1$d Min. Verspätung): %2$d%%</string>
     <string name="punctuality_probability_exact">Pünktlichkeit (minutengenau): %d%%</string>
     <string name="punctuality_probability_estimate">Geschätzte Pünktlichkeit (≤%1$d Min. Verspätung): %2$d%%</string>
@@ -128,7 +133,6 @@
     <string name="prediction_summary_punctuality_exact">Pünktlich (minutengenau): %d%%</string>
     <string name="prediction_summary_punctuality_estimate">Pünktlich (≤%1$d Min., geschätzt): %2$d%%</string>
     <string name="prediction_summary_punctuality_estimate_exact">Pünktlich (minutengenau, geschätzt): %d%%</string>
-    <string name="prediction_arrival_forecast">Ankunftsprognose</string>
     <string name="settings_punctuality">Pünktlichkeitsdefinition</string>
     <string name="settings_punctuality_hint">Welche Verspätung am Ziel noch als pünktlich gilt (für Ankunftswahrscheinlichkeit in Suchergebnissen).</string>
     <string name="settings_punctuality_exact">Minutengenau</string>

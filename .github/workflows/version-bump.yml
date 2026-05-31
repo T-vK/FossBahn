@@ -62,9 +62,15 @@ jobs:
       - run: |
           chmod +x gradlew
           ./gradlew :app:assembleDebug --stacktrace
+      - name: Write release changelog
+        run: |
+          chmod +x .github/scripts/release-changelog.sh
+          LAST=$(git describe --tags --match 'v*' --abbrev=0 2>/dev/null || echo "v0.0.0")
+          .github/scripts/release-changelog.sh "$LAST" "${{ steps.ver.outputs.tag }}" release-notes.md
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
           name: OpenBahn Navigator ${{ steps.ver.outputs.tag }}
           files: app/build/outputs/apk/debug/*.apk
-          generate_release_notes: true
+          generate_release_notes: false
+          body_path: release-notes.md

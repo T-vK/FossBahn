@@ -13,17 +13,36 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 /** bahn.de / db-vendo halt identifier for journey requests (abfahrtsHalt / ankunftsHalt). */
-fun Location.haltIdForJourney(): String = haltIdForJourney(id, evaNumber)
+fun Location.haltIdForJourney(): String = haltIdForJourney(id, evaNumber, latitude, longitude)
 
 /** Stable bahn.de halt id for `/angebote/fahrplan` (avoids volatile `@p=` / `@i=` params from `/orte`). */
-fun haltIdForJourney(locationId: String, evaNumber: String? = null): String {
+fun haltIdForJourney(
+    locationId: String,
+    evaNumber: String? = null,
+    latitude: Double? = null,
+    longitude: Double? = null,
+): String {
     val eva = evaNumber?.takeIf { it.isNotEmpty() && it.all(Char::isDigit) }
         ?: EVA_IN_HALT_ID.find(locationId)?.groupValues?.getOrNull(1)
         ?: locationId.takeIf { it.length >= 6 && it.all(Char::isDigit) }
     if (eva != null) return "A=1@L=$eva@"
     if (locationId.startsWith("A=1@")) return locationId
+    if (latitude != null && longitude != null) return haltIdForCoordinates(latitude, longitude)
     return locationId
 }
+
+/** Coordinate halt id (bahn.de `@X`/`@Y` are micro-degrees). */
+fun haltIdForCoordinates(latitude: Double, longitude: Double, label: String? = null): String {
+    val x = (longitude * COORD_SCALE).toLong()
+    val y = (latitude * COORD_SCALE).toLong()
+    val encoded = label?.takeIf { it.isNotBlank() }?.let { encodeHaltName(it) }
+    return if (encoded != null) "A=1@O=$encoded@X=$x@Y=$y@" else "A=1@X=$x@Y=$y@"
+}
+
+private const val COORD_SCALE = 1_000_000.0
+
+private fun encodeHaltName(name: String): String =
+    name.replace('@', ' ').replace(' ', '+')
 
 private val EVA_IN_HALT_ID = Regex("""@L=(\d+)@""")
 

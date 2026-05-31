@@ -75,6 +75,7 @@ class SearchViewModelTest {
         every { userPreferences.deutschlandTicketConnectionsOnly } returns flowOf(false)
         coEvery { locationHistory.recentMatching(any()) } returns emptyList()
         coEvery { locationHistory.rankedForAutocomplete(any()) } returns emptyList()
+        coEvery { searchRepository.searchLocationsNearby(any(), any(), any()) } returns emptyList()
         coEvery { searchRepository.searchLocations(any(), any()) } answers {
             val q = firstArg<String>()
             when {

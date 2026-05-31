@@ -10,9 +10,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.ConfirmationNumber
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -37,11 +43,13 @@ import androidx.compose.ui.unit.dp
 import de.openbahn.model.BoardEntry
 import de.openbahn.model.Journey
 import de.openbahn.model.Leg
+import de.openbahn.model.railTransferCount
 import de.openbahn.api.JourneyRatingOptions
 import de.openbahn.model.RatedJourney
 import de.openbahn.model.StopEvent
 import de.openbahn.model.delayMinutesFromTimes
 import de.openbahn.navigator.R
+import de.openbahn.navigator.ui.util.NavigateToStopIconButton
 import de.openbahn.navigator.ui.util.ShareJourneyIconButton
 import de.openbahn.navigator.ui.util.formatDurationMinutes
 import de.openbahn.navigator.ui.util.formatJourneyClock
@@ -121,8 +129,18 @@ fun JourneyCard(
                 "${journey.legs.firstOrNull()?.origin?.name} → ${journey.legs.lastOrNull()?.destination?.name}",
                 style = MaterialTheme.typography.bodyLarge,
             )
+            val walkLegs = journey.legs.count { it.isWalking }
+            val transferLine = if (walkLegs > 0) {
+                stringResource(
+                    R.string.transfers_with_walks,
+                    journey.railTransferCount(),
+                    walkLegs,
+                )
+            } else {
+                stringResource(R.string.transfers_count, journey.railTransferCount())
+            }
             Text(
-                stringResource(R.string.transfers_count, journey.transfers),
+                transferLine,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -153,11 +171,22 @@ fun JourneyCard(
                 )
             }
             if (journey.deutschlandTicketValid == true) {
-                Text(
-                    stringResource(R.string.dticket_valid),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.tertiary,
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Default.ConfirmationNumber,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.tertiary,
+                    )
+                    Text(
+                        stringResource(R.string.dticket_valid),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                }
             }
 
             if (journey.remarks.isNotEmpty()) {
@@ -198,18 +227,24 @@ fun JourneyCard(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     HorizontalDivider()
                     journey.legs.forEachIndexed { index, leg ->
-                        LegDetailsBlock(leg = leg, legIndex = index)
-                        if (index < journey.legs.lastIndex) {
+                        if (leg.isWalking) {
+                            WalkingLegBlock(leg = leg)
+                        } else {
+                            LegDetailsBlock(leg = leg, legIndex = index)
+                        }
+                        LegRemarksBlock(remarks = leg.remarks)
+                        val next = journey.legs.getOrNull(index + 1)
+                        if (next != null && !leg.isWalking && !next.isWalking) {
                             TransferBlock(
                                 fromLeg = leg,
-                                toLeg = journey.legs[index + 1],
+                                toLeg = next,
                                 prediction = prediction?.predictions?.getOrNull(index),
                                 predictionsRequested = predictionsRequested,
                                 minTransferMinutesUsed = prediction?.minTransferMinutesUsed,
                             )
                         }
                     }
-                    if (predictionsRequested && shouldShowArrivalForecastInDetails(journey)) {
+                    if (predictionsRequested && journey.railTransferCount() > 0) {
                         PunctualityBlock(
                             probability = prediction?.punctualityProbability,
                             isEstimate = prediction?.punctualityIsEstimate == true,
@@ -237,16 +272,105 @@ fun JourneyCard(
 @Composable
 private fun RemarksBlock(remarks: List<String>) {
     var expanded by remember(remarks) { mutableStateOf(false) }
-    Text(
-        if (expanded) stringResource(R.string.hide_remarks) else stringResource(R.string.show_remarks, remarks.size),
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.clickable { expanded = !expanded },
-    )
+    Row(
+        modifier = Modifier
+            .clickable { expanded = !expanded }
+            .padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            Icons.Outlined.Info,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Text(
+            if (expanded) stringResource(R.string.hide_remarks) else stringResource(R.string.show_remarks, remarks.size),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
     AnimatedVisibility(visible = expanded, enter = expandVertically(), exit = shrinkVertically()) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             remarks.forEach { remark ->
                 Text(remark, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun WalkingLegBlock(leg: Leg) {
+    val duration = leg.durationMinutes?.let { formatDurationMinutes(it) }
+    val distance = leg.distanceMeters?.takeIf { it > 0 }?.let { meters ->
+        if (meters >= 1000) {
+            "%.1f km".format(meters / 1000.0)
+        } else {
+            "$meters m"
+        }
+    }
+    val meta = listOfNotNull(duration, distance).joinToString(" · ")
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            Icons.AutoMirrored.Filled.DirectionsWalk,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.secondary,
+        )
+        Text(
+            stringResource(R.string.walk_leg_title),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.secondary,
+        )
+    }
+    Text(
+        "${leg.origin.name} → ${leg.destination.name}",
+        style = MaterialTheme.typography.bodyMedium,
+    )
+    if (meta.isNotBlank()) {
+        Text(
+            meta,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        NavigateToStopIconButton(
+            stop = leg.destination,
+            testTag = "navigate_walk_destination",
+        )
+    }
+}
+
+@Composable
+private fun LegRemarksBlock(remarks: List<String>) {
+    if (remarks.isEmpty()) return
+    Column(
+        Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        remarks.forEach { remark ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Icon(
+                    Icons.Default.Warning,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.error,
+                )
+                Text(
+                    remark,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.testTag("leg_remark"),
+                )
             }
         }
     }
@@ -266,6 +390,7 @@ private fun LegDetailsBlock(leg: Leg, legIndex: Int) {
         label = stringResource(R.string.departure),
         stop = leg.origin,
         modifier = Modifier.testTag("leg_${legIndex}_departure"),
+        navigateTestTag = "navigate_leg_${legIndex}_departure",
     )
     if (leg.intermediateStops.isNotEmpty()) {
         IntermediateStopsBlock(stops = leg.intermediateStops, legIndex = legIndex)
@@ -274,7 +399,13 @@ private fun LegDetailsBlock(leg: Leg, legIndex: Int) {
         label = stringResource(R.string.arrival),
         stop = leg.destination,
         modifier = Modifier.testTag("leg_${legIndex}_arrival"),
+        navigateTestTag = "navigate_leg_${legIndex}_arrival",
     )
+    if (leg.origin.remarks.isNotEmpty() || leg.destination.remarks.isNotEmpty()) {
+        LegRemarksBlock(
+            remarks = (leg.origin.remarks + leg.destination.remarks).distinct(),
+        )
+    }
 }
 
 @Composable
@@ -315,6 +446,7 @@ private fun StopRow(
     label: String,
     stop: StopEvent,
     modifier: Modifier = Modifier,
+    navigateTestTag: String = "navigate_to_stop",
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -323,25 +455,42 @@ private fun StopRow(
     ) {
         Column(Modifier.weight(1f)) {
             Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(stop.name, style = MaterialTheme.typography.bodyMedium)
-        }
-        Column(horizontalAlignment = Alignment.End) {
-            StopTimeText(
-                scheduled = stop.scheduledTime,
-                prognosed = stop.prognosedTime,
-                delayMinutes = stop.delayMinutes
-                    ?: delayMinutesFromTimes(stop.scheduledTime, stop.prognosedTime)
-                    ?: 0,
+            Text(
+                stop.name,
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
+                color = if (stop.cancelled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                textDecoration = if (stop.cancelled) TextDecoration.LineThrough else null,
             )
-            stop.platform?.let { platform ->
-                Text(
-                    stringResource(R.string.platform_label, platform),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.secondary,
-                )
+            if (stop.remarks.isNotEmpty()) {
+                stop.remarks.forEach { remark ->
+                    Text(
+                        remark,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.Top) {
+            Column(horizontalAlignment = Alignment.End) {
+                StopTimeText(
+                    scheduled = stop.scheduledTime,
+                    prognosed = stop.prognosedTime,
+                    delayMinutes = stop.delayMinutes
+                        ?: delayMinutesFromTimes(stop.scheduledTime, stop.prognosedTime)
+                        ?: 0,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                )
+                stop.platform?.let { platform ->
+                    Text(
+                        stringResource(R.string.platform_label, platform),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.secondary,
+                    )
+                }
+            }
+            NavigateToStopIconButton(stop = stop, testTag = navigateTestTag)
         }
     }
 }
@@ -406,7 +555,7 @@ private fun JourneyPredictionSummary(
     val tolerance = prediction.punctualityToleranceMinutes
         ?: JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES
     val text = when {
-        journey.transfers > 0 -> {
+        journey.railTransferCount() > 0 -> {
             val worst = prediction.predictions.mapNotNull { it.successProbability }.minOrNull()
             if (worst == null) return
             val buffer = prediction.minTransferMinutesUsed
@@ -439,9 +588,6 @@ private fun JourneyPredictionSummary(
         modifier = Modifier.testTag("journey_prediction_summary"),
     )
 }
-
-private fun shouldShowArrivalForecastInDetails(journey: Journey): Boolean =
-    journey.transfers > 0
 
 @Composable
 private fun PunctualityBlock(
@@ -516,11 +662,22 @@ private fun TransferBlock(
     ) {
         HorizontalDivider()
         val station = fromLeg.destination.name
-        Text(
-            stringResource(R.string.transfer_at, station),
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Medium,
-        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Default.SwapHoriz,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                stringResource(R.string.transfer_at, station),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium,
+            )
+        }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             fromLeg.destination.platform?.let { platform ->
                 Text(

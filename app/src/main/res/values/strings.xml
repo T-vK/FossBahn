@@ -52,7 +52,7 @@
     <string name="error_network">Network error. Check your connection and try again.</string>
     <string name="error_parse">Received an unexpected response from Deutsche Bahn. Please update the app if this persists.</string>
     <string name="error_location_permission">Location permission is required to use your current position.</string>
-    <string name="error_location_unavailable">Could not determine a nearby station from your location.</string>
+    <string name="error_location_unavailable">Could not determine your location. Try again outdoors or pick a station manually.</string>
     <string name="ok">OK</string>
     <string name="remove">Remove</string>
     <string name="use_current_location">Use current location</string>
@@ -112,12 +112,17 @@
     <string name="share_direct">Direct connection</string>
     <string name="share_transfer_separator">———</string>
     <string name="transfers_count">%d transfers</string>
+    <string name="transfers_with_walks">%1$d transfers · %2$d on foot</string>
+    <string name="walk_leg_title">Walk</string>
+    <string name="navigate_to_stop">Open in maps</string>
+    <string name="navigate_chooser">Navigate with</string>
     <string name="dticket_valid">Valid with Deutschland-Ticket</string>
     <string name="transfer_probability">Connection probability: %d%%</string>
     <string name="transfer_probability_with_buffer">Connection probability (≥%1$d min transfer): %2$d%%</string>
     <string name="transfer_probability_estimate">Estimated connection chance: %d%% (transfer time)</string>
     <string name="transfer_probability_estimate_with_buffer">Estimated connection chance (≥%1$d min transfer): %2$d%%</string>
     <string name="direct_connection">Direct connection</string>
+    <string name="prediction_arrival_forecast">Arrival forecast</string>
     <string name="punctuality_probability">On-time probability (≤%1$d min delay): %2$d%%</string>
     <string name="punctuality_probability_exact">On-time probability (to the minute): %d%%</string>
     <string name="punctuality_probability_estimate">Estimated on-time chance (≤%1$d min delay): %2$d%%</string>
@@ -128,7 +133,6 @@
     <string name="prediction_summary_punctuality_exact">On time (to the minute): %d%%</string>
     <string name="prediction_summary_punctuality_estimate">On time (≤%1$d min, estimated): %2$d%%</string>
     <string name="prediction_summary_punctuality_estimate_exact">On time (to the minute, estimated): %d%%</string>
-    <string name="prediction_arrival_forecast">Arrival forecast</string>
     <string name="settings_punctuality">On-time definition</string>
     <string name="settings_punctuality_hint">How much delay still counts as on time for arrival probability in search results.</string>
     <string name="settings_punctuality_exact">To the minute</string>

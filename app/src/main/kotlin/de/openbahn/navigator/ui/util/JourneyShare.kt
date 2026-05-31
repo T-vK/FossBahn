@@ -15,6 +15,7 @@ import androidx.compose.ui.res.stringResource
 import de.openbahn.api.JourneyRatingOptions
 import de.openbahn.model.Journey
 import de.openbahn.model.Leg
+import de.openbahn.model.railTransferCount
 import de.openbahn.model.RatedJourney
 import de.openbahn.model.StopEvent
 import de.openbahn.model.delayMinutesFromTimes
@@ -43,11 +44,16 @@ fun formatJourneyShareText(
                 formatDurationMinutes(journey.durationMinutes),
             ),
         )
-        if (journey.transfers == 0) {
-            appendLine(resources.getString(R.string.share_direct))
-        } else {
-            appendLine(resources.getString(R.string.transfers_count, journey.transfers))
-        }
+        val walkLegs = journey.legs.count { it.isWalking }
+        appendLine(
+            if (walkLegs > 0) {
+                resources.getString(R.string.transfers_with_walks, journey.railTransferCount(), walkLegs)
+            } else if (journey.railTransferCount() == 0) {
+                resources.getString(R.string.share_direct)
+            } else {
+                resources.getString(R.string.transfers_count, journey.railTransferCount())
+            },
+        )
         appendLine()
         journey.legs.forEachIndexed { index, leg ->
             appendLegSection(resources, leg)

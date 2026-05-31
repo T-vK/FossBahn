@@ -103,6 +103,15 @@ jobs:
           echo "apk=$APK" >> "$GITHUB_OUTPUT"
           ls -la app/build/outputs/apk/debug/
 
+      - name: Write release changelog
+        if: steps.semver.outputs.skip == 'false'
+        run: |
+          chmod +x .github/scripts/release-changelog.sh .github/scripts/test-release-changelog.sh
+          .github/scripts/test-release-changelog.sh
+          LAST=$(git describe --tags --match 'v*' --abbrev=0 2>/dev/null || echo "v0.0.0")
+          .github/scripts/release-changelog.sh "$LAST" "${{ steps.semver.outputs.version }}" release-notes.md
+          cat release-notes.md
+
       - name: Publish GitHub Release
         if: steps.semver.outputs.skip == 'false'
         uses: softprops/action-gh-release@v2
@@ -110,21 +119,10 @@ jobs:
           tag_name: ${{ steps.semver.outputs.version }}
           name: OpenBahn Navigator ${{ steps.semver.outputs.version }}
           files: app/build/outputs/apk/debug/OpenBahnNavigator-*.apk
-          generate_release_notes: true
+          generate_release_notes: false
           draft: false
           prerelease: ${{ contains(steps.semver.outputs.version, '-') }}
-          body: |
-            ## OpenBahn Navigator ${{ steps.semver.outputs.version }}
-
-            Automatic release from `main` (semantic versioning).
-
-            **Version bump:** `${{ steps.semver.outputs.bump }}` (from conventional commits since the previous tag)
-
-            Install the attached **`OpenBahnNavigator-v…-….apk`** (debug build, CI-signed for in-place upgrades).
-
-            **F-Droid custom repo:** [Add repository](https://t-vk.github.io/FossBahn/fdroid/) — URL `https://t-vk.github.io/FossBahn/fdroid/repo` (same debug APK, package `de.openbahn.navigator.debug`). Updated automatically on GitHub Pages after this release.
-
-            **One-time:** If you installed an older release built before stable CI signing, uninstall once, then install this APK. Later releases upgrade without uninstalling as long as `versionCode` increases.
+          body_path: release-notes.md
 
       - name: Build F-Droid repo and Pages artifact
         if: steps.semver.outputs.skip == 'false'

@@ -92,6 +92,32 @@ class DbVendoClient(
         return locations
     }
 
+    /** Stops and stations near a coordinate (bahn.de `/reiseloesung/orte/nearby`). */
+    suspend fun searchLocationsNearby(
+        latitude: Double,
+        longitude: Double,
+        locale: String = "de",
+        maxResults: Int = 12,
+    ): List<Location> {
+        OpenBahnDebugLog.d("DbVendo", "searchLocationsNearby lat=$latitude lon=$longitude")
+        val raw = httpClient.get("$baseUrl/reiseloesung/orte/nearby") {
+            parameter("lat", latitude)
+            parameter("long", longitude)
+            parameter("maxNo", maxResults)
+            parameter("locale", locale)
+        }
+        val text = raw.body<String>()
+        if (text.contains("OPS_BLOCKED")) throw DbApiBlockedException("Location search blocked")
+        val locations = try {
+            LocationMapper.mapOrtList(json.decodeFromString(text))
+        } catch (_: Exception) {
+            val wrapped = json.decodeFromString<DbLocationResponse>(text)
+            LocationMapper.mapLocations(wrapped)
+        }
+        OpenBahnDebugLog.d("DbVendo", "searchLocationsNearby -> ${locations.size} hit(s)")
+        return locations
+    }
+
     suspend fun searchJourneys(
         from: Location,
         to: Location,
