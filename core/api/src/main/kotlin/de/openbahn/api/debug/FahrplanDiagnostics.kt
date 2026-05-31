@@ -30,6 +30,24 @@ object FahrplanDiagnostics {
         }
     }
 
+    /** True when HTTP 200 but body is `{}` or has no connection arrays (common for bad halt ids / past time). */
+    fun isEmptySuccessBody(raw: String): Boolean {
+        val trimmed = raw.trim()
+        if (trimmed == "{}" || trimmed.isEmpty()) return true
+        return try {
+            val root = Json.parseToJsonElement(trimmed).jsonObject
+            val top = root["verbindungen"]?.jsonArray?.size ?: 0
+            val inIntervals = root["intervalle"]?.jsonArray.orEmpty().sumOf {
+                it.jsonObject["verbindungen"]?.jsonArray?.size ?: 0
+            } + root["tagesbestPreisIntervalle"]?.jsonArray.orEmpty().sumOf {
+                it.jsonObject["verbindungen"]?.jsonArray?.size ?: 0
+            }
+            top == 0 && inIntervals == 0 && !trimmed.contains("OPS_BLOCKED")
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     fun summarizeFahrplanRoot(root: JsonObject): String {
         val status = root["status"]?.jsonPrimitive?.content
         val code = root["code"]?.jsonPrimitive?.content

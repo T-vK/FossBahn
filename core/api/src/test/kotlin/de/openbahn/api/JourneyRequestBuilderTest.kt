@@ -45,15 +45,15 @@ class JourneyRequestBuilderTest {
     }
 
     @Test
-    fun `prefers full bahn location id for journey request`() {
+    fun `uses stable eva halt id instead of volatile orte params`() {
         val from = Location(
-            id = "A=1@O=Berlin Hbf@X=1@Y=2@L=8011160@",
-            name = "Berlin Hbf",
-            evaNumber = "8011160",
+            id = "A=1@O=Hamburg Hbf@X=1@Y=2@L=8002549@p=1779908603@i=Ux@",
+            name = "Hamburg Hbf",
+            evaNumber = "8002549",
         )
         val to = Location(id = "8000261", name = "München Hbf", evaNumber = "8000261")
         val body = JourneyRequestBuilder.build(from, to, JourneySearchOptions(), LocalDateTime.now())
-        assertEquals(from.id, body["abfahrtsHalt"]?.toString()?.trim('"'))
+        assertEquals("A=1@L=8002549@", body["abfahrtsHalt"]?.toString()?.trim('"'))
         assertEquals("A=1@L=8000261@", body["ankunftsHalt"]?.toString()?.trim('"'))
     }
 

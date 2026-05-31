@@ -36,6 +36,7 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import io.ktor.http.content.TextContent
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.SerializationException
 import kotlinx.coroutines.async
@@ -44,6 +45,8 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
@@ -96,8 +99,18 @@ class DbVendoClient(
         whenTime: LocalDateTime = LocalDateTime.now(),
         pagingReference: String? = null,
     ): JourneySearchResult {
-        val raw = postFahrplan(from, to, options, whenTime, pagingReference)
-        val result = parseJourneyResponse(raw)
+        val apiWhen = JourneySearchTime.forApiRequest(whenTime)
+        var raw = postFahrplan(from, to, options, apiWhen, pagingReference)
+        var result = parseJourneyResponse(raw)
+        if (pagingReference == null && result.journeys.isEmpty() && FahrplanDiagnostics.isEmptySuccessBody(raw)) {
+            val retryWhen = JourneySearchTime.nowBerlin().plusMinutes(3)
+            OpenBahnDebugLog.w(
+                "DbVendo",
+                "empty fahrplan for ${from.name} -> ${to.name} at $apiWhen (body=${raw.trim()}), retry at $retryWhen",
+            )
+            raw = postFahrplan(from, to, options, retryWhen, null)
+            result = parseJourneyResponse(raw)
+        }
         OpenBahnDebugLog.d(
             "DbVendo",
             "searchJourneys ${from.name} -> ${to.name} at $whenTime -> ${result.journeys.size} journey(s) " +
@@ -115,15 +128,17 @@ class DbVendoClient(
         pagingReference: String? = null,
     ): String {
         val body = JourneyRequestBuilder.build(from, to, options, whenTime, pagingReference)
+        val bodyText = json.encodeToString(JsonObject.serializer(), body)
+        val anfrageZeitpunkt = body["anfrageZeitpunkt"]?.jsonPrimitive?.contentOrNull
         OpenBahnDebugLog.d(
             "DbVendo",
             "postFahrplan ${FahrplanDiagnostics.describeLocation(from)} -> " +
-                "${FahrplanDiagnostics.describeLocation(to)} anfrageZeitpunkt=$whenTime",
+                "${FahrplanDiagnostics.describeLocation(to)} anfrageZeitpunkt=$anfrageZeitpunkt",
         )
         return try {
             val text = httpClient.post("$baseUrl/angebote/fahrplan") {
                 contentType(ContentType.Application.Json)
-                setBody(body)
+                setBody(TextContent(bodyText, ContentType.Application.Json))
             }.bodyAsText()
             OpenBahnDebugLog.d("DbVendo", "postFahrplan response ${FahrplanDiagnostics.summarizeFahrplanBody(text)}")
             text

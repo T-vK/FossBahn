@@ -15,15 +15,17 @@ import java.time.format.DateTimeFormatter
 /** bahn.de / db-vendo halt identifier for journey requests (abfahrtsHalt / ankunftsHalt). */
 fun Location.haltIdForJourney(): String = haltIdForJourney(id, evaNumber)
 
-/** Same rules as [Location.haltIdForJourney] for a raw location id (e.g. via stops). */
+/** Stable bahn.de halt id for `/angebote/fahrplan` (avoids volatile `@p=` / `@i=` params from `/orte`). */
 fun haltIdForJourney(locationId: String, evaNumber: String? = null): String {
-    // Prefer full location id from /orte (db-vendo uses the same `lid` string).
-    if (locationId.startsWith("A=1@")) return locationId
     val eva = evaNumber?.takeIf { it.isNotEmpty() && it.all(Char::isDigit) }
+        ?: EVA_IN_HALT_ID.find(locationId)?.groupValues?.getOrNull(1)
         ?: locationId.takeIf { it.length >= 6 && it.all(Char::isDigit) }
     if (eva != null) return "A=1@L=$eva@"
+    if (locationId.startsWith("A=1@")) return locationId
     return locationId
 }
+
+private val EVA_IN_HALT_ID = Regex("""@L=(\d+)@""")
 
 internal object JourneyRequestBuilder {
     private val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
