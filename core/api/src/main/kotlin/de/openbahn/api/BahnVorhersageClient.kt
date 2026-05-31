@@ -3,6 +3,7 @@ package de.openbahn.api
 import de.openbahn.api.debug.OpenBahnDebugLog
 import de.openbahn.model.Journey
 import de.openbahn.model.RatedJourney
+import de.openbahn.model.StopTimelinessPrediction
 import de.openbahn.model.TransferPrediction
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -41,13 +42,19 @@ class BahnVorhersageClient(
         } else {
             emptyList()
         }
+        val stopTimeliness = BahnVorhersageHeuristic.buildStopTimeliness(
+            journey,
+            options.punctualityToleranceMinutes,
+            options.minTransferMinutes,
+        )
         return RatedJourney(
             journey = journey,
             predictions = transfers,
-            punctualityProbability = BahnVorhersageHeuristic.estimatePunctuality(
-                journey,
-                options.punctualityToleranceMinutes,
-            ),
+            stopTimeliness = stopTimeliness,
+            punctualityProbability = stopTimeliness.lastOrNull {
+                val lastRail = journey.legs.indexOfLast { !it.isWalking }
+                it.legIndex == lastRail && it.intermediateIndex == null && it.isArrival
+            }?.probability,
             punctualityIsEstimate = true,
             minTransferMinutesUsed = options.minTransferMinutes,
             punctualityToleranceMinutes = options.punctualityToleranceMinutes,
@@ -57,12 +64,14 @@ class BahnVorhersageClient(
     private fun RatedJourney.enrichWithHeuristics(journey: Journey, options: JourneyRatingOptions): RatedJourney {
         val needsPunctuality = punctualityProbability == null
         val needsTransfers = predictions.isEmpty() && BahnVorhersageRequestBuilder.hasTransferEvents(journey)
-        if (!needsPunctuality && !needsTransfers) {
+        val needsStops = stopTimeliness.isEmpty()
+        if (!needsPunctuality && !needsTransfers && !needsStops) {
             return withMetadata(options)
         }
         val fallback = heuristicRating(journey, options)
         return copy(
             predictions = predictions.ifEmpty { fallback.predictions },
+            stopTimeliness = stopTimeliness.ifEmpty { fallback.stopTimeliness },
             punctualityProbability = punctualityProbability ?: fallback.punctualityProbability,
             punctualityIsEstimate = punctualityIsEstimate || fallback.punctualityIsEstimate,
         ).withMetadata(options)
@@ -85,29 +94,39 @@ class BahnVorhersageClient(
             val scores = response.transferScores.orEmpty()
             if (scores.isEmpty() || scores.all { it == null }) return null
             val offset = response.offset ?: 0
+            val transferPredictions = scores.mapIndexed { index, score ->
+                val distribution = response.predictions?.getOrNull(index)
+                val transferMins = transferMinutesAt(journey, index)
+                val adjustedScore = when {
+                    distribution != null && options.minTransferMinutes != null && transferMins != null ->
+                        PredictionScoring.transferSuccessFromDistribution(
+                            distribution = distribution,
+                            offset = offset,
+                            prognosedTransferMinutes = transferMins,
+                            minTransferMinutes = options.minTransferMinutes,
+                        )
+                    else -> score
+                }
+                TransferPrediction(
+                    legIndex = index,
+                    successProbability = adjustedScore,
+                    delayDistribution = distribution,
+                    isEstimate = false,
+                )
+            }
+            val punctuality = punctualityFromApi(journey, response, offset, options)
+            val stopTimeliness = stopTimelinessFromApi(
+                journey = journey,
+                response = response,
+                offset = offset,
+                options = options,
+                transferPredictions = transferPredictions,
+            )
             RatedJourney(
                 journey = journey,
-                predictions = scores.mapIndexed { index, score ->
-                    val distribution = response.predictions?.getOrNull(index)
-                    val transferMins = transferMinutesAt(journey, index)
-                    val adjustedScore = when {
-                        distribution != null && options.minTransferMinutes != null && transferMins != null ->
-                            PredictionScoring.transferSuccessFromDistribution(
-                                distribution = distribution,
-                                offset = offset,
-                                prognosedTransferMinutes = transferMins,
-                                minTransferMinutes = options.minTransferMinutes,
-                            )
-                        else -> score
-                    }
-                    TransferPrediction(
-                        legIndex = index,
-                        successProbability = adjustedScore,
-                        delayDistribution = distribution,
-                        isEstimate = false,
-                    )
-                },
-                punctualityProbability = punctualityFromApi(journey, response, offset, options),
+                predictions = transferPredictions,
+                stopTimeliness = stopTimeliness,
+                punctualityProbability = punctuality,
                 punctualityIsEstimate = false,
             )
         } catch (e: Exception) {
@@ -137,6 +156,91 @@ class BahnVorhersageClient(
             arrivalDistribution,
             offset,
             options.punctualityToleranceMinutes,
+        )
+    }
+
+    private fun stopTimelinessFromApi(
+        journey: Journey,
+        response: RateJourneysResponse,
+        offset: Int,
+        options: JourneyRatingOptions,
+        transferPredictions: List<TransferPrediction>,
+    ): List<StopTimelinessPrediction> {
+        val base = BahnVorhersageHeuristic.buildStopTimeliness(
+            journey,
+            options.punctualityToleranceMinutes,
+            options.minTransferMinutes,
+        ).toMutableList()
+        val distributions = response.predictions.orEmpty()
+        if (distributions.isEmpty()) {
+            return base.map { it.copy(isEstimate = false) }
+        }
+        transferPredictions.forEachIndexed { index, prediction ->
+            val distribution = prediction.delayDistribution ?: distributions.getOrNull(index) ?: return@forEachIndexed
+            val leg = journey.legs.getOrNull(prediction.legIndex) ?: return@forEachIndexed
+            val nextLeg = journey.legs.getOrNull(prediction.legIndex + 1) ?: return@forEachIndexed
+            if (leg.isWalking || nextLeg.isWalking) return@forEachIndexed
+
+            val arrivalProb = PredictionScoring.probabilityDelayAtMost(
+                distribution,
+                offset,
+                options.punctualityToleranceMinutes,
+            )
+            replaceStopProbability(base, prediction.legIndex, intermediateIndex = null, isArrival = true, arrivalProb, isEstimate = false)
+
+            val transferMins = transferMinutesAt(journey, prediction.legIndex)
+            val departureProb = when {
+                transferMins != null && options.minTransferMinutes != null ->
+                    prediction.successProbability
+                        ?: PredictionScoring.transferSuccessFromDistribution(
+                            distribution,
+                            offset,
+                            transferMins,
+                            options.minTransferMinutes,
+                        )
+                else -> prediction.successProbability
+            }
+            if (departureProb != null) {
+                replaceStopProbability(
+                    base,
+                    prediction.legIndex + 1,
+                    intermediateIndex = null,
+                    isArrival = false,
+                    departureProb,
+                    isEstimate = false,
+                )
+            }
+        }
+        val lastRail = journey.legs.indexOfLast { !it.isWalking }
+        val finalDistribution = distributions.lastOrNull()
+        if (lastRail >= 0 && finalDistribution != null) {
+            val finalProb = PredictionScoring.probabilityDelayAtMost(
+                finalDistribution,
+                offset,
+                options.punctualityToleranceMinutes,
+            )
+            replaceStopProbability(base, lastRail, intermediateIndex = null, isArrival = true, finalProb, isEstimate = false)
+        }
+        return base
+    }
+
+    private fun replaceStopProbability(
+        list: MutableList<StopTimelinessPrediction>,
+        legIndex: Int,
+        intermediateIndex: Int?,
+        isArrival: Boolean,
+        probability: Double,
+        isEstimate: Boolean,
+    ) {
+        val idx = list.indexOfFirst {
+            it.legIndex == legIndex &&
+                it.intermediateIndex == intermediateIndex &&
+                it.isArrival == isArrival
+        }
+        if (idx < 0) return
+        list[idx] = list[idx].copy(
+            probability = probability.coerceIn(0.0, 1.0),
+            isEstimate = isEstimate,
         )
     }
 

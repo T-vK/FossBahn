@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -51,6 +52,8 @@ import de.openbahn.model.railTransferCount
 import de.openbahn.api.JourneyRatingOptions
 import de.openbahn.model.RatedJourney
 import de.openbahn.model.StopEvent
+import de.openbahn.model.stopProbability
+import de.openbahn.model.stopTimelinessIsEstimate
 import de.openbahn.model.delayMinutesFromTimes
 import de.openbahn.model.RouteStopSegment
 import de.openbahn.model.alightIndexInRoute
@@ -122,7 +125,11 @@ fun JourneyCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                JourneyTimeRangeHeader(journey = journey)
+                JourneyTimeRangeHeader(
+                    journey = journey,
+                    prediction = prediction,
+                    predictionsRequested = predictionsRequested,
+                )
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -243,7 +250,12 @@ fun JourneyCard(
                         if (leg.isWalking) {
                             WalkingLegBlock(leg = leg)
                         } else {
-                            LegDetailsBlock(leg = leg, legIndex = index)
+                            LegDetailsBlock(
+                                leg = leg,
+                                legIndex = index,
+                                prediction = prediction,
+                                predictionsRequested = predictionsRequested,
+                            )
                         }
                         LegRemarksBlock(remarks = leg.remarks)
                         val next = journey.legs.getOrNull(index + 1)
@@ -256,14 +268,6 @@ fun JourneyCard(
                                 minTransferMinutesUsed = prediction?.minTransferMinutesUsed,
                             )
                         }
-                    }
-                    if (predictionsRequested && journey.railTransferCount() > 0) {
-                        PunctualityBlock(
-                            probability = prediction?.punctualityProbability,
-                            isEstimate = prediction?.punctualityIsEstimate == true,
-                            toleranceMinutes = prediction?.punctualityToleranceMinutes
-                                ?: JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES,
-                        )
                     }
                 }
             }
@@ -390,7 +394,12 @@ private fun LegRemarksBlock(remarks: List<String>) {
 }
 
 @Composable
-private fun LegDetailsBlock(leg: Leg, legIndex: Int) {
+private fun LegDetailsBlock(
+    leg: Leg,
+    legIndex: Int,
+    prediction: RatedJourney?,
+    predictionsRequested: Boolean,
+) {
     val journeySearch: JourneySearchRepository = koinInject()
     val scope = rememberCoroutineScope()
     val segmentStops = leg.tripRouteStops()
@@ -450,6 +459,8 @@ private fun LegDetailsBlock(leg: Leg, legIndex: Int) {
                     boardScheduled = leg.origin.scheduledTime,
                     alightScheduled = leg.destination.scheduledTime,
                     legIndex = legIndex,
+                    prediction = prediction,
+                    predictionsRequested = predictionsRequested,
                 )
             }
         }
@@ -459,15 +470,32 @@ private fun LegDetailsBlock(leg: Leg, legIndex: Int) {
         stop = leg.origin,
         modifier = Modifier.testTag("leg_${legIndex}_departure"),
         navigateTestTag = "navigate_leg_${legIndex}_departure",
+        timelinessProbability = prediction?.stopProbability(legIndex, isArrival = false),
+        timelinessIsEstimate = prediction?.stopTimelinessIsEstimate(legIndex, isArrival = false) == true,
+        predictionsRequested = predictionsRequested,
+        toleranceMinutes = prediction?.punctualityToleranceMinutes
+            ?: JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES,
+        minTransferMinutesUsed = prediction?.minTransferMinutesUsed,
     )
     if (!showTripRoute && leg.intermediateStops.isNotEmpty()) {
-        IntermediateStopsBlock(stops = leg.intermediateStops, legIndex = legIndex)
+        IntermediateStopsBlock(
+            stops = leg.intermediateStops,
+            legIndex = legIndex,
+            prediction = prediction,
+            predictionsRequested = predictionsRequested,
+        )
     }
     StopRow(
         label = stringResource(R.string.arrival),
         stop = leg.destination,
         modifier = Modifier.testTag("leg_${legIndex}_arrival"),
         navigateTestTag = "navigate_leg_${legIndex}_arrival",
+        timelinessProbability = prediction?.stopProbability(legIndex, isArrival = true),
+        timelinessIsEstimate = prediction?.stopTimelinessIsEstimate(legIndex, isArrival = true) == true,
+        predictionsRequested = predictionsRequested,
+        toleranceMinutes = prediction?.punctualityToleranceMinutes
+            ?: JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES,
+        minTransferMinutesUsed = prediction?.minTransferMinutesUsed,
     )
     if (leg.origin.remarks.isNotEmpty() || leg.destination.remarks.isNotEmpty()) {
         LegRemarksBlock(
@@ -477,9 +505,17 @@ private fun LegDetailsBlock(leg: Leg, legIndex: Int) {
 }
 
 @Composable
-private fun JourneyTimeRangeHeader(journey: Journey) {
-    val first = journey.legs.firstOrNull()?.origin
-    val last = journey.legs.lastOrNull()?.destination
+private fun JourneyTimeRangeHeader(
+    journey: Journey,
+    prediction: RatedJourney?,
+    predictionsRequested: Boolean,
+) {
+    val firstLegIndex = journey.legs.indexOfFirst { !it.isWalking }.takeIf { it >= 0 } ?: 0
+    val lastLegIndex = journey.legs.indexOfLast { !it.isWalking }.takeIf { it >= 0 } ?: journey.legs.lastIndex
+    val first = journey.legs.getOrNull(firstLegIndex)?.origin
+    val last = journey.legs.getOrNull(lastLegIndex)?.destination
+    val tolerance = prediction?.punctualityToleranceMinutes
+        ?: JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES
     val depScheduled = first?.scheduledTime ?: journey.departure
     val arrScheduled = last?.scheduledTime ?: journey.arrival
     val depDelay = first?.delayMinutes
@@ -496,6 +532,14 @@ private fun JourneyTimeRangeHeader(journey: Journey) {
                 delayMinutes = depDelay,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
+                timelinessProbability = if (predictionsRequested) {
+                    prediction?.stopProbability(firstLegIndex, isArrival = false)
+                } else {
+                    null
+                },
+                timelinessIsEstimate = prediction?.stopTimelinessIsEstimate(firstLegIndex, isArrival = false) == true,
+                toleranceMinutes = tolerance,
+                minTransferMinutesUsed = prediction?.minTransferMinutesUsed,
             )
             Text("–", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             StopTimeText(
@@ -504,6 +548,14 @@ private fun JourneyTimeRangeHeader(journey: Journey) {
                 delayMinutes = arrDelay,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
+                timelinessProbability = if (predictionsRequested) {
+                    prediction?.stopProbability(lastLegIndex, isArrival = true)
+                } else {
+                    null
+                },
+                timelinessIsEstimate = prediction?.stopTimelinessIsEstimate(lastLegIndex, isArrival = true) == true,
+                toleranceMinutes = tolerance,
+                minTransferMinutesUsed = prediction?.minTransferMinutesUsed,
             )
         }
     }
@@ -515,6 +567,11 @@ private fun StopRow(
     stop: StopEvent,
     modifier: Modifier = Modifier,
     navigateTestTag: String = "navigate_to_stop",
+    timelinessProbability: Double? = null,
+    timelinessIsEstimate: Boolean = false,
+    predictionsRequested: Boolean = false,
+    toleranceMinutes: Int = JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES,
+    minTransferMinutesUsed: Int? = null,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -549,6 +606,10 @@ private fun StopRow(
                         ?: 0,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
+                    timelinessProbability = if (predictionsRequested) timelinessProbability else null,
+                    timelinessIsEstimate = timelinessIsEstimate,
+                    toleranceMinutes = toleranceMinutes,
+                    minTransferMinutesUsed = minTransferMinutesUsed,
                 )
                 stop.platform?.let { platform ->
                     Text(
@@ -625,7 +686,11 @@ private fun TripRouteBlock(
     boardScheduled: String,
     alightScheduled: String,
     legIndex: Int,
+    prediction: RatedJourney?,
+    predictionsRequested: Boolean,
 ) {
+    val tolerance = prediction?.punctualityToleranceMinutes
+        ?: JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES
     val boardIndex = boardIndexInRoute(stops, boardAt, boardScheduled)
     val alightIndex = alightIndexInRoute(stops, alightAt, alightScheduled, boardIndex)
     Column(
@@ -664,6 +729,18 @@ private fun TripRouteBlock(
                     ViaStopRow(
                         stop = stop,
                         muted = !onPassengerSegment,
+                        timelinessProbability = if (predictionsRequested && onPassengerSegment) {
+                            prediction?.stopProbability(legIndex, intermediateIndex = index, isArrival = true)
+                        } else {
+                            null
+                        },
+                        timelinessIsEstimate = prediction?.stopTimelinessIsEstimate(
+                            legIndex,
+                            intermediateIndex = index,
+                            isArrival = true,
+                        ) == true,
+                        toleranceMinutes = tolerance,
+                        minTransferMinutesUsed = prediction?.minTransferMinutesUsed,
                     )
                 }
             }
@@ -672,7 +749,14 @@ private fun TripRouteBlock(
 }
 
 @Composable
-private fun IntermediateStopsBlock(stops: List<StopEvent>, legIndex: Int) {
+private fun IntermediateStopsBlock(
+    stops: List<StopEvent>,
+    legIndex: Int,
+    prediction: RatedJourney?,
+    predictionsRequested: Boolean,
+) {
+    val tolerance = prediction?.punctualityToleranceMinutes
+        ?: JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES
     var expanded by remember(legIndex, stops.size) { mutableStateOf(false) }
     Text(
         text = if (expanded) {
@@ -696,10 +780,22 @@ private fun IntermediateStopsBlock(stops: List<StopEvent>, legIndex: Int) {
             Modifier.padding(start = 8.dp, top = 4.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            stops.forEach { stop ->
+            stops.forEachIndexed { viaIndex, stop ->
                 ViaStopRow(
                     stop = stop,
                     modifier = Modifier.testTag("leg_${legIndex}_via_stop"),
+                    timelinessProbability = if (predictionsRequested) {
+                        prediction?.stopProbability(legIndex, intermediateIndex = viaIndex, isArrival = true)
+                    } else {
+                        null
+                    },
+                    timelinessIsEstimate = prediction?.stopTimelinessIsEstimate(
+                        legIndex,
+                        intermediateIndex = viaIndex,
+                        isArrival = true,
+                    ) == true,
+                    toleranceMinutes = tolerance,
+                    minTransferMinutesUsed = prediction?.minTransferMinutesUsed,
                 )
             }
         }
@@ -711,6 +807,10 @@ private fun ViaStopRow(
     stop: StopEvent,
     modifier: Modifier = Modifier,
     muted: Boolean = false,
+    timelinessProbability: Double? = null,
+    timelinessIsEstimate: Boolean = false,
+    toleranceMinutes: Int = JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES,
+    minTransferMinutesUsed: Int? = null,
 ) {
     val nameColor = when {
         stop.cancelled -> MaterialTheme.colorScheme.error
@@ -733,6 +833,10 @@ private fun ViaStopRow(
                         ?: delayMinutesFromTimes(stop.scheduledTime, stop.prognosedTime)
                         ?: 0,
                     style = MaterialTheme.typography.bodySmall,
+                    timelinessProbability = timelinessProbability,
+                    timelinessIsEstimate = timelinessIsEstimate,
+                    toleranceMinutes = toleranceMinutes,
+                    minTransferMinutesUsed = minTransferMinutesUsed,
                 )
             }
             stop.platform?.let {
@@ -752,34 +856,13 @@ private fun JourneyPredictionSummary(
     prediction: RatedJourney,
 ) {
     val percent = { value: Double -> (value * 100).toInt().coerceIn(0, 100) }
-    val tolerance = prediction.punctualityToleranceMinutes
-        ?: JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES
-    val text = when {
-        journey.railTransferCount() > 0 -> {
-            val worst = prediction.predictions.mapNotNull { it.successProbability }.minOrNull()
-            if (worst == null) return
-            val buffer = prediction.minTransferMinutesUsed
-            if (buffer != null) {
-                stringResource(R.string.prediction_summary_transfer_buffer, buffer, percent(worst))
-            } else {
-                stringResource(R.string.prediction_summary_transfer, percent(worst))
-            }
-        }
-        prediction.punctualityProbability != null -> {
-            val p = prediction.punctualityProbability!!
-            val estimate = prediction.punctualityIsEstimate
-            when {
-                tolerance == 0 && estimate ->
-                    stringResource(R.string.prediction_summary_punctuality_estimate_exact, percent(p))
-                tolerance == 0 ->
-                    stringResource(R.string.prediction_summary_punctuality_exact, percent(p))
-                estimate ->
-                    stringResource(R.string.prediction_summary_punctuality_estimate, tolerance, percent(p))
-                else ->
-                    stringResource(R.string.prediction_summary_punctuality, tolerance, percent(p))
-            }
-        }
-        else -> return
+    if (journey.railTransferCount() == 0) return
+    val worst = prediction.predictions.mapNotNull { it.successProbability }.minOrNull() ?: return
+    val buffer = prediction.minTransferMinutesUsed
+    val text = if (buffer != null) {
+        stringResource(R.string.prediction_summary_transfer_buffer, buffer, percent(worst))
+    } else {
+        stringResource(R.string.prediction_summary_transfer, percent(worst))
     }
     Text(
         text = text,
@@ -787,63 +870,6 @@ private fun JourneyPredictionSummary(
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.testTag("journey_prediction_summary"),
     )
-}
-
-@Composable
-private fun PunctualityBlock(
-    probability: Double?,
-    isEstimate: Boolean,
-    toleranceMinutes: Int,
-) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        HorizontalDivider()
-        Text(
-            stringResource(R.string.prediction_arrival_forecast),
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Medium,
-        )
-        val probabilityPercent = probability
-        when {
-            probabilityPercent != null -> {
-                val percent = (probabilityPercent * 100).toInt().coerceIn(0, 100)
-                val label = when {
-                    toleranceMinutes == 0 && isEstimate ->
-                        stringResource(R.string.punctuality_probability_estimate_exact, percent)
-                    toleranceMinutes == 0 ->
-                        stringResource(R.string.punctuality_probability_exact, percent)
-                    isEstimate ->
-                        stringResource(R.string.punctuality_probability_estimate, toleranceMinutes, percent)
-                    else ->
-                        stringResource(R.string.punctuality_probability, toleranceMinutes, percent)
-                }
-                Text(
-                    label,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = when {
-                        probabilityPercent >= 0.8 -> MaterialTheme.colorScheme.tertiary
-                        probabilityPercent >= 0.5 -> MaterialTheme.colorScheme.primary
-                        else -> MaterialTheme.colorScheme.error
-                    },
-                    modifier = Modifier.testTag("journey_punctuality"),
-                )
-            }
-            else -> {
-                Text(
-                    stringResource(R.string.prediction_unavailable),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.testTag("journey_punctuality"),
-                )
-            }
-        }
-        HorizontalDivider()
-    }
 }
 
 @Composable
@@ -946,12 +972,18 @@ private fun StopTimeText(
     delayMinutes: Int,
     style: androidx.compose.ui.text.TextStyle,
     fontWeight: FontWeight? = null,
+    timelinessProbability: Double? = null,
+    timelinessIsEstimate: Boolean = false,
+    toleranceMinutes: Int = JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES,
+    minTransferMinutesUsed: Int? = null,
 ) {
     val effectiveDelay = delayMinutes.takeIf { it > 0 }
         ?: delayMinutesFromTimes(scheduled, prognosed)
         ?: 0
     val display = prognosed?.takeIf { it.isNotBlank() } ?: scheduled
     val showScheduledStruck = prognosed != null && prognosed != scheduled
+    val clock = formatJourneyClock(display)
+    val percent = timelinessProbability?.let { (it * 100).toInt().coerceIn(0, 100) }
     Column(horizontalAlignment = Alignment.End) {
         if (showScheduledStruck) {
             Text(
@@ -961,12 +993,26 @@ private fun StopTimeText(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Text(
-            formatJourneyClock(display),
-            style = style,
-            fontWeight = fontWeight,
-            color = if (effectiveDelay > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-        )
+        if (percent != null) {
+            TimelinessTimeWithPercent(
+                clock = clock,
+                percent = percent,
+                probability = timelinessProbability,
+                style = style,
+                fontWeight = fontWeight,
+                delayed = effectiveDelay > 0,
+                isEstimate = timelinessIsEstimate,
+                toleranceMinutes = toleranceMinutes,
+                minTransferMinutesUsed = minTransferMinutesUsed,
+            )
+        } else {
+            Text(
+                clock,
+                style = style,
+                fontWeight = fontWeight,
+                color = if (effectiveDelay > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+            )
+        }
         if (effectiveDelay > 0) {
             Text(
                 stringResource(R.string.delay_minutes, effectiveDelay),
@@ -975,6 +1021,95 @@ private fun StopTimeText(
             )
         }
     }
+}
+
+@Composable
+private fun TimelinessTimeWithPercent(
+    clock: String,
+    percent: Int,
+    probability: Double,
+    style: androidx.compose.ui.text.TextStyle,
+    fontWeight: FontWeight?,
+    delayed: Boolean,
+    isEstimate: Boolean,
+    toleranceMinutes: Int,
+    minTransferMinutesUsed: Int?,
+) {
+    var showTooltip by remember { mutableStateOf(false) }
+    val timeColor = if (delayed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    val percentColor = when {
+        probability >= 0.8 -> MaterialTheme.colorScheme.tertiary
+        probability >= 0.5 -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.error
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            clock,
+            style = style,
+            fontWeight = fontWeight,
+            color = timeColor,
+        )
+        Text(
+            text = "($percent%)",
+            style = style.copy(fontSize = style.fontSize * 0.92f),
+            fontWeight = FontWeight.Medium,
+            color = percentColor,
+            modifier = Modifier
+                .clickable { showTooltip = true }
+                .testTag("timeliness_percent"),
+        )
+    }
+    if (showTooltip) {
+        TimelinessProbabilityDialog(
+            isEstimate = isEstimate,
+            toleranceMinutes = toleranceMinutes,
+            minTransferMinutesUsed = minTransferMinutesUsed,
+            onDismiss = { showTooltip = false },
+        )
+    }
+}
+
+@Composable
+private fun TimelinessProbabilityDialog(
+    isEstimate: Boolean,
+    toleranceMinutes: Int,
+    minTransferMinutesUsed: Int?,
+    onDismiss: () -> Unit,
+) {
+    val body = when {
+        isEstimate && toleranceMinutes == 0 ->
+            stringResource(R.string.prediction_tooltip_body_estimate_exact)
+        isEstimate ->
+            stringResource(R.string.prediction_tooltip_body_estimate, toleranceMinutes)
+        toleranceMinutes == 0 ->
+            stringResource(R.string.prediction_tooltip_body_ml_exact)
+        else ->
+            stringResource(R.string.prediction_tooltip_body_ml, toleranceMinutes)
+    }
+    val bufferNote = minTransferMinutesUsed?.let {
+        stringResource(R.string.prediction_tooltip_transfer_buffer, it)
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.prediction_tooltip_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(body)
+                if (bufferNote != null) {
+                    Text(
+                        bufferNote,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(android.R.string.ok))
+            }
+        },
+    )
 }
 
 @Composable

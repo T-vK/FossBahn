@@ -149,6 +149,13 @@
     <string name="settings_punctuality_minutes">≤%d Min.</string>
     <string name="settings_punctuality_minutes_default">≤%d Min. (Standard)</string>
     <string name="prediction_unavailable">Bahn-Vorhersage: keine Prognose für diesen Umstieg</string>
+    <string name="prediction_time_percent">%1$s (%2$d%%)</string>
+    <string name="prediction_tooltip_title">Pünktlichkeitswahrscheinlichkeit</string>
+    <string name="prediction_tooltip_body_ml">Wahrscheinlichkeit, dass dieser Halt höchstens %1$d Minuten von der Planzeit abweicht (Bahn-Vorhersage-Modell).</string>
+    <string name="prediction_tooltip_body_ml_exact">Wahrscheinlichkeit, dass dieser Halt minutengenau zur Planzeit eintrifft/abfährt (Bahn-Vorhersage-Modell).</string>
+    <string name="prediction_tooltip_body_estimate">Geschätzte Wahrscheinlichkeit für höchstens %1$d Minuten Abweichung von der Planzeit (ohne ML-Server; basierend auf Verspätung, Verkehrsmittel und Anschlüssen).</string>
+    <string name="prediction_tooltip_body_estimate_exact">Geschätzte Wahrscheinlichkeit für minutengenaue Einhaltung der Planzeit (ohne ML-Server).</string>
+    <string name="prediction_tooltip_transfer_buffer">Anschlussbewertung nutzt mindestens %1$d Minuten Umsteigezeit aus deinen Suchfiltern.</string>
     <string name="transfer_at">Umstieg in %1$s</string>
     <string name="departure">Abfahrt</string>
     <string name="arrival">Ankunft</string>
