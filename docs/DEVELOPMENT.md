@@ -155,6 +155,10 @@ CI caches `fdroid/repo/` and `fdroid/archive/` so older APKs stay available (`ar
 
 Fastlane-style metadata: `metadata/en-US/`. The main catalog would build from source; the custom repo ships CI **release** APKs.
 
+## App language
+
+Search → **Options** (filter icon) → **Language**: **System** (device default), **Deutsch**, or **English**. Changes UI strings and the `locale` parameter for bahn.de station search. Preference is stored in DataStore (`app_language`).
+
 ## Bahn-Vorhersage (transfer probabilities)
 
 Search results show **Anschlusswahrscheinlichkeit** between legs when the journey has at least one transfer.

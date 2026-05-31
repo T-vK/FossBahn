@@ -47,7 +47,7 @@ val appModule = module {
     single<JourneySearchRepository> { JourneySearchUseCase(get(), get()) }
     single { PredictionUseCase(get()) }
     viewModel {
-        SearchViewModel(get(), get(), get(), get(), get(), get())
+        SearchViewModel(get(), get(), get(), get(), get(), get(), androidContext())
     }
     viewModel { FavoritesViewModel(get(), get(), get()) }
     viewModel { StationBoardViewModel(get()) }

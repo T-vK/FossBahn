@@ -18,7 +18,10 @@ import de.openbahn.navigator.data.matchesAutocompleteQuery
 import de.openbahn.navigator.data.stableKey
 import de.openbahn.navigator.data.PendingSearchRepository
 import de.openbahn.navigator.data.TrackedJourneyRepository
+import android.content.Context
 import de.openbahn.navigator.data.UserPreferencesRepository
+import de.openbahn.navigator.locale.AppLanguage
+import de.openbahn.navigator.locale.AppLocaleManager
 import de.openbahn.navigator.domain.JourneySearchRepository
 import de.openbahn.navigator.tracking.DelayTrackingWorker
 import java.io.IOException
@@ -62,6 +65,7 @@ data class SearchUiState(
     val locale: String = "de",
     val hasSearched: Boolean = false,
     val showOnboarding: Boolean = false,
+    val appLanguage: AppLanguage = AppLanguage.SYSTEM,
 )
 
 class SearchViewModel(
@@ -71,6 +75,7 @@ class SearchViewModel(
     private val userPreferences: UserPreferencesRepository,
     private val favoriteRoutes: FavoriteRouteRepository,
     private val pendingSearch: PendingSearchRepository,
+    private val appContext: Context,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SearchUiState())
@@ -103,6 +108,25 @@ class SearchViewModel(
                     applyFavoriteRoute(route)
                 }
             }
+        }
+        viewModelScope.launch {
+            userPreferences.appLanguage.collect { language ->
+                val apiLocale = language.apiLocale(appContext)
+                _state.update {
+                    it.copy(
+                        appLanguage = language,
+                        locale = apiLocale,
+                        options = it.options.copy(locale = apiLocale),
+                    )
+                }
+            }
+        }
+    }
+
+    fun setAppLanguage(language: AppLanguage) {
+        viewModelScope.launch {
+            userPreferences.setAppLanguage(language)
+            AppLocaleManager.apply(language)
         }
     }
 
@@ -217,10 +241,6 @@ class SearchViewModel(
 
     fun setDepartureTime(time: LocalDateTime) {
         _state.update { it.copy(departureTime = time) }
-    }
-
-    fun setLocale(locale: String) {
-        _state.update { it.copy(locale = locale, options = _state.value.options.copy(locale = locale)) }
     }
 
     fun clearRecentLocations() {

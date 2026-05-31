@@ -4,9 +4,13 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import de.openbahn.api.debug.OpenBahnDebugLog
+import de.openbahn.navigator.data.UserPreferencesRepository
 import de.openbahn.navigator.di.appModule
+import de.openbahn.navigator.locale.AppLocaleManager
+import kotlinx.coroutines.runBlocking
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
+import org.koin.java.KoinJavaComponent.getKoin
 
 class OpenBahnApplication : Application() {
     override fun onCreate() {
@@ -16,6 +20,10 @@ class OpenBahnApplication : Application() {
         startKoin {
             androidContext(this@OpenBahnApplication)
             modules(appModule)
+        }
+        runBlocking {
+            val language = getKoin().get<UserPreferencesRepository>().currentAppLanguage()
+            AppLocaleManager.apply(language)
         }
     }
 

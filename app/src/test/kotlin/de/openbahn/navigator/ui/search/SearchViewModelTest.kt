@@ -11,10 +11,12 @@ import de.openbahn.navigator.data.LocationHistoryRepository
 import de.openbahn.navigator.data.PendingSearchRepository
 import de.openbahn.navigator.data.TrackedJourneyRepository
 import de.openbahn.navigator.data.UserPreferencesRepository
+import android.app.Application
 import de.openbahn.navigator.domain.JourneySearchRepository
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import de.openbahn.navigator.locale.AppLanguage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -57,6 +59,7 @@ class SearchViewModelTest {
     private val userPreferences = mockk<UserPreferencesRepository>(relaxed = true)
     private val favoriteRoutes = mockk<FavoriteRouteRepository>(relaxed = true)
     private val pendingSearch = PendingSearchRepository()
+    private val appContext = mockk<Application>(relaxed = true)
 
     @BeforeEach
     fun setup() {
@@ -64,6 +67,7 @@ class SearchViewModelTest {
         every { userPreferences.onboardingCompleted } returns MutableStateFlow(true)
         every { locationHistory.observeRecent() } returns flowOf(emptyList())
         every { locationHistory.observeFavoriteLocations() } returns flowOf(emptyList())
+        every { userPreferences.appLanguage } returns flowOf(AppLanguage.ENGLISH)
         coEvery { locationHistory.recentMatching(any()) } returns emptyList()
         coEvery { locationHistory.rankedForAutocomplete(any()) } returns emptyList()
         coEvery { searchRepository.searchLocations(any(), any()) } answers {
@@ -98,6 +102,7 @@ class SearchViewModelTest {
         userPreferences,
         favoriteRoutes,
         pendingSearch,
+        appContext,
     )
 
     @Test
