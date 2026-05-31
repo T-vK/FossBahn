@@ -265,7 +265,7 @@ internal object BahnVorhersageFptfMapper {
     }
 
     private fun JsonObjectBuilder.putObject(key: String, value: JsonObject) {
-        put(key, value)
+        put(key, value as JsonElement)
     }
 
     private fun timeJson(stop: StopEvent, scheduled: Boolean = false): String {
