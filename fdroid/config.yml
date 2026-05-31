@@ -1,6 +1,8 @@
 # F-Droid custom repository (binary APKs from CI). Published via GitHub Pages.
 # Repo URL is overridden in CI from GITHUB_REPOSITORY; default matches FossBahn on GitHub Pages.
 repo_url: https://t-vk.github.io/FossBahn/fdroid/repo
+# Sibling of repo/ on GitHub Pages (fdroid/archive/). Required for older APKs in the client.
+archive_url: https://t-vk.github.io/FossBahn/fdroid/archive
 repo_name: OpenBahn Navigator
 # Filename only — fdroidserver copies fdroid/icon.png → repo/icons/icon.png (not icons/icons/…)
 repo_icon: icon.png
