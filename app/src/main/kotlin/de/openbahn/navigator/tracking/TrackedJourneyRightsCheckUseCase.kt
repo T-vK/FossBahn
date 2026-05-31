@@ -28,8 +28,9 @@ class TrackedJourneyRightsCheckUseCase(
         val draft = passengerRights.createOrUpdateDraft(assessment)
         val lastNotified = claimDrafts.lastNotifiedAt(draft.id)
         val decision = PassengerRightsNotificationPolicy.evaluate(assessment, lastNotified)
-        if (!decision.shouldNotify || decision.notification == null) return
-        notifier.show(trackedId, decision.notification)
+        val notification = decision.notification ?: return
+        if (!decision.shouldNotify) return
+        notifier.show(trackedId, notification)
         claimDrafts.markNotified(draft.id, assessment.evaluatedAtEpochMillis)
     }
 }
