@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.SwapVert
@@ -54,6 +55,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun SearchScreen(
     onOpenFilters: () -> Unit,
+    onOpenSettings: () -> Unit,
     onOpenJourneyDetail: () -> Unit,
     viewModel: SearchViewModel = koinViewModel(),
 ) {
@@ -73,6 +75,9 @@ fun SearchScreen(
                 modifier = Modifier.testTag("search_screen_title"),
                 title = { Text(stringResource(R.string.search_title)) },
                 actions = {
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings_title))
+                    }
                     IconButton(onClick = onOpenFilters) {
                         Icon(Icons.Default.FilterList, contentDescription = stringResource(R.string.filters))
                     }

@@ -16,7 +16,6 @@ class OpenBahnApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         OpenBahnDebugLog.isEnabled = BuildConfig.DEBUG
-        createNotificationChannels()
         startKoin {
             androidContext(this@OpenBahnApplication)
             modules(appModule)
@@ -25,6 +24,7 @@ class OpenBahnApplication : Application() {
             val language = getKoin().get<UserPreferencesRepository>().currentAppLanguage()
             AppLocaleManager.apply(language)
         }
+        createNotificationChannels()
     }
 
     private fun createNotificationChannels() {
