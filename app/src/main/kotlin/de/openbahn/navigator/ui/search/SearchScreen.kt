@@ -241,11 +241,13 @@ fun SearchScreen(
             }
             val rated = state.ratedJourneys
             val predictionsRequested = state.showPredictions && state.hasSearched
+            val minTransferMinutes = state.options.minTransferMinutes
             if (rated.isNotEmpty()) {
                 items(rated, key = { it.journey.id }) { ratedJourney ->
                     JourneyResultItem(
                         ratedJourney = ratedJourney,
                         predictionsRequested = predictionsRequested,
+                        minTransferMinutes = minTransferMinutes,
                         onOpenDetail = onOpenJourneyDetail,
                         onTrack = { viewModel.trackJourney(ratedJourney.journey, context) },
                     )
@@ -256,7 +258,11 @@ fun SearchScreen(
                         journey = journey,
                         predictionsRequested = predictionsRequested,
                         onOpenFullscreen = {
-                            JourneyNavigation.set(journey, predictionsRequested = predictionsRequested)
+                            JourneyNavigation.set(
+                                journey,
+                                predictionsRequested = predictionsRequested,
+                                minTransferMinutes = minTransferMinutes,
+                            )
                             onOpenJourneyDetail()
                         },
                         onTrack = { viewModel.trackJourney(journey, context) },
@@ -291,6 +297,7 @@ fun SearchScreen(
 private fun JourneyResultItem(
     ratedJourney: RatedJourney,
     predictionsRequested: Boolean,
+    minTransferMinutes: Int?,
     onOpenDetail: () -> Unit,
     onTrack: () -> Unit,
 ) {
@@ -303,6 +310,7 @@ private fun JourneyResultItem(
                 ratedJourney.journey,
                 prediction = ratedJourney,
                 predictionsRequested = predictionsRequested,
+                minTransferMinutes = minTransferMinutes,
             )
             onOpenDetail()
         },

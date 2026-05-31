@@ -3,9 +3,12 @@ package de.openbahn.navigator.ui.journey
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -17,16 +20,22 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import de.openbahn.api.BahnVorhersageClient
+import de.openbahn.api.JourneyRatingOptions
 import de.openbahn.model.Journey
 import de.openbahn.navigator.R
+import de.openbahn.navigator.data.UserPreferencesRepository
 import de.openbahn.navigator.navigation.JourneyDetailPayload
 import de.openbahn.navigator.tracking.TrackedJourneyRefreshUseCase
 import de.openbahn.navigator.ui.components.JourneyCard
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,14 +45,37 @@ fun JourneyDetailScreen(
     onBack: () -> Unit,
     onTrack: (() -> Unit)? = null,
     refreshUseCase: TrackedJourneyRefreshUseCase = koinInject(),
+    predictionClient: BahnVorhersageClient = koinInject(),
+    userPreferences: UserPreferencesRepository = koinInject(),
 ) {
     var journey by remember(payload.journey.id) { mutableStateOf(payload.journey) }
+    var prediction by remember(payload.journey.id) { mutableStateOf(payload.prediction) }
+    var isRefreshing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    suspend fun refreshConnection() {
+        if (isRefreshing) return
+        isRefreshing = true
+        try {
+            val refreshed = refreshUseCase.refreshJourney(journey) ?: return
+            journey = refreshed
+            if (payload.predictionsRequested) {
+                val tolerance = userPreferences.punctualityToleranceMinutes.first()
+                prediction = predictionClient.rateJourney(
+                    refreshed,
+                    JourneyRatingOptions(
+                        minTransferMinutes = payload.minTransferMinutes,
+                        punctualityToleranceMinutes = tolerance,
+                    ),
+                )
+            }
+        } finally {
+            isRefreshing = false
+        }
+    }
 
     LaunchedEffect(payload.journey.id, payload.journey.refreshToken) {
-        val refreshed = refreshUseCase.refreshJourney(payload.journey)
-        if (refreshed != null) {
-            journey = refreshed
-        }
+        refreshConnection()
     }
 
     Scaffold(
@@ -53,6 +85,22 @@ fun JourneyDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = { scope.launch { refreshConnection() } },
+                        enabled = !isRefreshing && journey.refreshToken?.isNotBlank() == true,
+                        modifier = Modifier.testTag("journey_detail_refresh"),
+                    ) {
+                        if (isRefreshing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.refresh))
+                        }
                     }
                 },
             )
@@ -67,7 +115,7 @@ fun JourneyDetailScreen(
             item {
                 JourneyCard(
                     journey = journey,
-                    prediction = payload.prediction,
+                    prediction = prediction,
                     predictionsRequested = payload.predictionsRequested,
                     expanded = true,
                     onTrack = onTrack,
