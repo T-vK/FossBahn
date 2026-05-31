@@ -14,14 +14,18 @@ class TrackedJourneyRefreshUseCase(
     suspend fun refreshJourney(journey: Journey): Journey = refreshWithLiveData(journey)
 
     suspend fun refreshAllActive(): Int {
-        var updated = 0
-        repository.getActiveForWorker().forEach { entity ->
-            val existing = Json.decodeFromString<Journey>(entity.journeyJson)
-            val merged = refreshWithLiveData(existing)
-            repository.updateJourney(entity.id, merged)
-            updated++
+        val active = repository.getActiveForWorker()
+        if (active.isEmpty()) return 0
+        val updates = buildMap {
+            active.forEach { entity ->
+                val existing = Json.decodeFromString<Journey>(entity.journeyJson)
+                val token = entity.refreshToken?.takeIf { it.isNotBlank() }
+                val toRefresh = if (token != null) existing.copy(refreshToken = token) else existing
+                put(entity.id, refreshWithLiveData(toRefresh))
+            }
         }
-        return updated
+        repository.updateJourneys(updates)
+        return updates.size
     }
 
     suspend fun refreshAndCheckDelayNotification(

@@ -23,7 +23,6 @@ import android.content.Context
 import de.openbahn.navigator.data.UserPreferencesRepository
 import de.openbahn.navigator.locale.AppLanguage
 import de.openbahn.navigator.domain.JourneySearchRepository
-import de.openbahn.navigator.tracking.DelayTrackingWorker
 import java.io.IOException
 import java.time.LocalDateTime
 import kotlinx.coroutines.Job
@@ -314,8 +313,6 @@ class SearchViewModel(
         val to = _state.value.to?.name ?: return
         viewModelScope.launch {
             trackingRepository.track(journey, from, to)
-            DelayTrackingWorker.schedule(context)
-            DelayTrackingWorker.runOnce(context)
         }
     }
 

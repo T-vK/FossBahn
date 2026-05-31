@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,14 +42,13 @@ fun TrackingScreen(
 ) {
     val tracked by viewModel.tracked.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val showBatteryBanner by viewModel.showBatteryOptimizationBanner.collectAsState()
     val context = LocalContext.current
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { }
 
-    LaunchedEffect(Unit) {
-        viewModel.ensureBackgroundTracking()
-    }
+    val listState = rememberLazyListState()
 
     LaunchedEffect(tracked.isNotEmpty()) {
         if (tracked.isNotEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -62,7 +62,7 @@ fun TrackingScreen(
                 title = { Text(stringResource(R.string.tracking_title)) },
                 actions = {
                     IconButton(
-                        onClick = { viewModel.refreshNow() },
+                        onClick = { viewModel.refreshNow(force = true) },
                         enabled = !isRefreshing,
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.refresh))
@@ -73,10 +73,19 @@ fun TrackingScreen(
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
             Text(stringResource(R.string.tracking_description), Modifier.padding(bottom = 16.dp))
+            if (showBatteryBanner) {
+                BatteryOptimizationBanner(
+                    onDismiss = { viewModel.dismissBatteryOptimizationPrompt() },
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+            }
             if (tracked.isEmpty()) {
                 Text(stringResource(R.string.tracking_empty))
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyColumn(
+                    state = listState,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     items(tracked, key = { it.entity.id }) { item ->
                         Column(Modifier.fillMaxWidth()) {
                             JourneyCard(

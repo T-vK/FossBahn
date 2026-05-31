@@ -19,6 +19,9 @@ import de.openbahn.navigator.ui.favorites.FavoritesViewModel
 import de.openbahn.navigator.ui.search.SearchViewModel
 import de.openbahn.navigator.ui.settings.SettingsViewModel
 import de.openbahn.navigator.ui.tickets.TicketsViewModel
+import de.openbahn.navigator.tracking.DelayNotificationNotifier
+import de.openbahn.navigator.tracking.JourneyTrackingCoordinator
+import de.openbahn.navigator.tracking.TrackedJourneyDelayCheckUseCase
 import de.openbahn.navigator.tracking.TrackedJourneyRefreshUseCase
 import de.openbahn.navigator.ui.tracking.TrackingViewModel
 import org.koin.android.ext.koin.androidContext
@@ -43,8 +46,11 @@ val appModule = module {
     single { LocationHistoryRepository(get(), get()) }
     single { FavoriteRouteRepository(get()) }
     single { TicketRepository(get(), androidContext()) }
-    single { TrackedJourneyRepository(get()) }
+    single { JourneyTrackingCoordinator(androidContext(), lazy { get<TrackedJourneyRepository>() }) }
+    single { TrackedJourneyRepository(get(), get(), lazy { get<JourneyTrackingCoordinator>() }) }
+    single { DelayNotificationNotifier(androidContext()) }
     single { TrackedJourneyRefreshUseCase(get(), get()) }
+    single { TrackedJourneyDelayCheckUseCase(get(), get(), get(), get()) }
     single<JourneySearchRepository> { JourneySearchUseCase(get(), get()) }
     single { PredictionUseCase(get()) }
     viewModel {
@@ -53,6 +59,6 @@ val appModule = module {
     viewModel { FavoritesViewModel(get(), get(), get()) }
     viewModel { StationBoardViewModel(get()) }
     viewModel { TicketsViewModel(get()) }
-    viewModel { TrackingViewModel(get(), get(), androidContext()) }
+    viewModel { TrackingViewModel(get(), get(), get(), get(), androidContext()) }
     viewModel { SettingsViewModel(get()) }
 }

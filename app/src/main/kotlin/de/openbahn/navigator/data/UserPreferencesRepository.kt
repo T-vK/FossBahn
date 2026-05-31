@@ -44,6 +44,10 @@ class UserPreferencesRepository(private val context: Context) {
             ?: DelayNotificationPolicy.DEFAULT_INCREMENT_MINUTES
     }
 
+    val batteryOptimizationPromptDismissed: Flow<Boolean> = dataStore.data.map {
+        it[KEY_BATTERY_OPTIMIZATION_DISMISSED] ?: false
+    }
+
     suspend fun currentAppLanguage(): AppLanguage = appLanguage.first()
 
     suspend fun setAppLanguage(language: AppLanguage) {
@@ -60,6 +64,10 @@ class UserPreferencesRepository(private val context: Context) {
         dataStore.edit {
             it[KEY_DELAY_NOTIFICATION_INCREMENT] = minutes.coerceIn(1, 60)
         }
+    }
+
+    suspend fun setBatteryOptimizationPromptDismissed(dismissed: Boolean) {
+        dataStore.edit { it[KEY_BATTERY_OPTIMIZATION_DISMISSED] = dismissed }
     }
 
     suspend fun setDeutschlandTicketConnectionsOnly(enabled: Boolean) {
@@ -79,5 +87,7 @@ class UserPreferencesRepository(private val context: Context) {
         private val KEY_APP_LANGUAGE = stringPreferencesKey("app_language")
         private val KEY_PUNCTUALITY_TOLERANCE = intPreferencesKey("punctuality_tolerance_minutes")
         private val KEY_DELAY_NOTIFICATION_INCREMENT = intPreferencesKey("delay_notification_increment_minutes")
+        private val KEY_BATTERY_OPTIMIZATION_DISMISSED =
+            booleanPreferencesKey("battery_optimization_prompt_dismissed")
     }
 }

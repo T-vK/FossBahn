@@ -1,5 +1,6 @@
 package de.openbahn.navigator
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -17,7 +18,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -25,7 +28,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import de.openbahn.navigator.data.TrackedJourneyRepository
 import de.openbahn.navigator.navigation.JourneyNavigation
+import de.openbahn.navigator.tracking.TrackingNotificationIntent
 import de.openbahn.navigator.ui.favorites.FavoritesScreen
 import de.openbahn.navigator.ui.journey.JourneyDetailScreen
 import de.openbahn.navigator.ui.search.FiltersScreen
@@ -35,12 +40,19 @@ import de.openbahn.navigator.ui.settings.SettingsScreen
 import de.openbahn.navigator.ui.theme.OpenBahnTheme
 import de.openbahn.navigator.ui.tickets.TicketsScreen
 import de.openbahn.navigator.ui.tracking.TrackingScreen
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.koin.android.ext.android.inject
 import org.koin.androidx.compose.koinViewModel
 
 class MainActivity : AppCompatActivity() {
+    private val trackedJourneyRepository: TrackedJourneyRepository by inject()
+    private val pendingOpenTrackedJourneyId = mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        pendingOpenTrackedJourneyId.value = consumeTrackedJourneyId(intent)
         setContent {
             OpenBahnTheme {
                 val navController = rememberNavController()
@@ -48,6 +60,22 @@ class MainActivity : AppCompatActivity() {
                 val currentRoute = backStack?.destination?.route
                 val searchViewModel: SearchViewModel = koinViewModel()
                 val context = LocalContext.current
+                val openTrackedJourneyId by pendingOpenTrackedJourneyId
+
+                LaunchedEffect(openTrackedJourneyId) {
+                    val journeyId = openTrackedJourneyId ?: return@LaunchedEffect
+                    pendingOpenTrackedJourneyId.value = null
+                    val tracked = withContext(Dispatchers.IO) {
+                        trackedJourneyRepository.findActiveWithJourney(journeyId)
+                    } ?: return@LaunchedEffect
+                    JourneyNavigation.set(tracked.journey, predictionsRequested = true)
+                    navController.navigate(Routes.TRACKING) {
+                        popUpTo(Routes.SEARCH) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                    navController.navigate(Routes.JOURNEY_DETAIL)
+                }
 
                 val hideBottomBar = currentRoute == Routes.FILTERS ||
                     currentRoute == Routes.SETTINGS ||
@@ -135,6 +163,20 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        consumeTrackedJourneyId(intent)?.let { pendingOpenTrackedJourneyId.value = it }
+    }
+
+    private fun consumeTrackedJourneyId(intent: Intent?): String? {
+        val id = intent?.getStringExtra(TrackingNotificationIntent.EXTRA_TRACKED_JOURNEY_ID)
+            ?.takeIf { it.isNotBlank() }
+            ?: return null
+        intent.removeExtra(TrackingNotificationIntent.EXTRA_TRACKED_JOURNEY_ID)
+        return id
     }
 }
 

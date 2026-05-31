@@ -80,8 +80,11 @@ data class TrackedJourneyEntity(
 
 @Dao
 interface TrackedJourneyDao {
-    @Query("SELECT * FROM tracked_journeys WHERE active = 1")
+    @Query("SELECT * FROM tracked_journeys WHERE active = 1 ORDER BY departureIso ASC")
     fun observeActive(): Flow<List<TrackedJourneyEntity>>
+
+    @Query("SELECT * FROM tracked_journeys WHERE id = :id AND active = 1 LIMIT 1")
+    suspend fun getActiveById(id: String): TrackedJourneyEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(journey: TrackedJourneyEntity)
@@ -89,6 +92,6 @@ interface TrackedJourneyDao {
     @Query("UPDATE tracked_journeys SET active = 0 WHERE id = :id")
     suspend fun deactivate(id: String)
 
-    @Query("SELECT * FROM tracked_journeys WHERE active = 1")
+    @Query("SELECT * FROM tracked_journeys WHERE active = 1 ORDER BY departureIso ASC")
     suspend fun getActive(): List<TrackedJourneyEntity>
 }
