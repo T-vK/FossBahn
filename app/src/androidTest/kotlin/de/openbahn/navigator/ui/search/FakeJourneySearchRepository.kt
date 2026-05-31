@@ -4,6 +4,7 @@ import de.openbahn.model.Journey
 import de.openbahn.model.JourneySearchOptions
 import de.openbahn.model.JourneySearchResult
 import de.openbahn.model.Leg
+import de.openbahn.model.tripRouteStops
 import de.openbahn.model.Location
 import de.openbahn.model.RatedJourney
 import de.openbahn.model.StopEvent
@@ -45,6 +46,8 @@ class FakeJourneySearchRepository : JourneySearchRepository {
     )
 
     override suspend fun fetchTripRoute(journeyId: String): List<StopEvent> = emptyList()
+
+    override suspend fun fetchFullLegRoute(leg: Leg): List<StopEvent> = leg.tripRouteStops()
 
     override suspend fun rateJourneys(
         journeys: List<Journey>,
