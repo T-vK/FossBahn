@@ -7,10 +7,12 @@
     <string name="search">Search</string>
     <string name="search_connections">Search connections</string>
     <string name="search_when">When</string>
+    <string name="search_date">Date</string>
+    <string name="search_time">Time</string>
     <string name="search_departure_at">Departure: %1$s</string>
     <string name="search_arrival_at">Arrival: %1$s</string>
-    <string name="search_pick_date">Change date</string>
-    <string name="search_pick_time">Change time</string>
+    <string name="search_pick_date">Pick date</string>
+    <string name="search_pick_time">Pick time</string>
     <string name="search_time_departure">Departure</string>
     <string name="search_time_arrival">Arrival</string>
     <string name="search_time_now">Now</string>

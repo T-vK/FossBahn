@@ -77,10 +77,6 @@ fun FiltersScreen(
             ToggleRow(stringResource(R.string.filter_fast_routes), options.fastRoutesOnly) {
                 viewModel.updateOptions(options.copy(fastRoutesOnly = it))
             }
-            ToggleRow(stringResource(R.string.filter_arrival_search), options.arrivalSearch) {
-                viewModel.updateOptions(options.copy(arrivalSearch = it))
-            }
-
             Text(stringResource(R.string.filter_transfer_time), style = MaterialTheme.typography.titleMedium)
             listOf(null, 5, 10, 15, 20, 30).forEach { minutes ->
                 FilterChip(

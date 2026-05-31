@@ -7,10 +7,12 @@
     <string name="search">Suchen</string>
     <string name="search_connections">Verbindungen suchen</string>
     <string name="search_when">Zeit</string>
+    <string name="search_date">Datum</string>
+    <string name="search_time">Uhrzeit</string>
     <string name="search_departure_at">Abfahrt: %1$s</string>
     <string name="search_arrival_at">Ankunft: %1$s</string>
-    <string name="search_pick_date">Datum ändern</string>
-    <string name="search_pick_time">Uhrzeit ändern</string>
+    <string name="search_pick_date">Datum wählen</string>
+    <string name="search_pick_time">Uhrzeit wählen</string>
     <string name="search_time_departure">Abfahrt</string>
     <string name="search_time_arrival">Ankunft</string>
     <string name="search_time_now">Jetzt</string>
