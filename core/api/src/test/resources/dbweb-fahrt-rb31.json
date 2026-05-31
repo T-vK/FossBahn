@@ -1,0 +1,45 @@
+{
+  "reisetag": "2026-06-15",
+  "zugName": "RB 31",
+  "halte": [
+    {
+      "name": "Celle",
+      "extId": "8000130",
+      "abfahrtsZeitpunkt": "2026-06-15T09:10:00",
+      "gleis": "4"
+    },
+    {
+      "name": "Hamburg Hbf",
+      "extId": "8002549",
+      "abfahrtsZeitpunkt": "2026-06-15T09:40:00",
+      "prognose": { "abfahrtsZeitpunkt": "2026-06-15T09:45:00", "verspaetung": 5 },
+      "gleis": "12"
+    },
+    {
+      "name": "Lüneburg",
+      "extId": "8000237",
+      "ankunftsZeitpunkt": "2026-06-15T10:02:00",
+      "abfahrtsZeitpunkt": "2026-06-15T10:04:00",
+      "prognose": { "abfahrtsZeitpunkt": "2026-06-15T10:07:00", "verspaetung": 3 },
+      "gleis": "2"
+    },
+    {
+      "name": "Uelzen",
+      "extId": "8000314",
+      "abfahrtsZeitpunkt": "2026-06-15T10:15:00",
+      "gleis": "3"
+    },
+    {
+      "name": "Wieren",
+      "extId": "8000412",
+      "ankunftsZeitpunkt": "2026-06-15T11:05:00",
+      "gleis": "1"
+    },
+    {
+      "name": "Salzwedel",
+      "extId": "8000329",
+      "ankunftsZeitpunkt": "2026-06-15T11:35:00",
+      "gleis": "2"
+    }
+  ]
+}

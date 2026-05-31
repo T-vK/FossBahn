@@ -53,6 +53,17 @@ internal object JourneyResponseParser {
     private val berlinZone = ZoneId.of("Europe/Berlin")
     private val isoLocalFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
 
+    /** Full vehicle route from `/reiseloesung/fahrt?journeyId=…` (all stops, not only your segment). */
+    fun parseFahrtRoute(text: String): List<StopEvent> {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty() || trimmed.contains("OPS_BLOCKED")) return emptyList()
+        val root = runCatching { json.parseToJsonElement(trimmed).jsonObject }.getOrNull() ?: return emptyList()
+        val halte = root["halte"]?.jsonArray ?: return emptyList()
+        return halte.mapNotNull { element ->
+            runCatching { element.jsonObject }.getOrNull()?.let(::mapHaltStopEvent)
+        }
+    }
+
     /** Parses a single connection from `/reiseloesung/verbindung` (refresh / live). */
     fun parseRefresh(response: JsonObject): Journey? {
         val element = when {

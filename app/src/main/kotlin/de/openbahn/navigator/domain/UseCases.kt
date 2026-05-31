@@ -8,6 +8,7 @@ import de.openbahn.model.JourneySearchOptions
 import de.openbahn.model.JourneySearchResult
 import de.openbahn.model.Location
 import de.openbahn.model.RatedJourney
+import de.openbahn.model.StopEvent
 import java.time.LocalDateTime
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -27,6 +28,7 @@ interface JourneySearchRepository {
         journeys: List<Journey>,
         ratingOptions: JourneyRatingOptions = JourneyRatingOptions(),
     ): List<RatedJourney>
+    suspend fun fetchTripRoute(journeyId: String): List<StopEvent>
 }
 
 class JourneySearchUseCase(
@@ -62,6 +64,9 @@ class JourneySearchUseCase(
             async { predictionClient.rateJourney(journey, ratingOptions) }
         }.awaitAll()
     }
+
+    override suspend fun fetchTripRoute(journeyId: String): List<StopEvent> =
+        dbClient.fetchTripRoute(journeyId)
 }
 
 class PredictionUseCase(private val client: BahnVorhersageClient) {

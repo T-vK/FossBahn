@@ -130,6 +130,17 @@ class JourneyResponseParserTest {
     }
 
     @Test
+    fun parseFahrtRoute_returnsFullVehicleRun() {
+        val text = javaClass.getResource("/dbweb-fahrt-rb31.json")!!.readText()
+        val stops = JourneyResponseParser.parseFahrtRoute(text)
+        assertEquals(6, stops.size)
+        assertEquals("Celle", stops.first().name)
+        assertEquals("Salzwedel", stops.last().name)
+        assertEquals(5, stops[1].delayMinutes)
+        assertEquals(3, stops[2].delayMinutes)
+    }
+
+    @Test
     fun parsesFlx1247CancellationFixture() {
         val text = javaClass.getResource("/dbweb-scenario-flx1247-cancelled.json")!!.readText()
         val leg = JourneyResponseParser.parse(text).journeys.single().legs.single()
