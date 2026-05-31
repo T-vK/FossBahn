@@ -32,7 +32,6 @@ class JourneyRequestBuilderTest {
             berlin,
             munich,
             JourneySearchOptions(
-                deutschlandTicketOwned = true,
                 deutschlandTicketConnectionsOnly = true,
                 bikeCarriage = true,
                 directOnly = true,

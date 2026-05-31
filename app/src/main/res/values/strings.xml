@@ -113,7 +113,6 @@
     <string name="filter_bike">Bicycle carriage</string>
     <string name="filter_direct">Direct connections only</string>
     <string name="filter_dticket_only">D-Ticket connections only</string>
-    <string name="filter_dticket_owned">I have a Deutschland-Ticket</string>
     <string name="filter_fast_routes">Prefer fast connections</string>
     <string name="filter_arrival_search">Arrival time search</string>
     <string name="filter_transfer_time">Minimum transfer time</string>

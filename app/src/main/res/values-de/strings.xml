@@ -113,7 +113,6 @@
     <string name="filter_bike">Fahrradmitnahme</string>
     <string name="filter_direct">Nur Direktverbindungen</string>
     <string name="filter_dticket_only">Nur D-Ticket-Verbindungen</string>
-    <string name="filter_dticket_owned">Deutschland-Ticket vorhanden</string>
     <string name="filter_fast_routes">Schnelle Verbindungen bevorzugen</string>
     <string name="filter_arrival_search">Ankunftssuche</string>
     <string name="filter_transfer_time">Mindestumstiegszeit</string>

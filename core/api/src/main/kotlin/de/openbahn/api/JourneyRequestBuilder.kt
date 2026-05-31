@@ -40,7 +40,10 @@ internal object JourneyRequestBuilder {
         options.maxTransfers?.let { put("maxUmstiege", it) }
         options.minTransferMinutes?.let { put("minUmstiegszeit", it) }
         put("bikeCarriage", options.bikeCarriage)
-        put("deutschlandTicketVorhanden", options.deutschlandTicketOwned)
+        put(
+            "deutschlandTicketVorhanden",
+            options.deutschlandTicketOwned || options.deutschlandTicketConnectionsOnly,
+        )
         put("nurDeutschlandTicketVerbindungen", options.deutschlandTicketConnectionsOnly)
         put("schnelleVerbindungen", options.fastRoutesOnly)
         put("sitzplatzOnly", false)

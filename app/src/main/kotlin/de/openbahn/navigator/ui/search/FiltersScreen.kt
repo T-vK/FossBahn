@@ -86,9 +86,6 @@ fun FiltersScreen(
             ToggleRow(stringResource(R.string.filter_dticket_only), options.deutschlandTicketConnectionsOnly) {
                 viewModel.setDeutschlandTicketConnectionsOnly(it)
             }
-            ToggleRow(stringResource(R.string.filter_dticket_owned), options.deutschlandTicketOwned) {
-                viewModel.updateOptions(options.copy(deutschlandTicketOwned = it))
-            }
             ToggleRow(stringResource(R.string.filter_fast_routes), options.fastRoutesOnly) {
                 viewModel.updateOptions(options.copy(fastRoutesOnly = it))
             }
