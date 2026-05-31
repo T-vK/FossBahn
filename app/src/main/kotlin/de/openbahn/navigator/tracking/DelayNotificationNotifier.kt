@@ -23,19 +23,11 @@ class DelayNotificationNotifier(private val context: Context) {
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        val notification = NotificationCompat.Builder(
-            context,
-            OpenBahnApplication.CHANNEL_DELAY_ALERTS,
-        )
+        val notification = NotificationCompat.Builder(context, OpenBahnApplication.CHANNEL_DELAY_ALERTS)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(R.string.delay_notification_title))
             .setContentText(
-                context.getString(
-                    R.string.delay_notification_body,
-                    from,
-                    to,
-                    delayMinutes,
-                ),
+                context.getString(R.string.delay_notification_body, from, to, delayMinutes),
             )
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)

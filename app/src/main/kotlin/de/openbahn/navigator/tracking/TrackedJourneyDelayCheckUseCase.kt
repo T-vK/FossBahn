@@ -4,10 +4,6 @@ import de.openbahn.navigator.data.TrackedJourneyRepository
 import de.openbahn.navigator.data.UserPreferencesRepository
 import kotlinx.coroutines.flow.first
 
-/**
- * Refreshes all tracked journeys and posts delay alerts when thresholds are met.
- * Used by [DelayTrackingWorker] and [JourneyTrackingForegroundService].
- */
 class TrackedJourneyDelayCheckUseCase(
     private val repository: TrackedJourneyRepository,
     private val refreshUseCase: TrackedJourneyRefreshUseCase,

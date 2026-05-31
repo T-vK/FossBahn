@@ -38,7 +38,6 @@ class DelayTrackingWorker(
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
 
-        /** Ensures periodic background checks; does not trigger an immediate refresh. */
         fun schedule(context: Context) {
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORK_NAME_PERIODIC,
@@ -49,7 +48,6 @@ class DelayTrackingWorker(
             )
         }
 
-        /** Runs a refresh soon (e.g. after the user starts tracking). */
         fun runOnce(context: Context) {
             WorkManager.getInstance(context).enqueueUniqueWork(
                 WORK_NAME_ONCE,

@@ -36,6 +36,14 @@ class SettingsViewModel(
                 de.openbahn.navigator.tracking.DelayNotificationPolicy.DEFAULT_INCREMENT_MINUTES,
             )
 
+    val nearDepartureCheckIntervalSeconds: StateFlow<Int> =
+        userPreferences.nearDepartureCheckIntervalSeconds
+            .stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5_000),
+                UserPreferencesRepository.DEFAULT_NEAR_DEPARTURE_CHECK_SECONDS,
+            )
+
     fun setAppLanguage(language: AppLanguage, onApplied: () -> Unit = {}) {
         viewModelScope.launch {
             userPreferences.setAppLanguage(language)
@@ -59,6 +67,12 @@ class SettingsViewModel(
     fun setDelayNotificationIncrementMinutes(minutes: Int) {
         viewModelScope.launch {
             userPreferences.setDelayNotificationIncrementMinutes(minutes)
+        }
+    }
+
+    fun setNearDepartureCheckIntervalSeconds(seconds: Int) {
+        viewModelScope.launch {
+            userPreferences.setNearDepartureCheckIntervalSeconds(seconds)
         }
     }
 }

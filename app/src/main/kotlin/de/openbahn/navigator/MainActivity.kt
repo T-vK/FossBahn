@@ -141,6 +141,13 @@ class MainActivity : AppCompatActivity() {
                         composable(Routes.TRACKING) {
                             TrackingScreen(
                                 onOpenJourneyDetail = { navController.navigate(Routes.JOURNEY_DETAIL) },
+                                onShowAlternatives = {
+                                    navController.navigate(Routes.SEARCH) {
+                                        popUpTo(Routes.SEARCH) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                },
                             )
                         }
                         composable(Routes.JOURNEY_DETAIL) { entry ->
@@ -149,9 +156,7 @@ class MainActivity : AppCompatActivity() {
                                 JourneyDetailScreen(
                                     payload = payload,
                                     onBack = { navController.popBackStack() },
-                                    onTrack = {
-                                        searchViewModel.trackJourney(payload.journey, context)
-                                    },
+                                    onTrack = { searchViewModel.trackJourney(payload.journey) },
                                 )
                             } else {
                                 LaunchedEffect(Unit) {

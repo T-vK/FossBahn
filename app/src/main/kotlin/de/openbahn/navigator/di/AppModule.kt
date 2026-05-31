@@ -14,15 +14,16 @@ import de.openbahn.navigator.data.UserPreferencesRepository
 import de.openbahn.navigator.domain.JourneySearchRepository
 import de.openbahn.navigator.domain.JourneySearchUseCase
 import de.openbahn.navigator.domain.PredictionUseCase
+import de.openbahn.navigator.location.DeviceLocationProvider
+import de.openbahn.navigator.tracking.DelayNotificationNotifier
+import de.openbahn.navigator.tracking.JourneyTrackingCoordinator
+import de.openbahn.navigator.tracking.TrackedJourneyDelayCheckUseCase
+import de.openbahn.navigator.tracking.TrackedJourneyRefreshUseCase
 import de.openbahn.navigator.ui.board.StationBoardViewModel
 import de.openbahn.navigator.ui.favorites.FavoritesViewModel
 import de.openbahn.navigator.ui.search.SearchViewModel
 import de.openbahn.navigator.ui.settings.SettingsViewModel
 import de.openbahn.navigator.ui.tickets.TicketsViewModel
-import de.openbahn.navigator.tracking.DelayNotificationNotifier
-import de.openbahn.navigator.tracking.JourneyTrackingCoordinator
-import de.openbahn.navigator.tracking.TrackedJourneyDelayCheckUseCase
-import de.openbahn.navigator.tracking.TrackedJourneyRefreshUseCase
 import de.openbahn.navigator.ui.tracking.TrackingViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
@@ -51,14 +52,15 @@ val appModule = module {
     single { DelayNotificationNotifier(androidContext()) }
     single { TrackedJourneyRefreshUseCase(get(), get()) }
     single { TrackedJourneyDelayCheckUseCase(get(), get(), get(), get()) }
+    single { DeviceLocationProvider(androidContext(), get<JourneySearchRepository>()) }
     single<JourneySearchRepository> { JourneySearchUseCase(get(), get()) }
     single { PredictionUseCase(get()) }
     viewModel {
-        SearchViewModel(get(), get(), get(), get(), get(), get(), androidContext())
+        SearchViewModel(get(), get(), get(), get(), get(), get(), get(), androidContext())
     }
     viewModel { FavoritesViewModel(get(), get(), get()) }
     viewModel { StationBoardViewModel(get()) }
     viewModel { TicketsViewModel(get()) }
-    viewModel { TrackingViewModel(get(), get(), get(), get(), androidContext()) }
+    viewModel { TrackingViewModel(get(), get(), get(), get(), get(), get(), androidContext()) }
     viewModel { SettingsViewModel(get()) }
 }

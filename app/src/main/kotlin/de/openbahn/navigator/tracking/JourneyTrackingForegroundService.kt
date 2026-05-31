@@ -12,20 +12,19 @@ import de.openbahn.navigator.MainActivity
 import de.openbahn.navigator.OpenBahnApplication
 import de.openbahn.navigator.R
 import de.openbahn.navigator.data.TrackedJourneyRepository
+import de.openbahn.navigator.data.UserPreferencesRepository
+import de.openbahn.navigator.ui.util.parseJourneyDateTime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.koin.java.KoinJavaComponent.getKoin
 
-/**
- * Foreground service so delay checks keep running when the app is in the background.
- * Android may defer [DelayTrackingWorker] alone under battery saver / Doze.
- */
 class JourneyTrackingForegroundService : Service() {
 
     private val serviceJob = SupervisorJob()
@@ -53,26 +52,29 @@ class JourneyTrackingForegroundService : Service() {
     private suspend fun runTrackingLoop() {
         val repository = getKoin().get<TrackedJourneyRepository>()
         val delayCheck = getKoin().get<TrackedJourneyDelayCheckUseCase>()
+        val userPreferences = getKoin().get<UserPreferencesRepository>()
         while (serviceScope.isActive) {
-            val activeCount = repository.getActiveForWorker().size
-            if (activeCount == 0) break
-            updateForegroundNotification(activeCount)
+            val active = repository.getActiveForWorker()
+            if (active.isEmpty()) break
+            updateForegroundNotification(active.size)
             try {
                 delayCheck.run()
             } catch (e: Exception) {
                 OpenBahnDebugLog.w(TAG, "tracking cycle failed: ${e.message}")
             }
-            delay(CHECK_INTERVAL_MS)
-            if (repository.getActiveForWorker().isEmpty()) break
+            val departures = active.mapNotNull { parseJourneyDateTime(it.departureIso) }
+            val nearInterval = userPreferences.nearDepartureCheckIntervalSeconds.first()
+            val waitMs = TrackingRefreshPolicy.delayUntilNextCheckMillis(
+                departureTimes = departures,
+                nearDepartureIntervalSeconds = nearInterval,
+            )
+            delay(waitMs)
         }
     }
 
     private fun updateForegroundNotification(trackedCount: Int) {
         val manager = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
-        manager.notify(
-            NOTIFICATION_ID,
-            buildForegroundNotification(trackedCount),
-        )
+        manager.notify(NOTIFICATION_ID, buildForegroundNotification(trackedCount))
     }
 
     private fun buildForegroundNotification(trackedCount: Int?): Notification {
@@ -105,12 +107,11 @@ class JourneyTrackingForegroundService : Service() {
     companion object {
         private const val TAG = "JourneyTrackingFgService"
         private const val NOTIFICATION_ID = 1001
-        private const val CHECK_INTERVAL_MS = 5 * 60 * 1000L
 
         fun start(context: Context) {
-            val appContext = context.applicationContext
-            val intent = Intent(appContext, JourneyTrackingForegroundService::class.java)
-            appContext.startForegroundService(intent)
+            context.applicationContext.startForegroundService(
+                Intent(context.applicationContext, JourneyTrackingForegroundService::class.java),
+            )
         }
 
         fun stop(context: Context) {

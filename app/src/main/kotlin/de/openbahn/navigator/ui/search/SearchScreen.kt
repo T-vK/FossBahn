@@ -20,7 +20,14 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.material3.TextButton
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -66,6 +73,19 @@ fun SearchScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val listState = rememberLazyListState()
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { }
+
+    fun requestLocationThen(action: () -> Unit) {
+        locationPermissionLauncher.launch(
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION,
+            ),
+        )
+        action()
+    }
 
     LaunchedEffect(state.scrollToResultsToken) {
         if (state.scrollToResultsToken == 0L) return@LaunchedEffect
@@ -106,16 +126,14 @@ fun SearchScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item(key = "from_field") {
-                OutlinedTextField(
+                SearchLocationField(
                     value = state.fromQuery,
                     onValueChange = viewModel::setFromQuery,
-                    label = { Text(stringResource(R.string.from)) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("search_from")
-                        .onFocusChanged { viewModel.onFromFocusChanged(it.isFocused) },
-                    singleLine = true,
-                    trailingIcon = {
+                    label = stringResource(R.string.from),
+                    onFocusChanged = viewModel::onFromFocusChanged,
+                    onUseCurrentLocation = { requestLocationThen { viewModel.useCurrentLocationForFrom() } },
+                    testTag = "search_from",
+                    leadingTrailing = {
                         IconButton(onClick = {
                             val from = state.from
                             val to = state.to
@@ -148,16 +166,65 @@ fun SearchScreen(
                 }
             }
             item(key = "to_field") {
-                OutlinedTextField(
+                SearchLocationField(
                     value = state.toQuery,
                     onValueChange = viewModel::setToQuery,
-                    label = { Text(stringResource(R.string.to)) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("search_to")
-                        .onFocusChanged { viewModel.onToFocusChanged(it.isFocused) },
-                    singleLine = true,
+                    label = stringResource(R.string.to),
+                    onFocusChanged = viewModel::onToFocusChanged,
+                    onUseCurrentLocation = { requestLocationThen { viewModel.useCurrentLocationForTo() } },
+                    testTag = "search_to",
                 )
+            }
+            item(key = "via_toggle") {
+                TextButton(onClick = viewModel::toggleViaStopsEditor) {
+                    Text(
+                        if (state.showViaStopsEditor) {
+                            stringResource(R.string.search_hide_via_stops)
+                        } else {
+                            stringResource(R.string.search_add_via_stop)
+                        },
+                    )
+                }
+            }
+            if (state.showViaStopsEditor) {
+                state.viaStops.forEachIndexed { index, via ->
+                    item(key = "via_field_$index") {
+                        SearchLocationField(
+                            value = via.query,
+                            onValueChange = { viewModel.setViaQuery(index, it) },
+                            label = stringResource(R.string.search_via_stop, index + 1),
+                            onFocusChanged = { focused -> viewModel.onViaFocusChanged(index, focused) },
+                            onUseCurrentLocation = {
+                                requestLocationThen { viewModel.useCurrentLocationForVia(index) }
+                            },
+                            testTag = "search_via_$index",
+                            leadingTrailing = {
+                                IconButton(onClick = { viewModel.removeViaStop(index) }) {
+                                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.remove))
+                                }
+                            },
+                        )
+                    }
+                }
+                if (state.activeViaIndex != null && state.viaSuggestions.isNotEmpty()) {
+                    item(key = "via_suggestions") {
+                        SuggestionList(
+                            suggestions = state.viaSuggestions,
+                            favoriteKeys = state.favoriteLocationKeys,
+                            showSectionHeaders = false,
+                            onSelect = { loc -> viewModel.selectVia(state.activeViaIndex!!, loc) },
+                            onToggleFavorite = viewModel::toggleFavoriteLocation,
+                        )
+                    }
+                }
+                item(key = "via_add") {
+                    TextButton(onClick = viewModel::addViaStop) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Add, contentDescription = null)
+                            Text(stringResource(R.string.search_add_another_via))
+                        }
+                    }
+                }
             }
             if (state.activeLocationField == ActiveLocationField.TO && state.toSuggestions.isNotEmpty()) {
                 item(key = "to_suggestions") {
@@ -255,7 +322,7 @@ fun SearchScreen(
                         predictionsRequested = predictionsRequested,
                         minTransferMinutes = minTransferMinutes,
                         onOpenDetail = onOpenJourneyDetail,
-                        onTrack = { viewModel.trackJourney(ratedJourney.journey, context) },
+                        onTrack = { viewModel.trackJourney(ratedJourney.journey) },
                     )
                 }
             } else {
@@ -271,7 +338,7 @@ fun SearchScreen(
                             )
                             onOpenJourneyDetail()
                         },
-                        onTrack = { viewModel.trackJourney(journey, context) },
+                        onTrack = { viewModel.trackJourney(journey) },
                     )
                 }
             }

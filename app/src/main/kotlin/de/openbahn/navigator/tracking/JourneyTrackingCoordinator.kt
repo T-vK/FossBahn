@@ -7,10 +7,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
-/**
- * Keeps background delay monitoring alive while journeys are tracked:
- * WorkManager (periodic backup) + foreground service (reliable checks).
- */
 class JourneyTrackingCoordinator(
     private val context: Context,
     private val repository: Lazy<TrackedJourneyRepository>,

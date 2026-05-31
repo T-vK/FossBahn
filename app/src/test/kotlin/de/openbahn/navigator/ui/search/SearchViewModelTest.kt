@@ -14,6 +14,7 @@ import de.openbahn.navigator.data.TrackedJourneyRepository
 import de.openbahn.navigator.data.UserPreferencesRepository
 import android.app.Application
 import de.openbahn.navigator.domain.JourneySearchRepository
+import de.openbahn.navigator.location.DeviceLocationProvider
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -60,6 +61,7 @@ class SearchViewModelTest {
     private val userPreferences = mockk<UserPreferencesRepository>(relaxed = true)
     private val favoriteRoutes = mockk<FavoriteRouteRepository>(relaxed = true)
     private val pendingSearch = PendingSearchRepository()
+    private val deviceLocation = mockk<DeviceLocationProvider>(relaxed = true)
     private val appContext = mockk<Application>(relaxed = true)
 
     @BeforeEach
@@ -105,6 +107,7 @@ class SearchViewModelTest {
         userPreferences,
         favoriteRoutes,
         pendingSearch,
+        deviceLocation,
         appContext,
     )
 

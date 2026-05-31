@@ -11,6 +11,9 @@ import de.openbahn.model.Journey
 import de.openbahn.model.JourneySearchOptions
 import de.openbahn.model.Location
 import de.openbahn.model.RatedJourney
+import de.openbahn.model.ViaStop
+import de.openbahn.navigator.data.AlternativesSearchRequest
+import de.openbahn.navigator.location.DeviceLocationProvider
 import de.openbahn.navigator.data.FavoriteRoute
 import de.openbahn.navigator.data.FavoriteRouteRepository
 import de.openbahn.navigator.data.LocationHistoryRepository
@@ -23,6 +26,7 @@ import android.content.Context
 import de.openbahn.navigator.data.UserPreferencesRepository
 import de.openbahn.navigator.locale.AppLanguage
 import de.openbahn.navigator.domain.JourneySearchRepository
+import de.openbahn.navigator.tracking.DelayTrackingWorker
 import java.io.IOException
 import java.time.LocalDateTime
 import kotlinx.coroutines.Job
@@ -67,6 +71,10 @@ data class SearchUiState(
     val punctualityToleranceMinutes: Int = JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES,
     /** Incremented when a new search returns results; UI scrolls to the first connection. */
     val scrollToResultsToken: Long = 0L,
+    val viaStops: List<ViaStopField> = emptyList(),
+    val showViaStopsEditor: Boolean = false,
+    val activeViaIndex: Int? = null,
+    val viaSuggestions: List<Location> = emptyList(),
 )
 
 class SearchViewModel(
@@ -76,6 +84,7 @@ class SearchViewModel(
     private val userPreferences: UserPreferencesRepository,
     private val favoriteRoutes: FavoriteRouteRepository,
     private val pendingSearch: PendingSearchRepository,
+    private val deviceLocation: DeviceLocationProvider,
     private val appContext: Context,
 ) : ViewModel() {
 
@@ -107,6 +116,14 @@ class SearchViewModel(
                 if (route != null) {
                     pendingSearch.consume()
                     applyFavoriteRoute(route)
+                }
+            }
+        }
+        viewModelScope.launch {
+            pendingSearch.pendingAlternatives.collect { request ->
+                if (request != null) {
+                    pendingSearch.consumeAlternatives()
+                    applyAlternativesSearch(request)
                 }
             }
         }
@@ -308,19 +325,189 @@ class SearchViewModel(
         viewModelScope.launch { loadMore(pagingReference = token, earlier = false) }
     }
 
-    fun trackJourney(journey: Journey, context: android.content.Context) {
-        val from = _state.value.from?.name ?: return
-        val to = _state.value.to?.name ?: return
+    fun trackJourney(journey: Journey) {
+        val from = _state.value.from ?: return
+        val to = _state.value.to ?: return
         viewModelScope.launch {
-            trackingRepository.track(journey, from, to)
+            trackingRepository.track(
+                journey = journey,
+                fromName = from.name,
+                toName = to.name,
+                fromLocation = from,
+                toLocation = to,
+            )
         }
     }
 
+    fun toggleViaStopsEditor() {
+        _state.update { state ->
+            val show = !state.showViaStopsEditor
+            state.copy(
+                showViaStopsEditor = show,
+                viaStops = if (show && state.viaStops.isEmpty()) listOf(ViaStopField()) else state.viaStops,
+                activeViaIndex = null,
+                viaSuggestions = emptyList(),
+            )
+        }
+    }
+
+    fun addViaStop() {
+        _state.update { it.copy(viaStops = it.viaStops + ViaStopField()) }
+    }
+
+    fun removeViaStop(index: Int) {
+        _state.update { state ->
+            state.copy(
+                viaStops = state.viaStops.filterIndexed { i, _ -> i != index },
+                activeViaIndex = if (state.activeViaIndex == index) null else state.activeViaIndex,
+                viaSuggestions = emptyList(),
+            )
+        }
+    }
+
+    fun setViaQuery(index: Int, query: String) {
+        _state.update { state ->
+            val stops = state.viaStops.toMutableList()
+            if (index !in stops.indices) return@update state
+            val current = stops[index]
+            val keep = current.location?.name.equals(query, ignoreCase = true)
+            stops[index] = current.copy(query = query, location = if (keep) current.location else null)
+            state.copy(
+                viaStops = stops,
+                activeViaIndex = index,
+                activeLocationField = ActiveLocationField.NONE,
+                fromSuggestions = emptyList(),
+                toSuggestions = emptyList(),
+            )
+        }
+        loadViaSuggestions(index, query)
+    }
+
+    fun onViaFocusChanged(index: Int, focused: Boolean) {
+        if (focused) {
+            _state.update {
+                it.copy(
+                    activeViaIndex = index,
+                    activeLocationField = ActiveLocationField.NONE,
+                    fromSuggestions = emptyList(),
+                    toSuggestions = emptyList(),
+                )
+            }
+            val query = _state.value.viaStops.getOrNull(index)?.query.orEmpty()
+            refreshViaSuggestions(index, query)
+        } else if (_state.value.activeViaIndex == index) {
+            _state.update { it.copy(activeViaIndex = null, viaSuggestions = emptyList()) }
+        }
+    }
+
+    fun selectVia(index: Int, location: Location) {
+        _state.update { state ->
+            val stops = state.viaStops.toMutableList()
+            if (index !in stops.indices) return@update state
+            stops[index] = stops[index].copy(location = location, query = location.name)
+            state.copy(
+                viaStops = stops,
+                viaSuggestions = emptyList(),
+                activeViaIndex = null,
+            )
+        }
+        viewModelScope.launch { locationHistory.recordUsed(location) }
+    }
+
+    fun useCurrentLocationForFrom() {
+        viewModelScope.launch { resolveCurrentLocation { selectFrom(it) } }
+    }
+
+    fun useCurrentLocationForTo() {
+        viewModelScope.launch { resolveCurrentLocation { selectTo(it) } }
+    }
+
+    fun useCurrentLocationForVia(index: Int) {
+        viewModelScope.launch {
+            resolveCurrentLocation { location -> selectVia(index, location) }
+        }
+    }
+
+    private suspend fun resolveCurrentLocation(onResolved: (Location) -> Unit) {
+        if (!deviceLocation.hasLocationPermission()) {
+            _state.update { it.copy(error = "error_location_permission") }
+            return
+        }
+        val location = deviceLocation.resolveCurrentStation(_state.value.locale)
+        if (location != null) {
+            onResolved(location)
+        } else {
+            _state.update { it.copy(error = "error_location_unavailable") }
+        }
+    }
+
+    private fun applyAlternativesSearch(request: AlternativesSearchRequest) {
+        _state.update {
+            it.copy(
+                from = request.from,
+                to = request.to,
+                fromQuery = request.from.name,
+                toQuery = request.to.name,
+                departureTime = request.departureTime,
+                options = it.options.copy(arrivalSearch = request.arrivalSearch),
+                viaStops = emptyList(),
+                showViaStopsEditor = false,
+            )
+        }
+        search()
+    }
+
+    private fun searchOptionsWithVia(): JourneySearchOptions {
+        val state = _state.value
+        return state.options.copy(
+            locale = state.locale,
+            viaStops = state.viaStops.mapNotNull { field ->
+                field.location?.let { loc -> ViaStop(locationId = loc.id) }
+            },
+        )
+    }
+
     private fun refreshInstantSuggestions() {
+        val viaIndex = _state.value.activeViaIndex
+        if (viaIndex != null) {
+            refreshViaSuggestions(viaIndex, _state.value.viaStops.getOrNull(viaIndex)?.query.orEmpty())
+            return
+        }
         when (_state.value.activeLocationField) {
             ActiveLocationField.FROM -> refreshSuggestionsFor(ActiveLocationField.FROM)
             ActiveLocationField.TO -> refreshSuggestionsFor(ActiveLocationField.TO)
             ActiveLocationField.NONE -> Unit
+        }
+    }
+
+    private fun loadViaSuggestions(index: Int, query: String) {
+        suggestJob?.cancel()
+        suggestJob = viewModelScope.launch {
+            val local = locationHistory.rankedForAutocomplete(query)
+                .excludingStations(_state.value, excludeViaIndex = index)
+                .take(8)
+            applyViaSuggestions(index, local)
+            if (query.length < 2) return@launch
+            delay(300)
+            if (_state.value.activeViaIndex != index) return@launch
+            val api = searchUseCase.searchLocations(query, _state.value.locale)
+                .excludingStations(_state.value, excludeViaIndex = index)
+            applyViaSuggestions(index, mergeWithApiResults(local, api, query))
+        }
+    }
+
+    private fun refreshViaSuggestions(index: Int, query: String) {
+        viewModelScope.launch {
+            val ranked = locationHistory.rankedForAutocomplete(query)
+                .excludingStations(_state.value, excludeViaIndex = index)
+            applyViaSuggestions(index, ranked)
+        }
+    }
+
+    private fun applyViaSuggestions(index: Int, suggestions: List<Location>) {
+        _state.update { state ->
+            if (state.activeViaIndex != index) state
+            else state.copy(viaSuggestions = suggestions.take(8))
         }
     }
 
@@ -395,7 +582,7 @@ class SearchViewModel(
         prepend: Boolean = false,
     ) {
         try {
-            val options = _state.value.options.copy(locale = _state.value.locale)
+            val options = searchOptionsWithVia()
             val page = searchUseCase.searchJourneys(
                 from, to, options, _state.value.departureTime, pagingReference,
             )
@@ -556,14 +743,22 @@ class SearchViewModel(
     private fun List<Location>.excludingOppositeStation(
         field: ActiveLocationField,
         state: SearchUiState,
+    ): List<Location> = excludingStations(state, excludeField = field)
+
+    private fun List<Location>.excludingStations(
+        state: SearchUiState,
+        excludeField: ActiveLocationField? = null,
+        excludeViaIndex: Int? = null,
     ): List<Location> {
-        val other = when (field) {
-            ActiveLocationField.FROM -> state.to
-            ActiveLocationField.TO -> state.from
-            ActiveLocationField.NONE -> return this
-        } ?: return this
-        val otherKey = other.stableKey()
-        return filter { it.stableKey() != otherKey }
+        val blocked = buildSet {
+            if (excludeField != ActiveLocationField.FROM) state.from?.stableKey()?.let { add(it) }
+            if (excludeField != ActiveLocationField.TO) state.to?.stableKey()?.let { add(it) }
+            state.viaStops.forEachIndexed { index, via ->
+                if (index != excludeViaIndex) via.location?.stableKey()?.let { add(it) }
+            }
+        }
+        if (blocked.isEmpty()) return this
+        return filter { it.stableKey() !in blocked }
     }
 
     private fun mergeWithApiResults(

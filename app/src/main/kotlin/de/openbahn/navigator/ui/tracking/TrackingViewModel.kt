@@ -3,12 +3,18 @@ package de.openbahn.navigator.ui.tracking
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import de.openbahn.model.Location
+import de.openbahn.navigator.data.AlternativesSearchRequest
+import de.openbahn.navigator.data.PendingSearchRepository
 import de.openbahn.navigator.data.TrackedJourneyRepository
 import de.openbahn.navigator.data.UserPreferencesRepository
 import de.openbahn.navigator.data.TrackedJourneyWithJourney
+import de.openbahn.navigator.domain.JourneySearchRepository
 import de.openbahn.navigator.tracking.BatteryOptimizationHelper
 import de.openbahn.navigator.tracking.JourneyTrackingCoordinator
 import de.openbahn.navigator.tracking.TrackedJourneyRefreshUseCase
+import de.openbahn.navigator.ui.util.parseJourneyDateTime
+import java.time.LocalDateTime
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,6 +26,8 @@ import kotlinx.coroutines.launch
 class TrackingViewModel(
     private val repository: TrackedJourneyRepository,
     private val refreshUseCase: TrackedJourneyRefreshUseCase,
+    private val searchRepository: JourneySearchRepository,
+    private val pendingSearch: PendingSearchRepository,
     private val trackingCoordinator: JourneyTrackingCoordinator,
     private val userPreferences: UserPreferencesRepository,
     private val appContext: Context,
@@ -69,6 +77,37 @@ class TrackingViewModel(
         viewModelScope.launch {
             userPreferences.setBatteryOptimizationPromptDismissed(true)
         }
+    }
+
+    fun openAlternatives(trackedId: String, onNavigateToSearch: () -> Unit) {
+        viewModelScope.launch {
+            val item = repository.findActiveWithJourney(trackedId) ?: return@launch
+            val from = repository.decodeLocation(item.entity.fromLocationJson)
+                ?: resolveByName(item.entity.fromName)
+                ?: return@launch
+            val to = repository.decodeLocation(item.entity.toLocationJson)
+                ?: resolveByName(item.entity.toName)
+                ?: return@launch
+            val departure = repository.departureDateTime(item.entity)
+                ?: parseJourneyDateTime(item.journey.departure)
+                ?: LocalDateTime.now()
+            pendingSearch.scheduleAlternatives(
+                AlternativesSearchRequest(
+                    from = from,
+                    to = to,
+                    departureTime = departure,
+                    arrivalSearch = false,
+                ),
+            )
+            onNavigateToSearch()
+        }
+    }
+
+    private suspend fun resolveByName(name: String): Location? {
+        val locale = "de"
+        return searchRepository.searchLocations(name, locale)
+            .firstOrNull { it.name.equals(name, ignoreCase = true) }
+            ?: searchRepository.searchLocations(name, locale).firstOrNull()
     }
 
     companion object {

@@ -35,6 +35,7 @@ fun SettingsScreen(
     val punctualityTolerance by viewModel.punctualityToleranceMinutes.collectAsState()
     val deutschlandTicketOnly by viewModel.deutschlandTicketConnectionsOnly.collectAsState()
     val delayNotificationIncrement by viewModel.delayNotificationIncrementMinutes.collectAsState()
+    val nearDepartureCheckSeconds by viewModel.nearDepartureCheckIntervalSeconds.collectAsState()
     val activity = LocalContext.current as? AppCompatActivity
 
     Scaffold(
@@ -85,6 +86,13 @@ fun SettingsScreen(
                 onSelect = { minutes ->
                     if (minutes == delayNotificationIncrement) return@DelayNotificationIncrementSection
                     viewModel.setDelayNotificationIncrementMinutes(minutes)
+                },
+            )
+            NearDepartureCheckIntervalSection(
+                selectedSeconds = nearDepartureCheckSeconds,
+                onSelect = { seconds ->
+                    if (seconds == nearDepartureCheckSeconds) return@NearDepartureCheckIntervalSection
+                    viewModel.setNearDepartureCheckIntervalSeconds(seconds)
                 },
             )
         }

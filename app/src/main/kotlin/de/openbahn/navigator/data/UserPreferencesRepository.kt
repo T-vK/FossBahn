@@ -44,6 +44,12 @@ class UserPreferencesRepository(private val context: Context) {
             ?: DelayNotificationPolicy.DEFAULT_INCREMENT_MINUTES
     }
 
+    /** How often to refresh tracked journeys when departure is under 20 minutes away. */
+    val nearDepartureCheckIntervalSeconds: Flow<Int> = dataStore.data.map { prefs ->
+        prefs[KEY_NEAR_DEPARTURE_CHECK_SECONDS]?.coerceIn(5, 120)
+            ?: DEFAULT_NEAR_DEPARTURE_CHECK_SECONDS
+    }
+
     val batteryOptimizationPromptDismissed: Flow<Boolean> = dataStore.data.map {
         it[KEY_BATTERY_OPTIMIZATION_DISMISSED] ?: false
     }
@@ -63,6 +69,12 @@ class UserPreferencesRepository(private val context: Context) {
     suspend fun setDelayNotificationIncrementMinutes(minutes: Int) {
         dataStore.edit {
             it[KEY_DELAY_NOTIFICATION_INCREMENT] = minutes.coerceIn(1, 60)
+        }
+    }
+
+    suspend fun setNearDepartureCheckIntervalSeconds(seconds: Int) {
+        dataStore.edit {
+            it[KEY_NEAR_DEPARTURE_CHECK_SECONDS] = seconds.coerceIn(5, 120)
         }
     }
 
@@ -87,7 +99,10 @@ class UserPreferencesRepository(private val context: Context) {
         private val KEY_APP_LANGUAGE = stringPreferencesKey("app_language")
         private val KEY_PUNCTUALITY_TOLERANCE = intPreferencesKey("punctuality_tolerance_minutes")
         private val KEY_DELAY_NOTIFICATION_INCREMENT = intPreferencesKey("delay_notification_increment_minutes")
+        private val KEY_NEAR_DEPARTURE_CHECK_SECONDS = intPreferencesKey("near_departure_check_seconds")
         private val KEY_BATTERY_OPTIMIZATION_DISMISSED =
             booleanPreferencesKey("battery_optimization_prompt_dismissed")
+
+        const val DEFAULT_NEAR_DEPARTURE_CHECK_SECONDS = 5
     }
 }

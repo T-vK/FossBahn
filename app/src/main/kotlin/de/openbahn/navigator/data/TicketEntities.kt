@@ -73,6 +73,8 @@ data class TrackedJourneyEntity(
     val departureIso: String,
     val refreshToken: String?,
     val journeyJson: String,
+    val fromLocationJson: String? = null,
+    val toLocationJson: String? = null,
     /** Last delay (minutes) we alerted for; null until the first notification. */
     val lastNotifiedDelayMinutes: Int? = null,
     val active: Boolean,

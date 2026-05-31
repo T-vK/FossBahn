@@ -1,11 +1,12 @@
 package de.openbahn.navigator.data
 
+import androidx.room.withTransaction
 import de.openbahn.model.Journey
+import de.openbahn.model.Location
+import de.openbahn.navigator.tracking.JourneyTrackingCoordinator
 import de.openbahn.navigator.ui.util.isIsoLongArrived
 import de.openbahn.navigator.ui.util.isJourneyLongArrived
-import androidx.room.withTransaction
-import de.openbahn.navigator.data.OpenBahnDatabase
-import de.openbahn.navigator.tracking.JourneyTrackingCoordinator
+import de.openbahn.navigator.ui.util.parseJourneyDateTime
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
@@ -27,7 +28,13 @@ class TrackedJourneyRepository(
         }
     }
 
-    suspend fun track(journey: Journey, fromName: String, toName: String) {
+    suspend fun track(
+        journey: Journey,
+        fromName: String,
+        toName: String,
+        fromLocation: Location? = null,
+        toLocation: Location? = null,
+    ) {
         if (isJourneyLongArrived(journey)) return
         val entity = TrackedJourneyEntity(
             id = journey.id,
@@ -36,6 +43,8 @@ class TrackedJourneyRepository(
             departureIso = journey.departure,
             refreshToken = journey.refreshToken,
             journeyJson = Json.encodeToString(journey),
+            fromLocationJson = fromLocation?.let { Json.encodeToString(it) },
+            toLocationJson = toLocation?.let { Json.encodeToString(it) },
             lastNotifiedDelayMinutes = null,
             active = true,
         )
@@ -44,7 +53,7 @@ class TrackedJourneyRepository(
     }
 
     suspend fun updateLastNotifiedDelay(id: String, delayMinutes: Int) {
-        val active = dao.getActive().firstOrNull { it.id == id } ?: return
+        val active = dao.getActiveById(id) ?: return
         dao.upsert(active.copy(lastNotifiedDelayMinutes = delayMinutes))
     }
 
@@ -70,6 +79,9 @@ class TrackedJourneyRepository(
         return TrackedJourneyWithJourney(entity = entity, journey = journey)
     }
 
+    fun decodeLocation(json: String?): Location? =
+        json?.let { runCatching { Json.decodeFromString<Location>(it) }.getOrNull() }
+
     suspend fun updateJourney(id: String, journey: Journey) {
         val active = dao.getActiveById(id) ?: return
         dao.upsert(
@@ -81,7 +93,6 @@ class TrackedJourneyRepository(
         )
     }
 
-    /** Refreshes many journeys in one transaction so the UI list updates once. */
     suspend fun updateJourneys(updates: Map<String, Journey>) {
         if (updates.isEmpty()) return
         database.withTransaction {
@@ -103,6 +114,9 @@ class TrackedJourneyRepository(
             if (arrived) dao.deactivate(entity.id)
         }
     }
+
+    fun departureDateTime(entity: TrackedJourneyEntity): java.time.LocalDateTime? =
+        parseJourneyDateTime(entity.departureIso)
 }
 
 data class TrackedJourneyWithJourney(
