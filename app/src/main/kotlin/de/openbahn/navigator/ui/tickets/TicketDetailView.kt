@@ -8,8 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -115,18 +115,37 @@ private fun PdfTicketPages(pdfUri: String) {
             }
         }
         else -> {
-            ZoomableTicketContent {
-                LazyColumn(
+            val renderedPages = pages!!
+            if (renderedPages.size == 1) {
+                ZoomableTicketContent(Modifier.fillMaxSize()) {
+                    Image(
+                        bitmap = renderedPages.single(),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Fit,
+                    )
+                }
+            } else {
+                val scrollState = rememberScrollState()
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scrollState),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth(),
                 ) {
-                    itemsIndexed(pages!!, key = { index, _ -> index }) { _, page ->
-                        Image(
-                            bitmap = page,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxWidth(),
-                            contentScale = ContentScale.FillWidth,
-                        )
+                    renderedPages.forEach { page ->
+                        ZoomableTicketContent(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 280.dp),
+                        ) {
+                            Image(
+                                bitmap = page,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxWidth(),
+                                contentScale = ContentScale.FillWidth,
+                            )
+                        }
                     }
                 }
             }

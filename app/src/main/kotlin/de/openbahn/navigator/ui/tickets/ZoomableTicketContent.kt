@@ -1,7 +1,7 @@
 package de.openbahn.navigator.ui.tickets
 
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -15,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.detectTapGestures
 
 @Composable
 fun ZoomableTicketContent(
@@ -24,10 +23,7 @@ fun ZoomableTicketContent(
 ) {
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
-    val transformState = rememberTransformableState { zoomChange, panChange, _ ->
-        scale = (scale * zoomChange).coerceIn(1f, 6f)
-        offset += panChange
-    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -37,15 +33,28 @@ fun ZoomableTicketContent(
                     offset = Offset.Zero
                 })
             }
-            .transformable(state = transformState)
-            .graphicsLayer {
+            .pointerInput(Unit) {
+                detectTransformGestures { _, pan, zoom, _ ->
+                    val newScale = (scale * zoom).coerceIn(1f, 6f)
+                    scale = newScale
+                    if (newScale > 1.01f) {
+                        offset += pan
+                    } else {
+                        offset = Offset.Zero
+                    }
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier.graphicsLayer {
                 scaleX = scale
                 scaleY = scale
                 translationX = offset.x
                 translationY = offset.y
             },
-        contentAlignment = Alignment.TopCenter,
-    ) {
-        content()
+        ) {
+            content()
+        }
     }
 }
