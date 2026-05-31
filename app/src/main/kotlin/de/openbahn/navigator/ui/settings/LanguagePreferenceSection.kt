@@ -2,7 +2,6 @@ package de.openbahn.navigator.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -41,10 +40,7 @@ private fun LanguageChipRow(
     selected: AppLanguage,
     onSelect: (AppLanguage) -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
+    SettingsFilterChipFlow {
         FilterChip(
             selected = selected == AppLanguage.SYSTEM,
             onClick = { onSelect(AppLanguage.SYSTEM) },
@@ -62,3 +58,4 @@ private fun LanguageChipRow(
         )
     }
 }
+

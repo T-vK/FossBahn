@@ -2,7 +2,6 @@ package de.openbahn.navigator.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -42,10 +41,7 @@ private fun NearDepartureCheckChipRow(
     onSelect: (Int) -> Unit,
 ) {
     val choices = listOf(5, 10, 15, 30, 60)
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
+    SettingsFilterChipFlow {
         choices.forEach { seconds ->
             FilterChip(
                 selected = selectedSeconds == seconds,
