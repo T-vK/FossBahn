@@ -1,26 +1,17 @@
 package de.openbahn.navigator.tracking
 
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
-import androidx.core.app.NotificationCompat
-import androidx.core.content.ContextCompat
+import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import de.openbahn.api.debug.OpenBahnDebugLog
-import de.openbahn.navigator.MainActivity
-import de.openbahn.navigator.OpenBahnApplication
-import de.openbahn.navigator.R
-import de.openbahn.navigator.data.TrackedJourneyRepository
-import de.openbahn.navigator.data.UserPreferencesRepository
 import java.util.concurrent.TimeUnit
-import kotlinx.coroutines.flow.first
 import org.koin.java.KoinJavaComponent.getKoin
 
 class DelayTrackingWorker(
@@ -30,29 +21,7 @@ class DelayTrackingWorker(
 
     override suspend fun doWork(): Result {
         return try {
-            val repo = getKoin().get<TrackedJourneyRepository>()
-            val refreshUseCase = getKoin().get<TrackedJourneyRefreshUseCase>()
-            val incrementMinutes = getKoin().get<UserPreferencesRepository>()
-                .delayNotificationIncrementMinutes
-                .first()
-
-            repo.pruneArrived()
-            val active = repo.getActiveForWorker()
-            if (active.isEmpty()) return Result.success()
-
-            active.forEach { tracked ->
-                val token = tracked.refreshToken?.takeIf { it.isNotBlank() }
-                if (token == null) {
-                    OpenBahnDebugLog.w(TAG, "skip ${tracked.id}: no refresh token")
-                    return@forEach
-                }
-                val delayMinutes = refreshUseCase.refreshAndCheckDelayNotification(
-                    entityId = tracked.id,
-                    refreshToken = token,
-                    notificationIncrementMinutes = incrementMinutes,
-                ) ?: return@forEach
-                notifyDelay(tracked.id, tracked.fromName, tracked.toName, delayMinutes)
-            }
+            getKoin().get<TrackedJourneyDelayCheckUseCase>().run()
             Result.success()
         } catch (e: Exception) {
             OpenBahnDebugLog.w(TAG, "doWork failed: ${e.message}")
@@ -60,57 +29,23 @@ class DelayTrackingWorker(
         }
     }
 
-    private fun notifyDelay(trackedJourneyId: String, from: String, to: String, delayMinutes: Int) {
-        if (!canPostNotifications()) return
-        val contentIntent = PendingIntent.getActivity(
-            applicationContext,
-            trackedJourneyId.hashCode(),
-            Intent(applicationContext, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra(TrackingNotificationIntent.EXTRA_TRACKED_JOURNEY_ID, trackedJourneyId)
-            },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        val notification = NotificationCompat.Builder(
-            applicationContext,
-            OpenBahnApplication.CHANNEL_DELAY_ALERTS,
-        )
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(applicationContext.getString(R.string.delay_notification_title))
-            .setContentText(
-                applicationContext.getString(
-                    R.string.delay_notification_body,
-                    from,
-                    to,
-                    delayMinutes,
-                ),
-            )
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
-            .setContentIntent(contentIntent)
-            .build()
-        applicationContext.getSystemService(NotificationManager::class.java)
-            .notify(trackedJourneyId.hashCode(), notification)
-    }
-
-    private fun canPostNotifications(): Boolean =
-        ContextCompat.checkSelfPermission(
-            applicationContext,
-            android.Manifest.permission.POST_NOTIFICATIONS,
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
-            android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU
-
     companion object {
         private const val TAG = "DelayTrackingWorker"
         private const val WORK_NAME_PERIODIC = "delay_tracking"
         private const val WORK_NAME_ONCE = "delay_tracking_once"
+
+        private fun networkConstraints(): Constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
 
         /** Ensures periodic background checks; does not trigger an immediate refresh. */
         fun schedule(context: Context) {
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORK_NAME_PERIODIC,
                 ExistingPeriodicWorkPolicy.KEEP,
-                PeriodicWorkRequestBuilder<DelayTrackingWorker>(15, TimeUnit.MINUTES).build(),
+                PeriodicWorkRequestBuilder<DelayTrackingWorker>(15, TimeUnit.MINUTES)
+                    .setConstraints(networkConstraints())
+                    .build(),
             )
         }
 
@@ -119,7 +54,9 @@ class DelayTrackingWorker(
             WorkManager.getInstance(context).enqueueUniqueWork(
                 WORK_NAME_ONCE,
                 ExistingWorkPolicy.REPLACE,
-                OneTimeWorkRequestBuilder<DelayTrackingWorker>().build(),
+                OneTimeWorkRequestBuilder<DelayTrackingWorker>()
+                    .setConstraints(networkConstraints())
+                    .build(),
             )
         }
     }

@@ -42,6 +42,7 @@ fun TrackingScreen(
 ) {
     val tracked by viewModel.tracked.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val showBatteryBanner by viewModel.showBatteryOptimizationBanner.collectAsState()
     val context = LocalContext.current
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -72,6 +73,12 @@ fun TrackingScreen(
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
             Text(stringResource(R.string.tracking_description), Modifier.padding(bottom = 16.dp))
+            if (showBatteryBanner) {
+                BatteryOptimizationBanner(
+                    onDismiss = { viewModel.dismissBatteryOptimizationPrompt() },
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+            }
             if (tracked.isEmpty()) {
                 Text(stringResource(R.string.tracking_empty))
             } else {

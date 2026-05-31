@@ -5,6 +5,7 @@ import de.openbahn.navigator.ui.util.isIsoLongArrived
 import de.openbahn.navigator.ui.util.isJourneyLongArrived
 import androidx.room.withTransaction
 import de.openbahn.navigator.data.OpenBahnDatabase
+import de.openbahn.navigator.tracking.JourneyTrackingCoordinator
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
@@ -13,6 +14,7 @@ import kotlinx.serialization.json.Json
 class TrackedJourneyRepository(
     private val dao: TrackedJourneyDao,
     private val database: OpenBahnDatabase,
+    private val trackingCoordinator: Lazy<JourneyTrackingCoordinator>,
 ) {
     fun observeActive(): Flow<List<TrackedJourneyWithJourney>> = dao.observeActive().map { list ->
         list.mapNotNull { entity ->
@@ -38,6 +40,7 @@ class TrackedJourneyRepository(
             active = true,
         )
         dao.upsert(entity)
+        trackingCoordinator.value.onActiveJourneysChanged()
     }
 
     suspend fun updateLastNotifiedDelay(id: String, delayMinutes: Int) {
@@ -45,7 +48,10 @@ class TrackedJourneyRepository(
         dao.upsert(active.copy(lastNotifiedDelayMinutes = delayMinutes))
     }
 
-    suspend fun stopTracking(id: String) = dao.deactivate(id)
+    suspend fun stopTracking(id: String) {
+        dao.deactivate(id)
+        trackingCoordinator.value.onActiveJourneysChanged()
+    }
 
     suspend fun getActiveForWorker(): List<TrackedJourneyEntity> =
         dao.getActive().filter { entity ->
@@ -84,6 +90,10 @@ class TrackedJourneyRepository(
     }
 
     suspend fun pruneArrived() {
+        pruneArrivedInternal()
+    }
+
+    internal suspend fun pruneArrivedInternal() {
         dao.getActive().forEach { entity ->
             val journey = runCatching { Json.decodeFromString<Journey>(entity.journeyJson) }.getOrNull()
             val arrived = when {

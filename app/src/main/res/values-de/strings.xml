@@ -78,7 +78,14 @@
     <string name="dticket_import_hint">Importieren Sie PDF-Tickets aus dem DB Navigator oder fügen Sie Ihr Deutschland-Ticket mit Lichtbild zur Kontrolle hinzu.</string>
     <string name="dticket_photo">Ticket-Foto</string>
     <string name="tracking_title">Live-Updates</string>
-    <string name="tracking_description">Verfolgte Verbindungen werden alle 15 Minuten geprüft. Sie erhalten eine Meldung bei Verspätung und erneut, wenn die Verspätung um den eingestellten Betrag steigt.</string>
+    <string name="tracking_description">Solange Sie Verbindungen verfolgen, prüft OpenBahn im Hintergrund auf Verspätungen (etwa alle 5 Minuten). Sie erhalten eine Meldung bei Verspätung und erneut, wenn die Verspätung um den eingestellten Betrag steigt. Eine kleine Dauerbenachrichtigung zeigt an, dass die Überwachung aktiv ist.</string>
+    <string name="tracking_foreground_title">Verfolgte Verbindungen überwachen</string>
+    <string name="tracking_foreground_starting">Verspätungen werden geprüft…</string>
+    <string name="tracking_foreground_body">%1$d verfolgte Verbindung(en) · Verspätungsprüfung aktiv</string>
+    <string name="tracking_battery_banner_title">Hintergrundüberwachung erlauben</string>
+    <string name="tracking_battery_banner_body">Der Energiesparmodus kann Verspätungsmeldungen blockieren, wenn die App geschlossen ist. Erlauben Sie uneingeschränkten Akkuverbrauch für OpenBahn, damit Live-Updates zuverlässig funktionieren.</string>
+    <string name="tracking_battery_allow_unrestricted">Uneingeschränkten Akku erlauben</string>
+    <string name="tracking_battery_dismiss">Später</string>
     <string name="stop_tracking">Verfolgung beenden</string>
     <string name="track_journey">Verbindung verfolgen</string>
     <string name="transfers_count">%d Umstiege</string>
@@ -128,6 +135,7 @@
     <string name="notification_channel_delays">Verspätungsalarme</string>
     <string name="notification_channel_delays_desc">Benachrichtigungen bei Verspätung oder weiter steigender Verspätung einer verfolgten Verbindung</string>
     <string name="notification_channel_tracking">Reiseverfolgung</string>
+    <string name="notification_channel_tracking_desc">Wird angezeigt, während OpenBahn verfolgte Verbindungen im Hintergrund auf Verspätungen prüft</string>
     <string name="delay_notification_title">Verspätung auf Ihrer Reise</string>
     <string name="delay_notification_body">%1$s → %2$s: %3$d Minuten Verspätung</string>
 </resources>

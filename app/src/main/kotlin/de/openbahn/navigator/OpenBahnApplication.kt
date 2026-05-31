@@ -7,12 +7,19 @@ import de.openbahn.api.debug.OpenBahnDebugLog
 import de.openbahn.navigator.data.UserPreferencesRepository
 import de.openbahn.navigator.di.appModule
 import de.openbahn.navigator.locale.AppLocaleManager
+import de.openbahn.navigator.tracking.JourneyTrackingCoordinator
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 import org.koin.java.KoinJavaComponent.getKoin
 
 class OpenBahnApplication : Application() {
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     override fun onCreate() {
         super.onCreate()
         OpenBahnDebugLog.isEnabled = BuildConfig.DEBUG
@@ -25,6 +32,9 @@ class OpenBahnApplication : Application() {
             AppLocaleManager.apply(language)
         }
         createNotificationChannels()
+        applicationScope.launch {
+            getKoin().get<JourneyTrackingCoordinator>().restoreOnLaunch()
+        }
     }
 
     private fun createNotificationChannels() {
@@ -43,7 +53,9 @@ class OpenBahnApplication : Application() {
                 CHANNEL_JOURNEY_TRACKING,
                 getString(R.string.notification_channel_tracking),
                 NotificationManager.IMPORTANCE_LOW,
-            ),
+            ).apply {
+                description = getString(R.string.notification_channel_tracking_desc)
+            },
         )
     }
 
