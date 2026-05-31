@@ -15,7 +15,7 @@ class PassengerRightsNotifier(private val context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
         val openIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra(EXTRA_OPEN_JOURNEY_ID, journeyId)
+            putExtra(TrackingNotificationIntent.EXTRA_TRACKED_JOURNEY_ID, journeyId)
             putExtra(EXTRA_OPEN_RIGHTS, true)
         }
         val pending = PendingIntent.getActivity(
