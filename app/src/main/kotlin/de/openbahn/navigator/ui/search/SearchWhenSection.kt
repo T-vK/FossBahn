@@ -4,21 +4,22 @@ import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.MultiChoiceSegmentedButtonRow
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,13 +29,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.openbahn.navigator.R
+import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,6 +56,9 @@ fun SearchWhenSection(
     }
     val timeLabel = remember(departureTime) {
         DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault()).format(departureTime)
+    }
+    val isNow = remember(departureTime) {
+        abs(Duration.between(departureTime, LocalDateTime.now()).toMinutes()) <= 1
     }
 
     val openDatePicker = remember(context, departureTime) {
@@ -107,75 +115,108 @@ fun SearchWhenSection(
             )
         }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        MultiChoiceSegmentedButtonRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 52.dp)
+                .height(IntrinsicSize.Min)
+                .testTag("search_datetime_row"),
         ) {
-            OutlinedButton(
-                onClick = openDatePicker,
+            SegmentedButton(
+                checked = false,
+                onCheckedChange = { openDatePicker() },
+                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
                 modifier = Modifier
                     .weight(1f)
-                    .heightIn(min = 40.dp)
+                    .fillMaxHeight()
                     .testTag("search_date_open"),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-            ) {
-                Icon(
-                    Icons.Outlined.CalendarMonth,
-                    contentDescription = stringResource(R.string.search_pick_date),
-                    modifier = Modifier.padding(end = 6.dp),
-                )
-                Column {
-                    Text(
-                        text = stringResource(R.string.search_date),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                icon = {
+                    Icon(
+                        Icons.Outlined.CalendarMonth,
+                        contentDescription = stringResource(R.string.search_pick_date),
+                        modifier = Modifier.padding(bottom = 2.dp),
                     )
-                    Text(
-                        text = dateLabel,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.testTag("search_date_field"),
+                },
+                label = {
+                    DateTimeSegmentLabel(
+                        caption = stringResource(R.string.search_date),
+                        value = dateLabel,
+                        valueTestTag = "search_date_field",
                     )
-                }
-            }
-            OutlinedButton(
-                onClick = openTimePicker,
+                },
+            )
+            SegmentedButton(
+                checked = false,
+                onCheckedChange = { openTimePicker() },
+                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3),
                 modifier = Modifier
-                    .weight(0.85f)
-                    .heightIn(min = 40.dp)
+                    .weight(1f)
+                    .fillMaxHeight()
                     .testTag("search_time_open"),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
-            ) {
-                Icon(
-                    Icons.Outlined.Schedule,
-                    contentDescription = stringResource(R.string.search_pick_time),
-                    modifier = Modifier.padding(end = 4.dp),
-                )
-                Column {
-                    Text(
-                        text = stringResource(R.string.search_time),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                icon = {
+                    Icon(
+                        Icons.Outlined.Schedule,
+                        contentDescription = stringResource(R.string.search_pick_time),
+                        modifier = Modifier.padding(bottom = 2.dp),
                     )
-                    Text(
-                        text = timeLabel,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.testTag("search_time_field"),
+                },
+                label = {
+                    DateTimeSegmentLabel(
+                        caption = stringResource(R.string.search_time),
+                        value = timeLabel,
+                        valueTestTag = "search_time_field",
                     )
-                }
-            }
-            FilledTonalButton(
-                onClick = { onDepartureTimeChange(LocalDateTime.now()) },
+                },
+            )
+            SegmentedButton(
+                checked = isNow,
+                onCheckedChange = { checked ->
+                    if (checked) onDepartureTimeChange(LocalDateTime.now())
+                },
+                shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
                 modifier = Modifier
-                    .heightIn(min = 40.dp)
+                    .weight(1f)
+                    .fillMaxHeight()
                     .testTag("search_time_now"),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-            ) {
-                Text(
-                    stringResource(R.string.search_time_now),
-                    style = MaterialTheme.typography.labelLarge,
-                )
-            }
+                label = {
+                    Text(
+                        text = stringResource(R.string.search_time_now),
+                        style = MaterialTheme.typography.labelLarge,
+                        textAlign = TextAlign.Center,
+                    )
+                },
+            )
         }
+    }
+}
+
+
+@Composable
+private fun DateTimeSegmentLabel(
+    caption: String,
+    value: String,
+    valueTestTag: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.padding(horizontal = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(
+            text = caption,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.testTag(valueTestTag),
+        )
     }
 }
