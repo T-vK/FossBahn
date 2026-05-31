@@ -544,14 +544,28 @@ class SearchViewModel(
 
     private fun applySuggestions(field: ActiveLocationField, suggestions: List<Location>) {
         _state.update { state ->
+            val filtered = suggestions.excludingOppositeStation(field, state)
             when {
                 field == ActiveLocationField.FROM && state.activeLocationField == ActiveLocationField.FROM ->
-                    state.copy(fromSuggestions = suggestions)
+                    state.copy(fromSuggestions = filtered)
                 field == ActiveLocationField.TO && state.activeLocationField == ActiveLocationField.TO ->
-                    state.copy(toSuggestions = suggestions)
+                    state.copy(toSuggestions = filtered)
                 else -> state
             }
         }
+    }
+
+    private fun List<Location>.excludingOppositeStation(
+        field: ActiveLocationField,
+        state: SearchUiState,
+    ): List<Location> {
+        val other = when (field) {
+            ActiveLocationField.FROM -> state.to
+            ActiveLocationField.TO -> state.from
+            ActiveLocationField.NONE -> return this
+        } ?: return this
+        val otherKey = other.stableKey()
+        return filter { it.stableKey() != otherKey }
     }
 
     private fun mergeWithApiResults(

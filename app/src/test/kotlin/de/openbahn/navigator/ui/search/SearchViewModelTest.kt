@@ -7,6 +7,7 @@ import de.openbahn.model.Location
 import de.openbahn.model.RatedJourney
 import de.openbahn.model.StopEvent
 import de.openbahn.navigator.data.FavoriteRouteRepository
+import de.openbahn.navigator.data.stableKey
 import de.openbahn.navigator.data.LocationHistoryRepository
 import de.openbahn.navigator.data.PendingSearchRepository
 import de.openbahn.navigator.data.TrackedJourneyRepository
@@ -135,6 +136,32 @@ class SearchViewModelTest {
         advanceUntilIdle()
         assertEquals("info_no_connections", viewModel.state.value.info)
         assertNull(viewModel.state.value.error)
+    }
+
+    @Test
+    fun fromSuggestions_excludeSelectedToStation() = runTest(dispatcher) {
+        coEvery { locationHistory.rankedForAutocomplete(any()) } returns listOf(berlin, munich)
+        val viewModel = createViewModel()
+        viewModel.selectTo(munich)
+        viewModel.onFromFocusChanged(true)
+        advanceUntilIdle()
+
+        val suggestions = viewModel.state.value.fromSuggestions
+        assertTrue(suggestions.any { it.stableKey() == berlin.stableKey() })
+        assertTrue(suggestions.none { it.stableKey() == munich.stableKey() })
+    }
+
+    @Test
+    fun toSuggestions_excludeSelectedFromStation() = runTest(dispatcher) {
+        coEvery { locationHistory.rankedForAutocomplete(any()) } returns listOf(berlin, munich)
+        val viewModel = createViewModel()
+        viewModel.selectFrom(berlin)
+        viewModel.onToFocusChanged(true)
+        advanceUntilIdle()
+
+        val suggestions = viewModel.state.value.toSuggestions
+        assertTrue(suggestions.any { it.stableKey() == munich.stableKey() })
+        assertTrue(suggestions.none { it.stableKey() == berlin.stableKey() })
     }
 
     @Test
