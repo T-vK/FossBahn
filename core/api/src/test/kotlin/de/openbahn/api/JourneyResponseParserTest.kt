@@ -1,6 +1,8 @@
 package de.openbahn.api
 
 import de.openbahn.api.mapper.JourneyResponseParser
+import de.openbahn.model.Leg
+import de.openbahn.model.StopEvent
 import de.openbahn.model.tripRouteStops
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject

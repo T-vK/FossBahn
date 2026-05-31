@@ -142,17 +142,17 @@ internal class TripRouteFetcher(
         LocalDateTime.parse(iso.take(19), DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"))
     }.getOrNull()
 
-    /**
-     * bahn.de embeds boarding stop/time in the trip id (`#1S#` / `#1T#`); `/fahrt` then returns only
-     * the passenger segment, not the full vehicle run.
-     */
-    internal fun isSegmentScopedTripId(tripId: String): Boolean =
-        tripId.contains("#1S#", ignoreCase = true) ||
-            tripId.contains("#1T#", ignoreCase = true)
-
     companion object {
         private const val TAG = "TripRoute"
         /** Shorter window than general board enrichment — enough for one departure plus vias. */
         private const val BOARD_LOOKUP_MINUTES = 30
+
+        /**
+         * bahn.de embeds boarding stop/time in the trip id (`#1S#` / `#1T#`); `/fahrt` then returns only
+         * the passenger segment, not the full vehicle run.
+         */
+        internal fun isSegmentScopedTripId(tripId: String): Boolean =
+            tripId.contains("#1S#", ignoreCase = true) ||
+                tripId.contains("#1T#", ignoreCase = true)
     }
 }
