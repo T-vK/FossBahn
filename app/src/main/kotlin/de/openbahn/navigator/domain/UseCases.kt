@@ -2,6 +2,7 @@ package de.openbahn.navigator.domain
 
 import de.openbahn.api.BahnVorhersageClient
 import de.openbahn.api.DbVendoClient
+import de.openbahn.api.JourneyRatingOptions
 import de.openbahn.model.Journey
 import de.openbahn.model.JourneySearchOptions
 import de.openbahn.model.JourneySearchResult
@@ -21,7 +22,10 @@ interface JourneySearchRepository {
         whenTime: LocalDateTime = LocalDateTime.now(),
         pagingReference: String? = null,
     ): JourneySearchResult
-    suspend fun rateJourneys(journeys: List<Journey>): List<RatedJourney>
+    suspend fun rateJourneys(
+        journeys: List<Journey>,
+        ratingOptions: JourneyRatingOptions = JourneyRatingOptions(),
+    ): List<RatedJourney>
 }
 
 class JourneySearchUseCase(
@@ -43,13 +47,19 @@ class JourneySearchUseCase(
         return result.copy(journeys = withDelays)
     }
 
-    override suspend fun rateJourneys(journeys: List<Journey>): List<RatedJourney> = coroutineScope {
+    override suspend fun rateJourneys(
+        journeys: List<Journey>,
+        ratingOptions: JourneyRatingOptions,
+    ): List<RatedJourney> = coroutineScope {
         journeys.map { journey ->
-            async { predictionClient.rateJourney(journey) }
+            async { predictionClient.rateJourney(journey, ratingOptions) }
         }.awaitAll()
     }
 }
 
 class PredictionUseCase(private val client: BahnVorhersageClient) {
-    suspend fun rate(journey: Journey): RatedJourney = client.rateJourney(journey)
+    suspend fun rate(
+        journey: Journey,
+        ratingOptions: JourneyRatingOptions = JourneyRatingOptions(),
+    ): RatedJourney = client.rateJourney(journey, ratingOptions)
 }

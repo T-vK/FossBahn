@@ -51,7 +51,7 @@ class BahnVorhersageHeuristicTest {
             departure = "2026-05-30T10:00:00",
             arrival = "2026-05-30T12:00:00",
         )
-        val score = BahnVorhersageHeuristic.estimatePunctuality(journey)
+        val score = BahnVorhersageHeuristic.estimatePunctuality(journey, toleranceMinutes = 10)
         assertTrue((score ?: 0.0) > 0.7)
     }
 }

@@ -3,6 +3,7 @@ package de.openbahn.navigator.ui.search
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.openbahn.api.DbApiBlockedException
+import de.openbahn.api.JourneyRatingOptions
 import de.openbahn.api.DbApiException
 import de.openbahn.api.DbParseException
 import de.openbahn.api.debug.OpenBahnDebugLog
@@ -64,6 +65,7 @@ data class SearchUiState(
     val locale: String = "de",
     val hasSearched: Boolean = false,
     val showOnboarding: Boolean = false,
+    val punctualityToleranceMinutes: Int = JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES,
 )
 
 class SearchViewModel(
@@ -118,7 +120,17 @@ class SearchViewModel(
                 }
             }
         }
+        viewModelScope.launch {
+            userPreferences.punctualityToleranceMinutes.collect { tolerance ->
+                _state.update { it.copy(punctualityToleranceMinutes = tolerance) }
+            }
+        }
     }
+
+    private fun currentRatingOptions(): JourneyRatingOptions = JourneyRatingOptions(
+        minTransferMinutes = _state.value.options.minTransferMinutes,
+        punctualityToleranceMinutes = _state.value.punctualityToleranceMinutes,
+    )
 
     fun completeOnboarding(deutschlandTicketOnly: Boolean) {
         viewModelScope.launch {
@@ -380,7 +392,11 @@ class SearchViewModel(
             val mergedJourneys = mergeJourneys(existing, page.journeys, prepend)
             val rated = if (_state.value.showPredictions) {
                 val newOnes = page.journeys.filter { it.id !in existingIds }
-                val newRated = if (newOnes.isNotEmpty()) searchUseCase.rateJourneys(newOnes) else emptyList()
+                val newRated = if (newOnes.isNotEmpty()) {
+                    searchUseCase.rateJourneys(newOnes, currentRatingOptions())
+                } else {
+                    emptyList()
+                }
                 mergeRated(
                     existing = if (replaceResults) emptyList() else _state.value.ratedJourneys,
                     incoming = newRated,

@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import de.openbahn.model.BoardEntry
 import de.openbahn.model.Journey
 import de.openbahn.model.Leg
+import de.openbahn.api.JourneyRatingOptions
 import de.openbahn.model.RatedJourney
 import de.openbahn.model.StopEvent
 import de.openbahn.model.delayMinutesFromTimes
@@ -110,6 +111,12 @@ fun JourneyCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (predictionsRequested && prediction != null) {
+                JourneyPredictionSummary(
+                    journey = journey,
+                    prediction = prediction,
+                )
+            }
             journey.priceHint?.let { price ->
                 Text(
                     price,
@@ -183,13 +190,16 @@ fun JourneyCard(
                                 toLeg = journey.legs[index + 1],
                                 prediction = prediction?.predictions?.getOrNull(index),
                                 predictionsRequested = predictionsRequested,
+                                minTransferMinutesUsed = prediction?.minTransferMinutesUsed,
                             )
                         }
                     }
-                    if (journey.transfers == 0 && predictionsRequested) {
+                    if (predictionsRequested) {
                         PunctualityBlock(
                             probability = prediction?.punctualityProbability,
                             isEstimate = prediction?.punctualityIsEstimate == true,
+                            toleranceMinutes = prediction?.punctualityToleranceMinutes
+                                ?: JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES,
                         )
                     }
                 }
@@ -371,9 +381,47 @@ private fun IntermediateStopsBlock(stops: List<StopEvent>, legIndex: Int) {
 }
 
 @Composable
+private fun JourneyPredictionSummary(
+    journey: Journey,
+    prediction: RatedJourney,
+) {
+    val percent = { value: Double -> (value * 100).toInt().coerceIn(0, 100) }
+    val tolerance = prediction.punctualityToleranceMinutes
+        ?: JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES
+    val text = when {
+        journey.transfers > 0 -> {
+            val worst = prediction.predictions.mapNotNull { it.successProbability }.minOrNull()
+            if (worst == null) return
+            val buffer = prediction.minTransferMinutesUsed
+            if (buffer != null) {
+                stringResource(R.string.prediction_summary_transfer_buffer, buffer, percent(worst))
+            } else {
+                stringResource(R.string.prediction_summary_transfer, percent(worst))
+            }
+        }
+        prediction.punctualityProbability != null -> {
+            val p = prediction.punctualityProbability!!
+            if (tolerance == 0) {
+                stringResource(R.string.prediction_summary_punctuality_exact, percent(p))
+            } else {
+                stringResource(R.string.prediction_summary_punctuality, tolerance, percent(p))
+            }
+        }
+        else -> return
+    }
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.testTag("journey_prediction_summary"),
+    )
+}
+
+@Composable
 private fun PunctualityBlock(
     probability: Double?,
     isEstimate: Boolean,
+    toleranceMinutes: Int,
 ) {
     Column(
         Modifier
@@ -390,13 +438,19 @@ private fun PunctualityBlock(
         val probabilityPercent = probability
         when {
             probabilityPercent != null -> {
-                val labelRes = if (isEstimate) {
-                    R.string.punctuality_probability_estimate
-                } else {
-                    R.string.punctuality_probability
+                val percent = (probabilityPercent * 100).toInt().coerceIn(0, 100)
+                val label = when {
+                    toleranceMinutes == 0 && isEstimate ->
+                        stringResource(R.string.punctuality_probability_estimate_exact, percent)
+                    toleranceMinutes == 0 ->
+                        stringResource(R.string.punctuality_probability_exact, percent)
+                    isEstimate ->
+                        stringResource(R.string.punctuality_probability_estimate, toleranceMinutes, percent)
+                    else ->
+                        stringResource(R.string.punctuality_probability, toleranceMinutes, percent)
                 }
                 Text(
-                    stringResource(labelRes, (probabilityPercent * 100).toInt().coerceIn(0, 100)),
+                    label,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Medium,
                     color = when {
@@ -426,6 +480,7 @@ private fun TransferBlock(
     toLeg: Leg,
     prediction: de.openbahn.model.TransferPrediction?,
     predictionsRequested: Boolean,
+    minTransferMinutesUsed: Int?,
 ) {
     Column(
         Modifier
@@ -457,13 +512,27 @@ private fun TransferBlock(
         val probability = prediction?.successProbability
         when {
             probability != null -> {
-                val labelRes = if (prediction?.isEstimate == true) {
-                    R.string.transfer_probability_estimate
-                } else {
-                    R.string.transfer_probability
+                val percent = (probability * 100).toInt().coerceIn(0, 100)
+                val label = when {
+                    minTransferMinutesUsed != null && prediction?.isEstimate == true ->
+                        stringResource(
+                            R.string.transfer_probability_estimate_with_buffer,
+                            minTransferMinutesUsed,
+                            percent,
+                        )
+                    minTransferMinutesUsed != null ->
+                        stringResource(
+                            R.string.transfer_probability_with_buffer,
+                            minTransferMinutesUsed,
+                            percent,
+                        )
+                    prediction?.isEstimate == true ->
+                        stringResource(R.string.transfer_probability_estimate, percent)
+                    else ->
+                        stringResource(R.string.transfer_probability, percent)
                 }
                 Text(
-                    stringResource(labelRes, (probability * 100).toInt().coerceIn(0, 100)),
+                    label,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Medium,
                     color = when {

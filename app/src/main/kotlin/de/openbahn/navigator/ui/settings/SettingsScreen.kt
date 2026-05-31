@@ -32,6 +32,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val appLanguage by viewModel.appLanguage.collectAsState()
+    val punctualityTolerance by viewModel.punctualityToleranceMinutes.collectAsState()
     val activity = LocalContext.current as? AppCompatActivity
 
     Scaffold(
@@ -64,6 +65,13 @@ fun SettingsScreen(
                     viewModel.setAppLanguage(language) {
                         activity?.recreate()
                     }
+                },
+            )
+            PunctualityToleranceSection(
+                selectedMinutes = punctualityTolerance,
+                onSelect = { minutes ->
+                    if (minutes == punctualityTolerance) return@PunctualityToleranceSection
+                    viewModel.setPunctualityToleranceMinutes(minutes)
                 },
             )
         }

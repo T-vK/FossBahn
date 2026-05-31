@@ -17,11 +17,24 @@ class SettingsViewModel(
     val appLanguage: StateFlow<AppLanguage> = userPreferences.appLanguage
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppLanguage.SYSTEM)
 
+    val punctualityToleranceMinutes: StateFlow<Int> = userPreferences.punctualityToleranceMinutes
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            de.openbahn.api.JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES,
+        )
+
     fun setAppLanguage(language: AppLanguage, onApplied: () -> Unit = {}) {
         viewModelScope.launch {
             userPreferences.setAppLanguage(language)
             AppLocaleManager.apply(language)
             onApplied()
+        }
+    }
+
+    fun setPunctualityToleranceMinutes(minutes: Int) {
+        viewModelScope.launch {
+            userPreferences.setPunctualityToleranceMinutes(minutes)
         }
     }
 }

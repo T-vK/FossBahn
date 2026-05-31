@@ -68,6 +68,7 @@ class SearchViewModelTest {
         every { locationHistory.observeRecent() } returns flowOf(emptyList())
         every { locationHistory.observeFavoriteLocations() } returns flowOf(emptyList())
         every { userPreferences.appLanguage } returns flowOf(AppLanguage.ENGLISH)
+        every { userPreferences.punctualityToleranceMinutes } returns flowOf(10)
         coEvery { locationHistory.recentMatching(any()) } returns emptyList()
         coEvery { locationHistory.rankedForAutocomplete(any()) } returns emptyList()
         coEvery { searchRepository.searchLocations(any(), any()) } answers {
@@ -85,7 +86,7 @@ class SearchViewModelTest {
             pagingEarlier = "earlier",
             pagingLater = "later",
         )
-        coEvery { searchRepository.rateJourneys(any()) } answers {
+        coEvery { searchRepository.rateJourneys(any(), any()) } answers {
             firstArg<List<Journey>>().map { RatedJourney(journey = it) }
         }
     }

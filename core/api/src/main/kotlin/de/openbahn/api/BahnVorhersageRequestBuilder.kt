@@ -22,8 +22,8 @@ internal object BahnVorhersageRequestBuilder {
     private val berlin = ZoneId.of("Europe/Berlin")
     private val isoLocal = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
 
-    fun build(journey: Journey) = buildJsonObject {
-        val events = buildTransferEvents(journey)
+    fun build(journey: Journey, minTransferMinutes: Int? = null) = buildJsonObject {
+        val events = buildTransferEvents(journey, minTransferMinutes)
         if (events.isEmpty()) return@buildJsonObject
 
         putJsonArray("number") { events.forEach { add(it.number) } }
@@ -83,7 +83,7 @@ internal object BahnVorhersageRequestBuilder {
     )
 
     /** One arrival + one departure row per transfer (required for transfer_scores). */
-    private fun buildTransferEvents(journey: Journey): List<RateEvent> {
+    private fun buildTransferEvents(journey: Journey, minTransferMinutes: Int?): List<RateEvent> {
         if (journey.legs.size < 2) return emptyList()
         val events = mutableListOf<RateEvent>()
         var distance = 0
@@ -106,7 +106,9 @@ internal object BahnVorhersageRequestBuilder {
                 stopSequence = seq++,
                 distance = distance.also { distance += 40_000 },
                 prognosedTransferMinutes = transferMins?.toInt()?.coerceAtLeast(0),
-                minimalTransferMinutes = transferMins?.let { minimalTransferMinutes(it) },
+                minimalTransferMinutes = transferMins?.let {
+                    resolveMinimalTransferMinutes(it, minTransferMinutes)
+                },
             ) ?: return@forEachIndexed
             events.add(arr)
             events.add(dep)
@@ -149,8 +151,8 @@ internal object BahnVorhersageRequestBuilder {
         )
     }
 
-    private fun minimalTransferMinutes(transferMins: Long): Int =
-        when {
+    private fun resolveMinimalTransferMinutes(transferMins: Long, userMinTransferMinutes: Int?): Int =
+        userMinTransferMinutes?.coerceIn(1, 60) ?: when {
             transferMins >= 15 -> 5
             transferMins >= 8 -> 4
             else -> 3

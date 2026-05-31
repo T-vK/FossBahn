@@ -95,9 +95,12 @@ data class RatedJourney(
     val journey: Journey,
     val predictions: List<TransferPrediction> = emptyList(),
     /**
-     * For direct connections: probability the final train arrives with at most ~10 min
-     * additional delay (Bahn-Vorhersage “Pünktlichkeit”).
+     * Probability the final arrival is within [punctualityToleranceMinutes] of schedule
+     * (0 = on time to the minute when using ML delay distributions).
      */
     val punctualityProbability: Double? = null,
     val punctualityIsEstimate: Boolean = false,
+    /** Minimum transfer buffer used when scoring connections (from search filter). */
+    val minTransferMinutesUsed: Int? = null,
+    val punctualityToleranceMinutes: Int? = null,
 )

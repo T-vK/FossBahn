@@ -5,7 +5,9 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import de.openbahn.api.JourneyRatingOptions
 import androidx.datastore.preferences.preferencesDataStore
 import de.openbahn.navigator.locale.AppLanguage
 import kotlinx.coroutines.flow.Flow
@@ -29,10 +31,21 @@ class UserPreferencesRepository(private val context: Context) {
         AppLanguage.fromStorage(prefs[KEY_APP_LANGUAGE])
     }
 
+    val punctualityToleranceMinutes: Flow<Int> = dataStore.data.map { prefs ->
+        prefs[KEY_PUNCTUALITY_TOLERANCE]?.coerceIn(0, 30)
+            ?: JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES
+    }
+
     suspend fun currentAppLanguage(): AppLanguage = appLanguage.first()
 
     suspend fun setAppLanguage(language: AppLanguage) {
         dataStore.edit { it[KEY_APP_LANGUAGE] = language.storageValue }
+    }
+
+    suspend fun setPunctualityToleranceMinutes(minutes: Int) {
+        dataStore.edit {
+            it[KEY_PUNCTUALITY_TOLERANCE] = minutes.coerceIn(0, 30)
+        }
     }
 
     suspend fun completeOnboarding(deutschlandTicketOnlyDefault: Boolean) {
@@ -46,5 +59,6 @@ class UserPreferencesRepository(private val context: Context) {
         private val KEY_ONBOARDING_DONE = booleanPreferencesKey("onboarding_completed")
         private val KEY_DTICKET_FILTER_DEFAULT = booleanPreferencesKey("dticket_filter_default")
         private val KEY_APP_LANGUAGE = stringPreferencesKey("app_language")
+        private val KEY_PUNCTUALITY_TOLERANCE = intPreferencesKey("punctuality_tolerance_minutes")
     }
 }

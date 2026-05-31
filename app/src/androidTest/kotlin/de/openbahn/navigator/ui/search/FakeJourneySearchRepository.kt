@@ -8,6 +8,7 @@ import de.openbahn.model.Location
 import de.openbahn.model.RatedJourney
 import de.openbahn.model.StopEvent
 import de.openbahn.model.TransferPrediction
+import de.openbahn.api.JourneyRatingOptions
 import de.openbahn.navigator.domain.JourneySearchRepository
 import java.time.LocalDateTime
 
@@ -37,15 +38,20 @@ class FakeJourneySearchRepository : JourneySearchRepository {
         pagingLater = if (pagingReference == null) "later-fake" else null,
     )
 
-    override suspend fun rateJourneys(journeys: List<Journey>): List<RatedJourney> =
+    override suspend fun rateJourneys(
+        journeys: List<Journey>,
+        ratingOptions: JourneyRatingOptions,
+    ): List<RatedJourney> =
         journeys.map { journey ->
             RatedJourney(
                 journey = journey,
                 predictions = List(journey.transfers.coerceAtLeast(0)) { index ->
                     TransferPrediction(legIndex = index, successProbability = 0.85)
                 },
-                punctualityProbability = if (journey.transfers == 0) 0.9 else null,
-                punctualityIsEstimate = journey.transfers == 0,
+                punctualityProbability = 0.9,
+                punctualityIsEstimate = true,
+                minTransferMinutesUsed = ratingOptions.minTransferMinutes,
+                punctualityToleranceMinutes = ratingOptions.punctualityToleranceMinutes,
             )
         }
 
