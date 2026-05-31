@@ -67,9 +67,11 @@ The project has four Gradle modules, KSP (Room), and Compose. The first build do
 
 ```bash
 pkg update && pkg install -y curl python
-chmod +x .github/scripts/run-live-api-smoke.sh
-.github/scripts/run-live-api-smoke.sh
+chmod +x scripts/diagnose-journey-search.sh
+./scripts/diagnose-journey-search.sh
 ```
+
+Same as `.github/scripts/run-live-api-smoke.sh` (Hamburg Hbf → Berlin Hbf on int.bahn.de).
 
 Expect `parseableRoutes > 0` when the parser matches the live API.
 

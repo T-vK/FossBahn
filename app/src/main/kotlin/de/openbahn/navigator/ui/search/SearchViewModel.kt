@@ -6,11 +6,14 @@ import de.openbahn.api.DbApiBlockedException
 import de.openbahn.api.JourneyRatingOptions
 import de.openbahn.api.DbApiException
 import de.openbahn.api.DbParseException
+import de.openbahn.api.JourneySearchTime
 import de.openbahn.api.debug.OpenBahnDebugLog
+import de.openbahn.api.haltIdForJourney
 import de.openbahn.model.Journey
 import de.openbahn.model.JourneySearchOptions
 import de.openbahn.model.Location
 import de.openbahn.model.RatedJourney
+import de.openbahn.model.TransportProduct
 import de.openbahn.model.ViaStop
 import de.openbahn.navigator.data.AlternativesSearchRequest
 import de.openbahn.navigator.location.DeviceLocationProvider
@@ -54,7 +57,7 @@ data class SearchUiState(
     val cachedRecent: List<Location> = emptyList(),
     val favoriteLocationKeys: Set<String> = emptySet(),
     val options: JourneySearchOptions = JourneySearchOptions(),
-    val departureTime: LocalDateTime = LocalDateTime.now(),
+    val departureTime: LocalDateTime = JourneySearchTime.nowBerlin(),
     val journeys: List<Journey> = emptyList(),
     val ratedJourneys: List<RatedJourney> = emptyList(),
     val pagingEarlier: String? = null,
@@ -305,7 +308,7 @@ class SearchViewModel(
                 fromQuery = route.from.name,
                 toQuery = route.to.name,
                 options = route.options,
-                departureTime = LocalDateTime.now(),
+                departureTime = JourneySearchTime.nowBerlin(),
             )
         }
         search()
@@ -459,12 +462,16 @@ class SearchViewModel(
 
     private fun searchOptionsWithVia(): JourneySearchOptions {
         val state = _state.value
-        return state.options.copy(
+        var options = state.options.copy(
             locale = state.locale,
             viaStops = state.viaStops.mapNotNull { field ->
-                field.location?.let { loc -> ViaStop(locationId = loc.id) }
+                field.location?.let { loc -> ViaStop(locationId = loc.haltIdForJourney()) }
             },
         )
+        if (options.products.isEmpty()) {
+            options = options.copy(products = TransportProduct.ALL)
+        }
+        return options
     }
 
     private fun refreshInstantSuggestions() {
@@ -583,8 +590,9 @@ class SearchViewModel(
     ) {
         try {
             val options = searchOptionsWithVia()
+            val whenTime = JourneySearchTime.forApiRequest(_state.value.departureTime)
             val page = searchUseCase.searchJourneys(
-                from, to, options, _state.value.departureTime, pagingReference,
+                from, to, options, whenTime, pagingReference,
             )
             val existing = if (replaceResults) emptyList() else _state.value.journeys
             val existingIds = existing.map { it.id }.toSet()
@@ -627,7 +635,11 @@ class SearchViewModel(
                     isLoading = false,
                     isLoadingEarlier = false,
                     isLoadingLater = false,
-                    info = if (mergedJourneys.isEmpty() && replaceResults) "info_no_connections" else null,
+                    info = if (mergedJourneys.isEmpty() && replaceResults) {
+                        noConnectionsInfoKey(options)
+                    } else {
+                        null
+                    },
                     scrollToResultsToken = scrollToken,
                 )
             }
@@ -696,16 +708,27 @@ class SearchViewModel(
         selected: Location?,
         suggestions: List<Location>,
     ): Location? {
-        if (selected != null && selected.name.equals(query, ignoreCase = true)) {
-            return selected
-        }
-        suggestions.firstOrNull { it.name.equals(query, ignoreCase = true) }?.let { return it }
-        if (query.length < 2) return null
+        if (query.trim().length < 2) return null
         val recent = locationHistory.recentMatching(query)
-        recent.firstOrNull { it.name.equals(query, ignoreCase = true) }?.let { return it }
-        val results = searchUseCase.searchLocations(query, _state.value.locale)
-        results.firstOrNull { it.name.equals(query, ignoreCase = true) }?.let { return it }
-        return results.singleOrNull()
+        val apiResults = searchUseCase.searchLocations(query, _state.value.locale)
+        val resolved = resolveLocationForSearch(query, selected, suggestions, recent, apiResults)
+        if (resolved == null) {
+            OpenBahnDebugLog.w(
+                "Search",
+                "resolveLocation($label) failed q=\"$query\" apiHits=${apiResults.size} " +
+                    apiResults.take(3).joinToString { it.name },
+            )
+        }
+        return resolved
+    }
+
+    private fun noConnectionsInfoKey(options: JourneySearchOptions): String = when {
+        options.deutschlandTicketConnectionsOnly -> "info_no_connections_dticket"
+        options.directOnly ||
+            options.fastRoutesOnly ||
+            options.products.size < TransportProduct.ALL.size ->
+            "info_no_connections_filters"
+        else -> "info_no_connections"
     }
 
     private fun loadSuggestions(query: String, isFrom: Boolean) {

@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import de.openbahn.navigator.R
 import java.time.Duration
 import java.time.LocalDate
+import de.openbahn.api.JourneySearchTime
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -58,7 +59,7 @@ fun SearchWhenSection(
         DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault()).format(departureTime)
     }
     val isNow = remember(departureTime) {
-        abs(Duration.between(departureTime, LocalDateTime.now()).toMinutes()) <= 1
+        abs(Duration.between(departureTime, JourneySearchTime.nowBerlin()).toMinutes()) <= 1
     }
 
     val openDatePicker = remember(context, departureTime) {
@@ -171,7 +172,7 @@ fun SearchWhenSection(
             SegmentedButton(
                 checked = isNow,
                 onCheckedChange = { checked ->
-                    if (checked) onDepartureTimeChange(LocalDateTime.now())
+                    if (checked) onDepartureTimeChange(JourneySearchTime.nowBerlin())
                 },
                 shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
                 modifier = Modifier

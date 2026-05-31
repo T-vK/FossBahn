@@ -531,5 +531,7 @@ private fun errorStringRes(key: String): Int = when (key) {
 
 private fun infoStringRes(key: String): Int = when (key) {
     "info_no_connections" -> R.string.info_no_connections
+    "info_no_connections_dticket" -> R.string.info_no_connections_dticket
+    "info_no_connections_filters" -> R.string.info_no_connections_filters
     else -> R.string.info_no_connections
 }

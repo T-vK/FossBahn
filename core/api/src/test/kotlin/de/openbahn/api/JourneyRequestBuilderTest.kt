@@ -70,6 +70,33 @@ class JourneyRequestBuilderTest {
     }
 
     @Test
+    fun `empty products falls back to all modes`() {
+        val body = JourneyRequestBuilder.build(
+            berlin,
+            munich,
+            JourneySearchOptions(products = emptySet()),
+            LocalDateTime.now(),
+        )
+        val products = body["produktgattungen"]!!.toString()
+        TransportProduct.ALL.forEach { assertTrue(products.contains(it.vendoCode)) }
+    }
+
+    @Test
+    fun `via stop uses bahn halt id`() {
+        val body = JourneyRequestBuilder.build(
+            berlin,
+            munich,
+            JourneySearchOptions(
+                viaStops = listOf(
+                    de.openbahn.model.ViaStop(locationId = "8000152"),
+                ),
+            ),
+            LocalDateTime.now(),
+        )
+        assertTrue(body.toString().contains("A=1@L=8000152@"))
+    }
+
+    @Test
     fun `builds accessibility filter`() {
         val body = JourneyRequestBuilder.build(
             berlin,

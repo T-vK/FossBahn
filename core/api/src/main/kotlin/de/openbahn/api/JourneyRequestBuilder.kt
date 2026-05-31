@@ -13,13 +13,16 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 /** bahn.de / db-vendo halt identifier for journey requests (abfahrtsHalt / ankunftsHalt). */
-internal fun Location.haltIdForJourney(): String {
+fun Location.haltIdForJourney(): String = haltIdForJourney(id, evaNumber)
+
+/** Same rules as [Location.haltIdForJourney] for a raw location id (e.g. via stops). */
+fun haltIdForJourney(locationId: String, evaNumber: String? = null): String {
     // Prefer full location id from /orte (db-vendo uses the same `lid` string).
-    if (id.startsWith("A=1@")) return id
+    if (locationId.startsWith("A=1@")) return locationId
     val eva = evaNumber?.takeIf { it.isNotEmpty() && it.all(Char::isDigit) }
-        ?: id.takeIf { it.length >= 6 && it.all(Char::isDigit) }
+        ?: locationId.takeIf { it.length >= 6 && it.all(Char::isDigit) }
     if (eva != null) return "A=1@L=$eva@"
-    return id
+    return locationId
 }
 
 internal object JourneyRequestBuilder {
@@ -60,15 +63,16 @@ internal object JourneyRequestBuilder {
             )
         }
         if (options.directOnly) put("maxUmstiege", 0)
+        val products = options.products.ifEmpty { TransportProduct.ALL }
         putJsonArray("produktgattungen") {
-            options.products.forEach { add(it.vendoCode) }
+            products.forEach { add(it.vendoCode) }
         }
         if (options.viaStops.isNotEmpty()) {
             putJsonArray("zwischenhalte") {
                 options.viaStops.forEach { via ->
                     add(
                         buildJsonObject {
-                            put("id", via.locationId)
+                            put("id", haltIdForJourney(via.locationId))
                             via.stayMinutes?.let { put("aufenthaltsdauer", it) }
                         },
                     )

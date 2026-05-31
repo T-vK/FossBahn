@@ -61,6 +61,8 @@
     <string name="search_via_stop">Zwischenhalt %1$d</string>
     <string name="search_add_another_via">Weiteren Zwischenhalt</string>
     <string name="info_no_connections">Keine Verbindungen für diese Route und Zeit gefunden. Andere Optionen oder Abfahrtszeit wählen.</string>
+    <string name="info_no_connections_dticket">Keine Verbindungen mit aktivem Filter „Nur Deutschland-Ticket-Verbindungen“. In Optionen oder Filtern deaktivieren und erneut suchen.</string>
+    <string name="info_no_connections_filters">Keine Verbindungen mit den aktuellen Filtern (Verkehrsmittel, nur direkt, …). Filter öffnen und Auswahl erweitern oder zurücksetzen.</string>
     <string name="filters">Optionen</string>
     <string name="settings_title">Einstellungen</string>
     <string name="settings_dticket_only">Nur D-Ticket-Verbindungen (Standard)</string>

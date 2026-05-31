@@ -61,6 +61,8 @@
     <string name="search_via_stop">Via stop %1$d</string>
     <string name="search_add_another_via">Add another via stop</string>
     <string name="info_no_connections">No connections found for this route and time. Try different options or a later departure.</string>
+    <string name="info_no_connections_dticket">No connections found with “D-Ticket connections only” enabled. Turn it off in Options or Filters and search again.</string>
+    <string name="info_no_connections_filters">No connections found with the current filters (transport modes, direct only, etc.). Open Filters and reset or widen your selection.</string>
     <string name="filters">Options</string>
     <string name="settings_title">Settings</string>
     <string name="settings_dticket_only">D-Ticket connections only (default)</string>

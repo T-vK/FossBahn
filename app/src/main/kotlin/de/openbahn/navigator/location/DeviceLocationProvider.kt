@@ -7,6 +7,7 @@ import android.location.LocationManager
 import android.os.Build
 import androidx.core.content.ContextCompat
 import de.openbahn.model.Location
+import de.openbahn.model.LocationType
 import de.openbahn.navigator.domain.JourneySearchRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -20,7 +21,8 @@ class DeviceLocationProvider(
     suspend fun resolveCurrentStation(locale: String): Location? {
         val coords = readCurrentCoordinates() ?: return null
         val query = reverseGeocodeQuery(coords.first, coords.second) ?: return null
-        return searchRepository.searchLocations(query, locale).firstOrNull()
+        val results = searchRepository.searchLocations(query, locale)
+        return results.firstOrNull { it.type == LocationType.STATION } ?: results.firstOrNull()
     }
 
     private fun readCurrentCoordinates(): Pair<Double, Double>? {
