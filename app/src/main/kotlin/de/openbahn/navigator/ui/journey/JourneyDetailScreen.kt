@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
+import de.openbahn.navigator.ui.util.ShareJourneyIconButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -88,6 +89,11 @@ fun JourneyDetailScreen(
                     }
                 },
                 actions = {
+                    ShareJourneyIconButton(
+                        journey = journey,
+                        prediction = prediction,
+                        predictionsRequested = payload.predictionsRequested,
+                    )
                     IconButton(
                         onClick = { scope.launch { refreshConnection() } },
                         enabled = !isRefreshing && journey.refreshToken?.isNotBlank() == true,

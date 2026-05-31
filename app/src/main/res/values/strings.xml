@@ -105,6 +105,12 @@
     <string name="settings_near_departure_check_default">%d s (default)</string>
     <string name="stop_tracking">Stop tracking</string>
     <string name="track_journey">Track journey</string>
+    <string name="share_journey">Share connection</string>
+    <string name="share_journey_chooser">Share connection via</string>
+    <string name="share_route">%1$s → %2$s</string>
+    <string name="share_times">%1$s – %2$s (%3$s)</string>
+    <string name="share_direct">Direct connection</string>
+    <string name="share_transfer_separator">———</string>
     <string name="transfers_count">%d transfers</string>
     <string name="dticket_valid">Valid with Deutschland-Ticket</string>
     <string name="transfer_probability">Connection probability: %d%%</string>
@@ -120,6 +126,9 @@
     <string name="prediction_summary_transfer_buffer">Connection (≥%1$d min): %2$d%%</string>
     <string name="prediction_summary_punctuality">On time (≤%1$d min): %2$d%%</string>
     <string name="prediction_summary_punctuality_exact">On time (to the minute): %d%%</string>
+    <string name="prediction_summary_punctuality_estimate">On time (≤%1$d min, estimated): %2$d%%</string>
+    <string name="prediction_summary_punctuality_estimate_exact">On time (to the minute, estimated): %d%%</string>
+    <string name="prediction_arrival_forecast">Arrival forecast</string>
     <string name="settings_punctuality">On-time definition</string>
     <string name="settings_punctuality_hint">How much delay still counts as on time for arrival probability in search results.</string>
     <string name="settings_punctuality_exact">To the minute</string>

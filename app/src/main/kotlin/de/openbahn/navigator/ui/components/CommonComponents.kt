@@ -42,6 +42,7 @@ import de.openbahn.model.RatedJourney
 import de.openbahn.model.StopEvent
 import de.openbahn.model.delayMinutesFromTimes
 import de.openbahn.navigator.R
+import de.openbahn.navigator.ui.util.ShareJourneyIconButton
 import de.openbahn.navigator.ui.util.formatDurationMinutes
 import de.openbahn.navigator.ui.util.formatJourneyClock
 import de.openbahn.navigator.ui.util.journeyBookingUri
@@ -95,12 +96,26 @@ fun JourneyCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 JourneyTimeRangeHeader(journey = journey)
-                Text(
-                    formatDurationMinutes(journey.durationMinutes),
-                    style = MaterialTheme.typography.titleMedium,
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ShareJourneyIconButton(
+                        journey = journey,
+                        prediction = prediction,
+                        predictionsRequested = predictionsRequested,
+                    )
+                    Text(
+                        formatDurationMinutes(journey.durationMinutes),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
             }
             Text(
                 "${journey.legs.firstOrNull()?.origin?.name} → ${journey.legs.lastOrNull()?.destination?.name}",
@@ -194,7 +209,7 @@ fun JourneyCard(
                             )
                         }
                     }
-                    if (predictionsRequested) {
+                    if (predictionsRequested && shouldShowArrivalForecastInDetails(journey)) {
                         PunctualityBlock(
                             probability = prediction?.punctualityProbability,
                             isEstimate = prediction?.punctualityIsEstimate == true,
@@ -205,12 +220,14 @@ fun JourneyCard(
                 }
             }
 
-            onTrack?.let {
-                TextButton(
-                    onClick = it,
-                    modifier = Modifier.align(Alignment.End),
+            if (onTrack != null) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
                 ) {
-                    Text(stringResource(R.string.track_journey))
+                    TextButton(onClick = onTrack) {
+                        Text(stringResource(R.string.track_journey))
+                    }
                 }
             }
         }
@@ -401,10 +418,16 @@ private fun JourneyPredictionSummary(
         }
         prediction.punctualityProbability != null -> {
             val p = prediction.punctualityProbability!!
-            if (tolerance == 0) {
-                stringResource(R.string.prediction_summary_punctuality_exact, percent(p))
-            } else {
-                stringResource(R.string.prediction_summary_punctuality, tolerance, percent(p))
+            val estimate = prediction.punctualityIsEstimate
+            when {
+                tolerance == 0 && estimate ->
+                    stringResource(R.string.prediction_summary_punctuality_estimate_exact, percent(p))
+                tolerance == 0 ->
+                    stringResource(R.string.prediction_summary_punctuality_exact, percent(p))
+                estimate ->
+                    stringResource(R.string.prediction_summary_punctuality_estimate, tolerance, percent(p))
+                else ->
+                    stringResource(R.string.prediction_summary_punctuality, tolerance, percent(p))
             }
         }
         else -> return
@@ -416,6 +439,9 @@ private fun JourneyPredictionSummary(
         modifier = Modifier.testTag("journey_prediction_summary"),
     )
 }
+
+private fun shouldShowArrivalForecastInDetails(journey: Journey): Boolean =
+    journey.transfers > 0
 
 @Composable
 private fun PunctualityBlock(
@@ -431,7 +457,7 @@ private fun PunctualityBlock(
     ) {
         HorizontalDivider()
         Text(
-            stringResource(R.string.direct_connection),
+            stringResource(R.string.prediction_arrival_forecast),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Medium,
         )
