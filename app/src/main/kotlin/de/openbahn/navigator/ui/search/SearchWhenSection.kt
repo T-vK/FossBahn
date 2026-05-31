@@ -1,11 +1,10 @@
 package de.openbahn.navigator.ui.search
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
@@ -17,9 +16,9 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -35,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -206,30 +206,32 @@ private fun PickerTextField(
     modifier: Modifier = Modifier,
     openTestTag: String? = null,
 ) {
-    val colors = OutlinedTextFieldDefaults.colors(
-        disabledTextColor = MaterialTheme.colorScheme.onSurface,
-        disabledContainerColor = MaterialTheme.colorScheme.surface,
-        disabledBorderColor = MaterialTheme.colorScheme.outline,
-        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    val interactionSource = remember { MutableInteractionSource() }
+    OutlinedTextField(
+        value = value,
+        onValueChange = {},
+        readOnly = true,
+        singleLine = true,
+        label = label,
+        leadingIcon = leadingIcon,
+        interactionSource = interactionSource,
+        trailingIcon = {
+            IconButton(
+                onClick = onClick,
+                modifier = if (openTestTag != null) {
+                    Modifier.testTag(openTestTag)
+                } else {
+                    Modifier
+                },
+            ) {
+                leadingIcon()
+            }
+        },
+        modifier = modifier
+            .fillMaxWidth()
+            .pointerInput(onClick) {
+                detectTapGestures { onClick() }
+            }
+            .testTag(openTestTag ?: "picker_field"),
     )
-    Box(modifier = modifier) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = {},
-            readOnly = true,
-            enabled = false,
-            singleLine = true,
-            label = label,
-            leadingIcon = leadingIcon,
-            colors = colors,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable(onClick = onClick)
-                .then(if (openTestTag != null) Modifier.testTag(openTestTag) else Modifier),
-        )
-    }
 }

@@ -24,6 +24,8 @@
     <string name="back">Zurück</string>
     <string name="refresh">Aktualisieren</string>
     <string name="clear_recent_locations">Zuletzt genutzte Stationen löschen</string>
+    <string name="suggestions_favorites">Favoriten</string>
+    <string name="suggestions_recent">Zuletzt verwendet</string>
     <string name="add_favorite_station">Zu Lieblingsstationen</string>
     <string name="remove_favorite_station">Aus Lieblingsstationen entfernen</string>
     <string name="save_favorite_route">Route als Favorit speichern</string>

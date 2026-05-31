@@ -117,6 +117,7 @@ fun SearchScreen(
                     SuggestionList(
                         suggestions = state.fromSuggestions,
                         favoriteKeys = state.favoriteLocationKeys,
+                        showSectionHeaders = state.fromQuery.isBlank(),
                         onSelect = viewModel::selectFrom,
                         onToggleFavorite = viewModel::toggleFavoriteLocation,
                     )
@@ -146,6 +147,7 @@ fun SearchScreen(
                     SuggestionList(
                         suggestions = state.toSuggestions,
                         favoriteKeys = state.favoriteLocationKeys,
+                        showSectionHeaders = state.toQuery.isBlank(),
                         onSelect = viewModel::selectTo,
                         onToggleFavorite = viewModel::toggleFavoriteLocation,
                     )
@@ -307,37 +309,76 @@ private fun JourneyResultItem(
 private fun SuggestionList(
     suggestions: List<Location>,
     favoriteKeys: Set<String>,
+    showSectionHeaders: Boolean,
     onSelect: (Location) -> Unit,
     onToggleFavorite: (Location) -> Unit,
 ) {
-    Column {
-        suggestions.take(8).forEach { loc ->
-            val key = loc.stableKey()
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .testTag("location_suggestion_${loc.evaNumber ?: loc.id}")
-                    .clickable { onSelect(loc) }
-                    .padding(vertical = 6.dp, horizontal = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    loc.name,
-                    Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                IconButton(onClick = { onToggleFavorite(loc) }) {
-                    val isFav = key in favoriteKeys
-                    Icon(
-                        if (isFav) Icons.Default.Star else Icons.Default.StarBorder,
-                        contentDescription = stringResource(
-                            if (isFav) R.string.remove_favorite_station else R.string.add_favorite_station,
-                        ),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                }
+    val limited = suggestions.take(8)
+    val favorites = limited.filter { it.stableKey() in favoriteKeys }
+    val others = limited.filter { it.stableKey() !in favoriteKeys }
+
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        if (showSectionHeaders && favorites.isNotEmpty()) {
+            Text(
+                stringResource(R.string.suggestions_favorites),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp, top = 4.dp),
+            )
+            favorites.forEach { loc ->
+                SuggestionRow(loc, favoriteKeys, onSelect, onToggleFavorite)
             }
+        }
+        if (showSectionHeaders && others.isNotEmpty()) {
+            Text(
+                stringResource(R.string.suggestions_recent),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp, top = if (favorites.isNotEmpty()) 8.dp else 4.dp),
+            )
+            others.forEach { loc ->
+                SuggestionRow(loc, favoriteKeys, onSelect, onToggleFavorite)
+            }
+        }
+        if (!showSectionHeaders) {
+            limited.forEach { loc ->
+                SuggestionRow(loc, favoriteKeys, onSelect, onToggleFavorite)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SuggestionRow(
+    loc: Location,
+    favoriteKeys: Set<String>,
+    onSelect: (Location) -> Unit,
+    onToggleFavorite: (Location) -> Unit,
+) {
+    val key = loc.stableKey()
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .testTag("location_suggestion_${loc.evaNumber ?: loc.id}")
+            .clickable { onSelect(loc) }
+            .padding(vertical = 6.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            loc.name,
+            Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        IconButton(onClick = { onToggleFavorite(loc) }) {
+            val isFav = key in favoriteKeys
+            Icon(
+                if (isFav) Icons.Default.Star else Icons.Default.StarBorder,
+                contentDescription = stringResource(
+                    if (isFav) R.string.remove_favorite_station else R.string.add_favorite_station,
+                ),
+                tint = MaterialTheme.colorScheme.primary,
+            )
         }
     }
 }
