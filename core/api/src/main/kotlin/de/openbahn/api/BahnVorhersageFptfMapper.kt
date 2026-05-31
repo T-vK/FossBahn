@@ -1,21 +1,22 @@
 package de.openbahn.api
 
 import de.openbahn.model.Journey
-import de.openbahn.api.JourneyRatingOptions
 import de.openbahn.model.Leg
 import de.openbahn.model.RatedJourney
 import de.openbahn.model.StopEvent
 import de.openbahn.model.StopTimelinessPrediction
 import de.openbahn.model.TransferPrediction
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
@@ -80,7 +81,7 @@ internal object BahnVorhersageFptfMapper {
             options.minTransferMinutes,
         ).toMutableList()
         val transfers = mutableListOf<TransferPrediction>()
-        val ratedLegs = ratedJson["legs"]?.jsonArray.orEmpty()
+        val ratedLegs: List<JsonElement> = ratedJson["legs"]?.jsonArray?.toList() ?: emptyList()
         var ratedIndex = 0
         journey.legs.forEachIndexed { legIndex, journeyLeg ->
             if (journeyLeg.isWalking) {
@@ -178,8 +179,8 @@ internal object BahnVorhersageFptfMapper {
         if (leg.isWalking) {
             return buildJsonObject {
                 put("type", "transfer")
-                put("origin", stopJson(leg.origin))
-                put("destination", stopJson(leg.destination))
+                putObject("origin", stopJson(leg.origin))
+                putObject("destination", stopJson(leg.destination))
                 put("departure", timeJson(leg.origin))
                 put("arrival", timeJson(leg.destination))
                 leg.distanceMeters?.let { put("distance", it) }
@@ -188,8 +189,8 @@ internal object BahnVorhersageFptfMapper {
         }
         return buildJsonObject {
             put("type", "leg")
-            put("origin", stopJson(leg.origin))
-            put("destination", stopJson(leg.destination))
+            putObject("origin", stopJson(leg.origin))
+            putObject("destination", stopJson(leg.destination))
             put("plannedDeparture", timeJson(leg.origin, scheduled = true))
             put("plannedArrival", timeJson(leg.destination, scheduled = true))
             put("departure", timeJson(leg.origin))
@@ -198,7 +199,7 @@ internal object BahnVorhersageFptfMapper {
             put("arrivalPlatform", leg.destination.platform.orEmpty())
             put("cancelled", leg.origin.cancelled || leg.destination.cancelled)
             leg.tripId?.let { put("tripId", it) }
-            put("line", lineJson(leg))
+            putObject("line", lineJson(leg))
         }
     }
 
@@ -223,9 +224,17 @@ internal object BahnVorhersageFptfMapper {
         val whenTime = stop.prognosedTime?.takeIf { it.isNotBlank() } ?: stop.scheduledTime
         return buildJsonObject {
             put("type", "stopover")
-            put("stop", stopJson(stop))
-            put("plannedArrival", if (isFirst) JsonNull else JsonPrimitive(stop.scheduledTime))
-            put("plannedDeparture", if (isLast) JsonNull else JsonPrimitive(stop.scheduledTime))
+            putObject("stop", stopJson(stop))
+            if (isFirst) {
+                put("plannedArrival", JsonNull)
+            } else {
+                put("plannedArrival", stop.scheduledTime)
+            }
+            if (isLast) {
+                put("plannedDeparture", JsonNull)
+            } else {
+                put("plannedDeparture", stop.scheduledTime)
+            }
             if (!isFirst) {
                 put("arrival", JsonPrimitive(whenTime))
             }
@@ -253,6 +262,10 @@ internal object BahnVorhersageFptfMapper {
                 put("type", "location")
             }
         }
+    }
+
+    private fun JsonObjectBuilder.putObject(key: String, value: JsonObject) {
+        put(key, value)
     }
 
     private fun timeJson(stop: StopEvent, scheduled: Boolean = false): String {
