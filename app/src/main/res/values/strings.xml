@@ -30,7 +30,7 @@
     <string name="remove_favorite_station">Remove from favorite stations</string>
     <string name="save_favorite_route">Save route as favorite</string>
     <string name="onboarding_dticket_title">Deutschland-Ticket</string>
-    <string name="onboarding_dticket_message">Show only connections valid with the Deutschland-Ticket by default? You can change this anytime under Options.</string>
+    <string name="onboarding_dticket_message">Show only connections valid with the Deutschland-Ticket by default? You can change this anytime in Settings or under Options.</string>
     <string name="onboarding_dticket_yes">Yes, filter by default</string>
     <string name="onboarding_dticket_no">No thanks</string>
     <string name="nav_favorites">Favorites</string>
@@ -53,6 +53,8 @@
     <string name="info_no_connections">No connections found for this route and time. Try different options or a later departure.</string>
     <string name="filters">Options</string>
     <string name="settings_title">Settings</string>
+    <string name="settings_dticket_only">D-Ticket connections only (default)</string>
+    <string name="settings_dticket_only_hint">Applies to new searches and is remembered. You can still change it per search under Options.</string>
     <string name="settings_language">Language</string>
     <string name="settings_language_hint">App and station search language. System uses your device setting.</string>
     <string name="settings_language_system">System</string>

@@ -127,6 +127,13 @@ class SearchViewModel(
                 _state.update { it.copy(punctualityToleranceMinutes = tolerance) }
             }
         }
+        viewModelScope.launch {
+            userPreferences.deutschlandTicketConnectionsOnly.collect { enabled ->
+                _state.update {
+                    it.copy(options = it.options.copy(deutschlandTicketConnectionsOnly = enabled))
+                }
+            }
+        }
     }
 
     private fun currentRatingOptions(): JourneyRatingOptions = JourneyRatingOptions(
@@ -137,15 +144,11 @@ class SearchViewModel(
     fun completeOnboarding(deutschlandTicketOnly: Boolean) {
         viewModelScope.launch {
             userPreferences.completeOnboarding(deutschlandTicketOnly)
-            if (deutschlandTicketOnly) {
-                _state.update {
-                    it.copy(
-                        options = it.options.copy(deutschlandTicketConnectionsOnly = true),
-                        showOnboarding = false,
-                    )
-                }
-            } else {
-                _state.update { it.copy(showOnboarding = false) }
+            _state.update {
+                it.copy(
+                    options = it.options.copy(deutschlandTicketConnectionsOnly = deutschlandTicketOnly),
+                    showOnboarding = false,
+                )
             }
         }
     }
@@ -237,6 +240,12 @@ class SearchViewModel(
 
     fun updateOptions(options: JourneySearchOptions) {
         _state.update { it.copy(options = options) }
+    }
+
+    fun setDeutschlandTicketConnectionsOnly(enabled: Boolean) {
+        viewModelScope.launch {
+            userPreferences.setDeutschlandTicketConnectionsOnly(enabled)
+        }
     }
 
     fun setWhen(time: LocalDateTime, arrivalSearch: Boolean) {

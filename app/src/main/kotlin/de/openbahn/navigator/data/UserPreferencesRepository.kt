@@ -23,8 +23,9 @@ class UserPreferencesRepository(private val context: Context) {
         it[KEY_ONBOARDING_DONE] ?: false
     }
 
-    val deutschlandTicketFilterDefault: Flow<Boolean> = dataStore.data.map {
-        it[KEY_DTICKET_FILTER_DEFAULT] ?: false
+    /** Default for “D-Ticket connections only”; updated from Settings, Options, or onboarding. */
+    val deutschlandTicketConnectionsOnly: Flow<Boolean> = dataStore.data.map {
+        it[KEY_DTICKET_CONNECTIONS_ONLY] ?: false
     }
 
     val appLanguage: Flow<AppLanguage> = dataStore.data.map { prefs ->
@@ -48,16 +49,20 @@ class UserPreferencesRepository(private val context: Context) {
         }
     }
 
+    suspend fun setDeutschlandTicketConnectionsOnly(enabled: Boolean) {
+        dataStore.edit { it[KEY_DTICKET_CONNECTIONS_ONLY] = enabled }
+    }
+
     suspend fun completeOnboarding(deutschlandTicketOnlyDefault: Boolean) {
         dataStore.edit {
             it[KEY_ONBOARDING_DONE] = true
-            it[KEY_DTICKET_FILTER_DEFAULT] = deutschlandTicketOnlyDefault
+            it[KEY_DTICKET_CONNECTIONS_ONLY] = deutschlandTicketOnlyDefault
         }
     }
 
     companion object {
         private val KEY_ONBOARDING_DONE = booleanPreferencesKey("onboarding_completed")
-        private val KEY_DTICKET_FILTER_DEFAULT = booleanPreferencesKey("dticket_filter_default")
+        private val KEY_DTICKET_CONNECTIONS_ONLY = booleanPreferencesKey("dticket_filter_default")
         private val KEY_APP_LANGUAGE = stringPreferencesKey("app_language")
         private val KEY_PUNCTUALITY_TOLERANCE = intPreferencesKey("punctuality_tolerance_minutes")
     }

@@ -84,7 +84,7 @@ fun FiltersScreen(
                 viewModel.updateOptions(options.copy(directOnly = it, maxTransfers = if (it) 0 else options.maxTransfers))
             }
             ToggleRow(stringResource(R.string.filter_dticket_only), options.deutschlandTicketConnectionsOnly) {
-                viewModel.updateOptions(options.copy(deutschlandTicketConnectionsOnly = it))
+                viewModel.setDeutschlandTicketConnectionsOnly(it)
             }
             ToggleRow(stringResource(R.string.filter_dticket_owned), options.deutschlandTicketOwned) {
                 viewModel.updateOptions(options.copy(deutschlandTicketOwned = it))

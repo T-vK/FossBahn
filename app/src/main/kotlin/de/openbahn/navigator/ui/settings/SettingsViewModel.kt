@@ -24,6 +24,10 @@ class SettingsViewModel(
             de.openbahn.api.JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES,
         )
 
+    val deutschlandTicketConnectionsOnly: StateFlow<Boolean> =
+        userPreferences.deutschlandTicketConnectionsOnly
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     fun setAppLanguage(language: AppLanguage, onApplied: () -> Unit = {}) {
         viewModelScope.launch {
             userPreferences.setAppLanguage(language)
@@ -35,6 +39,12 @@ class SettingsViewModel(
     fun setPunctualityToleranceMinutes(minutes: Int) {
         viewModelScope.launch {
             userPreferences.setPunctualityToleranceMinutes(minutes)
+        }
+    }
+
+    fun setDeutschlandTicketConnectionsOnly(enabled: Boolean) {
+        viewModelScope.launch {
+            userPreferences.setDeutschlandTicketConnectionsOnly(enabled)
         }
     }
 }

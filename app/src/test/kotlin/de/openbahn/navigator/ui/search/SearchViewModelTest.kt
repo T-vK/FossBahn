@@ -69,6 +69,7 @@ class SearchViewModelTest {
         every { locationHistory.observeFavoriteLocations() } returns flowOf(emptyList())
         every { userPreferences.appLanguage } returns flowOf(AppLanguage.ENGLISH)
         every { userPreferences.punctualityToleranceMinutes } returns flowOf(10)
+        every { userPreferences.deutschlandTicketConnectionsOnly } returns flowOf(false)
         coEvery { locationHistory.recentMatching(any()) } returns emptyList()
         coEvery { locationHistory.rankedForAutocomplete(any()) } returns emptyList()
         coEvery { searchRepository.searchLocations(any(), any()) } answers {

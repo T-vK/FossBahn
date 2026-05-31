@@ -33,6 +33,7 @@ fun SettingsScreen(
 ) {
     val appLanguage by viewModel.appLanguage.collectAsState()
     val punctualityTolerance by viewModel.punctualityToleranceMinutes.collectAsState()
+    val deutschlandTicketOnly by viewModel.deutschlandTicketConnectionsOnly.collectAsState()
     val activity = LocalContext.current as? AppCompatActivity
 
     Scaffold(
@@ -73,6 +74,10 @@ fun SettingsScreen(
                     if (minutes == punctualityTolerance) return@PunctualityToleranceSection
                     viewModel.setPunctualityToleranceMinutes(minutes)
                 },
+            )
+            DeutschlandTicketDefaultSection(
+                enabled = deutschlandTicketOnly,
+                onEnabledChange = viewModel::setDeutschlandTicketConnectionsOnly,
             )
         }
     }
