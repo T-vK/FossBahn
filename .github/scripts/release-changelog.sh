@@ -35,12 +35,7 @@ append_unique() {
 
 normalize_subject() {
   local s="$1"
-  s="${s#feat: }"
-  s="${s#Feat: }"
-  s="${s#fix: }"
-  s="${s#Fix: }"
-  s="${s#perf: }"
-  s="${s#refactor: }"
+  s=$(printf '%s' "$s" | sed -E 's/^(feat|fix|perf|refactor)(\([^)]+\))?:[[:space:]]*//I')
   printf '%s' "$s" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
 }
 
@@ -50,7 +45,7 @@ classify() {
   lower=$(printf '%s' "$subject" | tr '[:upper:]' '[:lower:]')
   case "$lower" in
     chore:*|ci:*|docs:*|style:*|test:*|build:*|chore:\ release\ v*) return 1 ;;
-    merge\ pull\ request*) return 1 ;;
+    merge\ pull\ request*|merge\ branch*) return 1 ;;
   esac
   [[ "$subject" == *"[skip ci]"* ]] && return 1
   case "$lower" in
@@ -63,12 +58,8 @@ classify() {
 }
 
 collect_log() {
-  git log "$RANGE" --no-merges --pretty=format:%s 2>/dev/null || true
-  local merge_hash
-  while IFS= read -r merge_hash; do
-    [ -z "$merge_hash" ] && continue
-    git log "${merge_hash}^2" --not "${merge_hash}^1" --no-merges --pretty=format:%s 2>/dev/null || true
-  done < <(git log "$RANGE" --merges --pretty=format:%H 2>/dev/null || true)
+  # First-parent matches what actually landed on main (merge commits + direct pushes).
+  git log "$RANGE" --first-parent --pretty=format:%s%n 2>/dev/null || true
 }
 
 while IFS= read -r subject; do
@@ -91,7 +82,7 @@ render_section() {
   printf '\n'
 }
 
-{
+changelog_body() {
   printf '## OpenBahn Navigator %s\n\n' "$NEW_VERSION"
   render_section "New" "${features[@]}"
   render_section "Fixes" "${fixes[@]}"
@@ -102,4 +93,10 @@ render_section() {
   printf 'Download the attached **OpenBahnNavigator** debug APK (CI-signed).\n\n'
   printf '**F-Droid custom repo:** [Add repository](https://t-vk.github.io/FossBahn/fdroid/) — `https://t-vk.github.io/FossBahn/fdroid/repo` (package `de.openbahn.navigator.debug`).\n\n'
   printf '_Built automatically from `main`._\n'
-} > "${OUT:-/dev/stdout}"
+}
+
+if [ -n "$OUT" ]; then
+  changelog_body > "$OUT"
+else
+  changelog_body
+fi
