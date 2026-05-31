@@ -7,6 +7,11 @@ import de.openbahn.navigator.BuildConfig
 import de.openbahn.navigator.data.FavoriteRouteRepository
 import de.openbahn.navigator.data.LocationHistoryRepository
 import de.openbahn.navigator.data.MIGRATION_3_4
+import de.openbahn.navigator.data.MIGRATION_4_5
+import de.openbahn.navigator.data.ClaimDraftRepository
+import de.openbahn.navigator.domain.PassengerRightsRepository
+import de.openbahn.navigator.tracking.PassengerRightsNotifier
+import de.openbahn.navigator.tracking.TrackedJourneyRightsCheckUseCase
 import de.openbahn.navigator.data.OpenBahnDatabase
 import de.openbahn.navigator.data.PendingSearchRepository
 import de.openbahn.navigator.data.TicketRepository
@@ -35,12 +40,13 @@ val appModule = module {
     single { BahnVorhersageClient(baseUrl = BuildConfig.BAHN_VORHERSAGE_API_URL) }
     single {
         Room.databaseBuilder(androidContext(), OpenBahnDatabase::class.java, "openbahn.db")
-            .addMigrations(MIGRATION_3_4)
+            .addMigrations(MIGRATION_3_4, MIGRATION_4_5)
             .fallbackToDestructiveMigration()
             .fallbackToDestructiveMigrationOnDowngrade()
             .build()
     }
     single { get<OpenBahnDatabase>().ticketDao() }
+    single { get<OpenBahnDatabase>().claimDraftDao() }
     single { get<OpenBahnDatabase>().trackedJourneyDao() }
     single { get<OpenBahnDatabase>().recentLocationDao() }
     single { get<OpenBahnDatabase>().favoriteLocationDao() }
@@ -53,7 +59,11 @@ val appModule = module {
     single { JourneyTrackingCoordinator(androidContext(), lazy { get<TrackedJourneyRepository>() }) }
     single { TrackedJourneyRepository(get(), get(), lazy { get<JourneyTrackingCoordinator>() }) }
     single { DelayNotificationNotifier(androidContext()) }
-    single { TrackedJourneyRefreshUseCase(get(), get()) }
+    single { PassengerRightsNotifier(androidContext()) }
+    single { ClaimDraftRepository(get(), get()) }
+    single { PassengerRightsRepository(get(), get()) }
+    single { TrackedJourneyRightsCheckUseCase(get(), get(), get(), get()) }
+    single { TrackedJourneyRefreshUseCase(get(), get(), get()) }
     single { TrackedJourneyDelayCheckUseCase(get(), get(), get(), get()) }
     single { DeviceLocationProvider(androidContext(), get<JourneySearchRepository>()) }
     single<JourneySearchRepository> { JourneySearchUseCase(get(), get()) }

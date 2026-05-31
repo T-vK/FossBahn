@@ -107,6 +107,7 @@ android.applicationVariants.configureEach {
 dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:api"))
+    implementation(project(":core:rights"))
     implementation(project(":core:common"))
 
     implementation(libs.androidx.core.ktx)

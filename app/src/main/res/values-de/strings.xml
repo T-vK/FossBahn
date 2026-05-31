@@ -183,4 +183,18 @@
     <string name="notification_channel_tracking_desc">Wird angezeigt, während OpenBahn verfolgte Verbindungen im Hintergrund auf Verspätungen prüft</string>
     <string name="delay_notification_title">Verspätung auf Ihrer Reise</string>
     <string name="delay_notification_body">%1$s → %2$s: %3$d Minuten Verspätung</string>
+    <string name="notification_channel_passenger_rights">Fahrgastrechte</string>
+    <string name="notification_channel_passenger_rights_desc">Hinweise zu Entschädigung und Ersatzbeförderung (keine Rechtsberatung)</string>
+    <string name="passenger_rights_banner_title">Fahrgastrechte (Prüfung nötig)</string>
+    <string name="passenger_rights_create_draft">Antragsentwurf erstellen &amp; E-Mail öffnen</string>
+    <string name="passenger_rights_dticket_ledger">D-Ticket-Entschädigung diesen Monat: %1$.2f € / Deckel %2$.2f €</string>
+    <string name="passenger_rights_taxi_hint">Taxi (Einzelfall):</string>
+    <string name="passenger_rights_ice_hint">Fernverkehr-Ausweich (Einzelfall):</string>
+    <string name="passenger_rights_claims_title">Antragsentwürfe</string>
+    <string name="passenger_rights_claims_empty">Noch keine Entwürfe. Sie erscheinen bei relevanten Störungen.</string>
+    <string name="passenger_rights_tap_to_send">Tippen für E-Mail-App — vor dem Versand prüfen</string>
+    <string name="passenger_rights_settings_heading">Fahrgastrechte</string>
+    <string name="passenger_rights_notifications">Rechte-Benachrichtigungen</string>
+    <string name="passenger_rights_notifications_desc">Hinweise bei Schwellen — kein Anspruchsgarantie</string>
+    <string name="passenger_rights_claims_settings_desc">Entwürfe an Verkehrsunternehmen — Versand nur nach Ihrer Freigabe</string>
 </resources>
