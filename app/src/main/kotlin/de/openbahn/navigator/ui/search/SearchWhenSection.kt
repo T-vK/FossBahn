@@ -1,12 +1,15 @@
 package de.openbahn.navigator.ui.search
 
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Schedule
@@ -16,9 +19,9 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -32,9 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -78,18 +79,14 @@ fun SearchWhenSection(
                 selected = !arrivalSearch,
                 onClick = { onArrivalSearchChange(false) },
                 shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("search_time_mode_departure"),
+                modifier = Modifier.testTag("search_time_mode_departure"),
                 label = { Text(stringResource(R.string.search_time_departure)) },
             )
             SegmentedButton(
                 selected = arrivalSearch,
                 onClick = { onArrivalSearchChange(true) },
                 shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("search_time_mode_arrival"),
+                modifier = Modifier.testTag("search_time_mode_arrival"),
                 label = { Text(stringResource(R.string.search_time_arrival)) },
             )
         }
@@ -97,44 +94,36 @@ fun SearchWhenSection(
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
         ) {
             PickerTextField(
                 value = dateLabel,
-                label = { Text(stringResource(R.string.search_date)) },
-                leadingIcon = {
-                    Icon(
-                        Icons.Outlined.CalendarMonth,
-                        contentDescription = stringResource(R.string.search_pick_date),
-                    )
-                },
+                label = stringResource(R.string.search_date),
+                icon = Icons.Outlined.CalendarMonth,
                 onClick = { showDatePicker = true },
-                openTestTag = "search_date_open",
                 modifier = Modifier
                     .weight(1f)
                     .testTag("search_date_field"),
+                openTestTag = "search_date_open",
             )
             PickerTextField(
                 value = timeLabel,
-                label = { Text(stringResource(R.string.search_time)) },
-                leadingIcon = {
-                    Icon(
-                        Icons.Outlined.Schedule,
-                        contentDescription = stringResource(R.string.search_pick_time),
-                    )
-                },
+                label = stringResource(R.string.search_time),
+                icon = Icons.Outlined.Schedule,
                 onClick = { showTimePicker = true },
-                openTestTag = "search_time_open",
                 modifier = Modifier
-                    .widthIn(min = 112.dp)
+                    .width(128.dp)
                     .testTag("search_time_field"),
+                openTestTag = "search_time_open",
             )
-            FilledTonalButton(
-                onClick = { onDepartureTimeChange(LocalDateTime.now()) },
-                modifier = Modifier.testTag("search_time_now"),
-            ) {
-                Text(stringResource(R.string.search_time_now))
-            }
+        }
+
+        FilledTonalButton(
+            onClick = { onDepartureTimeChange(LocalDateTime.now()) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("search_time_now"),
+        ) {
+            Text(stringResource(R.string.search_time_now))
         }
     }
 
@@ -200,38 +189,44 @@ fun SearchWhenSection(
 @Composable
 private fun PickerTextField(
     value: String,
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit,
-    label: @Composable () -> Unit,
-    leadingIcon: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     openTestTag: String? = null,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    OutlinedTextField(
-        value = value,
-        onValueChange = {},
-        readOnly = true,
-        singleLine = true,
-        label = label,
-        leadingIcon = leadingIcon,
-        interactionSource = interactionSource,
-        trailingIcon = {
-            IconButton(
-                onClick = onClick,
-                modifier = if (openTestTag != null) {
-                    Modifier.testTag(openTestTag)
-                } else {
-                    Modifier
-                },
-            ) {
-                leadingIcon()
-            }
-        },
-        modifier = modifier
-            .fillMaxWidth()
-            .pointerInput(onClick) {
-                detectTapGestures { onClick() }
-            }
-            .testTag(openTestTag ?: "picker_field"),
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+        disabledContainerColor = MaterialTheme.colorScheme.surface,
+        disabledBorderColor = MaterialTheme.colorScheme.outline,
+        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+    Box(
+        modifier = modifier.heightIn(min = 56.dp),
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            readOnly = true,
+            enabled = false,
+            singleLine = true,
+            label = { Text(label) },
+            leadingIcon = {
+                Icon(icon, contentDescription = label)
+            },
+            colors = fieldColors,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick,
+                )
+                .then(if (openTestTag != null) Modifier.testTag(openTestTag) else Modifier),
+        )
+    }
 }
