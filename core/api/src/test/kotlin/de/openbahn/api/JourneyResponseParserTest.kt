@@ -16,6 +16,25 @@ class JourneyResponseParserTest {
     }
 
     @Test
+    fun parsesWalkingLegAndSectionRemarks() {
+        val text = javaClass.getResource("/dbweb-scenario-flx1247-cancelled.json")!!.readText()
+        val journey = JourneyResponseParser.parse(text).journeys.single()
+        assertTrue(journey.remarks.any { it.contains("entfällt", ignoreCase = true) })
+        val leg = journey.legs.single()
+        assertTrue(leg.remarks.any { it.contains("fällt aus", ignoreCase = true) })
+    }
+
+    @Test
+    fun parsesWalkSectionFromRealFixture() {
+        val text = javaClass.getResource("/dbweb-journey-db-vendo-real.json")!!.readText()
+        val journey = JourneyResponseParser.parse(text).journeys.first()
+        val walk = journey.legs.firstOrNull { it.isWalking }
+        requireNotNull(walk) { "expected a walking leg in fixture" }
+        assertEquals("Fußweg", walk.lineName)
+        assertTrue((walk.durationMinutes ?: 0) > 0)
+    }
+
+    @Test
     fun parsesHamburgBerlinWithNumericPlatform() {
         val text = javaClass.getResource("/dbweb-journey-hamburg-berlin.json")!!.readText()
         val journeys = JourneyResponseParser.parse(text).journeys

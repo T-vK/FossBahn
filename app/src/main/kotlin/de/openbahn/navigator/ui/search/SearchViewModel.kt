@@ -233,11 +233,11 @@ class SearchViewModel(
         loadSuggestions(query, isFrom = false)
     }
 
-    fun selectFrom(location: Location) {
+    fun selectFrom(location: Location, displayLabel: String? = null) {
         _state.update {
             it.copy(
                 from = location,
-                fromQuery = location.name,
+                fromQuery = displayLabel ?: location.name,
                 fromSuggestions = emptyList(),
                 activeLocationField = ActiveLocationField.NONE,
             )
@@ -245,11 +245,11 @@ class SearchViewModel(
         viewModelScope.launch { locationHistory.recordUsed(location) }
     }
 
-    fun selectTo(location: Location) {
+    fun selectTo(location: Location, displayLabel: String? = null) {
         _state.update {
             it.copy(
                 to = location,
-                toQuery = location.name,
+                toQuery = displayLabel ?: location.name,
                 toSuggestions = emptyList(),
                 activeLocationField = ActiveLocationField.NONE,
             )
@@ -403,11 +403,11 @@ class SearchViewModel(
         }
     }
 
-    fun selectVia(index: Int, location: Location) {
+    fun selectVia(index: Int, location: Location, displayLabel: String? = null) {
         _state.update { state ->
             val stops = state.viaStops.toMutableList()
             if (index !in stops.indices) return@update state
-            stops[index] = stops[index].copy(location = location, query = location.name)
+            stops[index] = stops[index].copy(location = location, query = displayLabel ?: location.name)
             state.copy(
                 viaStops = stops,
                 viaSuggestions = emptyList(),
@@ -418,27 +418,31 @@ class SearchViewModel(
     }
 
     fun useCurrentLocationForFrom() {
-        viewModelScope.launch { resolveCurrentLocation { selectFrom(it) } }
+        viewModelScope.launch { resolveCurrentLocation { loc, label -> selectFrom(loc, label) } }
     }
 
     fun useCurrentLocationForTo() {
-        viewModelScope.launch { resolveCurrentLocation { selectTo(it) } }
+        viewModelScope.launch { resolveCurrentLocation { loc, label -> selectTo(loc, label) } }
     }
 
     fun useCurrentLocationForVia(index: Int) {
         viewModelScope.launch {
-            resolveCurrentLocation { location -> selectVia(index, location) }
+            resolveCurrentLocation { location, label -> selectVia(index, location, label) }
         }
     }
 
-    private suspend fun resolveCurrentLocation(onResolved: (Location) -> Unit) {
+    fun reportLocationPermissionDenied() {
+        _state.update { it.copy(error = "error_location_permission") }
+    }
+
+    private suspend fun resolveCurrentLocation(onResolved: (Location, String) -> Unit) {
         if (!deviceLocation.hasLocationPermission()) {
             _state.update { it.copy(error = "error_location_permission") }
             return
         }
-        val location = deviceLocation.resolveCurrentStation(_state.value.locale)
-        if (location != null) {
-            onResolved(location)
+        val resolved = deviceLocation.resolveCurrentLocation(_state.value.locale)
+        if (resolved != null) {
+            onResolved(resolved.searchLocation, resolved.displayLabel)
         } else {
             _state.update { it.copy(error = "error_location_unavailable") }
         }

@@ -43,6 +43,12 @@ data class Leg(
     val loadFactor: String? = null,
     val bikeAllowed: Boolean? = null,
     val tripId: String? = null,
+    /** True for API sections with verkehrsmittel.typ WALK (Fußweg). */
+    val isWalking: Boolean = false,
+    val durationMinutes: Int? = null,
+    val distanceMeters: Int? = null,
+    /** Section-level notices (HIM, hints) for this step. */
+    val remarks: List<String> = emptyList(),
 )
 
 @Serializable

@@ -15,6 +15,7 @@ import kotlinx.coroutines.coroutineScope
 
 interface JourneySearchRepository {
     suspend fun searchLocations(query: String, locale: String): List<Location>
+    suspend fun searchLocationsNearby(latitude: Double, longitude: Double, locale: String): List<Location>
     suspend fun searchJourneys(
         from: Location,
         to: Location,
@@ -34,6 +35,12 @@ class JourneySearchUseCase(
 ) : JourneySearchRepository {
     override suspend fun searchLocations(query: String, locale: String): List<Location> =
         dbClient.searchLocations(query, locale)
+
+    override suspend fun searchLocationsNearby(
+        latitude: Double,
+        longitude: Double,
+        locale: String,
+    ): List<Location> = dbClient.searchLocationsNearby(latitude, longitude, locale)
 
     override suspend fun searchJourneys(
         from: Location,

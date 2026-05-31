@@ -2,6 +2,7 @@ package de.openbahn.api
 
 import de.openbahn.model.AccessibilityFilter
 import de.openbahn.model.JourneySearchOptions
+import de.openbahn.api.haltIdForCoordinates
 import de.openbahn.model.Location
 import de.openbahn.model.TransportProduct
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -94,6 +95,20 @@ class JourneyRequestBuilderTest {
             LocalDateTime.now(),
         )
         assertTrue(body.toString().contains("A=1@L=8000152@"))
+    }
+
+    @Test
+    fun `coordinate location uses geo halt id`() {
+        val from = Location(
+            id = haltIdForCoordinates(52.52, 13.405, "Current position"),
+            name = "Alexanderplatz, Berlin",
+            latitude = 52.52,
+            longitude = 13.405,
+        )
+        val body = JourneyRequestBuilder.build(from, munich, JourneySearchOptions(), LocalDateTime.now())
+        val halt = body["abfahrtsHalt"]!!.toString().trim('"')
+        assertTrue(halt.contains("@X="))
+        assertTrue(halt.contains("@Y="))
     }
 
     @Test

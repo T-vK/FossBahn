@@ -267,6 +267,7 @@ internal object JourneyResponseParser {
         platform: String?,
         times: ParsedStopTimes,
         cancelled: Boolean = false,
+        remarks: List<String> = emptyList(),
     ) = StopEvent(
         name = name,
         id = id,
@@ -275,6 +276,7 @@ internal object JourneyResponseParser {
         prognosedTime = times.prognosed,
         delayMinutes = times.delayMinutes,
         cancelled = cancelled,
+        remarks = remarks,
     )
 
     private fun isCancelled(section: JsonObject, halt: JsonObject?, forDeparture: Boolean): Boolean {
@@ -439,7 +441,10 @@ internal object JourneyResponseParser {
             priceHint = priceHint(v),
             refreshToken = text(v, "ctxRecon") ?: text(v, "kontext"),
             deutschlandTicketValid = bool(v, "dticketGueltig"),
-            remarks = mapHinweise(v["hinweise"]?.jsonArray),
+            remarks = distinctRemarks(
+                mapHinweise(v["hinweise"]?.jsonArray),
+                mapHinweise(v["himMeldungen"]?.jsonArray),
+            ),
         )
 
     private fun mapAbschnitt(a: JsonObject): Leg? {
@@ -449,6 +454,11 @@ internal object JourneyResponseParser {
         val startHalt = haltObject(a, "startHalt", "start", "abfahrtsHalt")
         val zielHalt = haltObject(a, "zielHalt", "ziel", "ankunftsHalt", "zielBahnhof")
         val vm = a["verkehrsmittel"]?.jsonObject
+        val isWalking = text(vm, "typ")?.equals("WALK", ignoreCase = true) == true
+        val durationMinutes = intVal(a, "abschnittsDauer")?.let { seconds ->
+            ((seconds + 59) / 60).coerceAtLeast(1)
+        }
+        val legRemarks = sectionRemarks(a)
 
         val depName = stationName(a, "abfahrtsOrt", firstHalt)
             ?: stationName(a, "abgangsOrt", firstHalt)
@@ -477,6 +487,7 @@ internal object JourneyResponseParser {
                 platform = depPlatform,
                 times = depTimes,
                 cancelled = isCancelled(a, firstHalt ?: startHalt, forDeparture = true),
+                remarks = haltRemarks(firstHalt ?: startHalt),
             ),
             destination = stopEventFromParsed(
                 name = arrName,
@@ -486,6 +497,7 @@ internal object JourneyResponseParser {
                 platform = arrPlatform,
                 times = arrTimes,
                 cancelled = isCancelled(a, lastHalt ?: zielHalt, forDeparture = false),
+                remarks = haltRemarks(lastHalt ?: zielHalt),
             ),
             intermediateStops = mapIntermediateStops(halte, depName, arrName),
             lineName = lineLabel(vm),
@@ -494,6 +506,10 @@ internal object JourneyResponseParser {
             loadFactor = text(vm, "auslastung"),
             bikeAllowed = bool(vm, "fahrradErlaubt"),
             tripId = text(a, "journeyId"),
+            isWalking = isWalking,
+            durationMinutes = durationMinutes,
+            distanceMeters = intVal(a, "distanz"),
+            remarks = legRemarks,
         )
     }
 
@@ -522,6 +538,7 @@ internal object JourneyResponseParser {
                     platform = text(halt, "gleis"),
                     times = times,
                     cancelled = hasCancellationSignal(halt),
+                    remarks = haltRemarks(halt),
                 )
             }
         }
@@ -650,6 +667,31 @@ internal object JourneyResponseParser {
                 else -> null
             }
         }
+
+    private fun mapRisNotizen(notes: JsonArray?): List<String> =
+        notes.orEmpty().mapNotNull { element ->
+            val note = runCatching { element.jsonObject }.getOrNull() ?: return@mapNotNull null
+            text(note, "text") ?: text(note, "value") ?: text(note, "kurzText")
+        }
+
+    private fun haltRemarks(halt: JsonObject?): List<String> {
+        if (halt == null) return emptyList()
+        return distinctRemarks(
+            mapHinweise(halt["hinweise"]?.jsonArray),
+            mapHinweise(halt["himMeldungen"]?.jsonArray),
+        )
+    }
+
+    private fun sectionRemarks(section: JsonObject): List<String> =
+        distinctRemarks(
+            mapHinweise(section["himMeldungen"]?.jsonArray),
+            mapHinweise(section["priorisierteMeldungen"]?.jsonArray),
+            mapHinweise(section["hinweise"]?.jsonArray),
+            mapRisNotizen(section["risNotizen"]?.jsonArray),
+        )
+
+    private fun distinctRemarks(vararg lists: List<String>): List<String> =
+        lists.flatMap { it }.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
 
     private fun priceHint(v: JsonObject): String? {
         val preis = v["preis"]?.jsonObject ?: v["angebotsPreis"]?.jsonObject ?: return null

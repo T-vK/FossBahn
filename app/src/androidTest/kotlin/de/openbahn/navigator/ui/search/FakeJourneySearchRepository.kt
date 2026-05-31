@@ -18,6 +18,12 @@ class FakeJourneySearchRepository : JourneySearchRepository {
     val berlin = Location(id = "8011160", name = "Berlin Hbf", evaNumber = "8011160")
     val munich = Location(id = "8000261", name = "München Hbf", evaNumber = "8000261")
 
+    override suspend fun searchLocationsNearby(
+        latitude: Double,
+        longitude: Double,
+        locale: String,
+    ): List<Location> = listOf(hamburg)
+
     override suspend fun searchLocations(query: String, locale: String): List<Location> = when {
         query.contains("Hamburg", ignoreCase = true) -> listOf(hamburg)
         query.contains("Berlin", ignoreCase = true) -> listOf(berlin)

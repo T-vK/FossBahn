@@ -45,6 +45,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
@@ -73,18 +77,39 @@ fun SearchScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val listState = rememberLazyListState()
+    var pendingLocationAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
-    ) { }
+    ) { grants ->
+        val granted = grants.values.any { it }
+        if (granted) {
+            pendingLocationAction?.invoke()
+        } else {
+            viewModel.reportLocationPermissionDenied()
+        }
+        pendingLocationAction = null
+    }
 
     fun requestLocationThen(action: () -> Unit) {
-        locationPermissionLauncher.launch(
-            arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION,
-            ),
-        )
-        action()
+        val fineGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        val coarseGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (fineGranted || coarseGranted) {
+            action()
+        } else {
+            pendingLocationAction = action
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                ),
+            )
+        }
     }
 
     LaunchedEffect(state.scrollToResultsToken) {
@@ -526,6 +551,8 @@ private fun errorStringRes(key: String): Int = when (key) {
     "error_api_blocked" -> R.string.error_api_blocked
     "error_network" -> R.string.error_network
     "error_parse" -> R.string.error_parse
+    "error_location_permission" -> R.string.error_location_permission
+    "error_location_unavailable" -> R.string.error_location_unavailable
     else -> R.string.error_search_failed
 }
 
