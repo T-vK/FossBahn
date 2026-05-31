@@ -165,18 +165,23 @@ Search → **Options** (filter icon) → **Language**: **System** (device defaul
 
 ## Bahn-Vorhersage (transfer probabilities)
 
-Search results show **Anschlusswahrscheinlichkeit** between legs when the journey has at least one transfer.
+Search results show connection and on-time probabilities when predictions are enabled.
 
-- **Default:** transfer-time heuristic (no network call). Label: “Geschätzte Anschlusschance … (Umsteigezeit)”.
-- **Optional ML scores:** run a [self-hosted Bahn-Vorhersage predictor](https://gitlab.com/bahnvorhersage/bahnvorhersage) and set in `gradle.properties`:
+- **Default:** [bahnvorhersage.de](https://bahnvorhersage.de/) public mobile API (`POST /api/mobile/v2/journeys`) — same ML rating the website uses. Journeys come from DB Vendo; trip stop lists are fetched before rating.
+- **Fallback:** local heuristics if the API fails or returns nothing.
+- **Disable:** set an empty URL in `gradle.properties`:
+
+  ```properties
+  bahnVorhersageApiUrl=
+  ```
+
+- **Self-hosted predictor** (columnar `/rate-journeys/` only, no journey search):
 
   ```properties
   bahnVorhersageApiUrl=http://127.0.0.1:8000/api
   ```
 
-  The public `bahnvorhersage.de` site does **not** offer a third-party HTTP API ([FAQ](https://bahnvorhersage.de/)).
-
-Implementation: `BahnVorhersageClient`, `BahnVorhersageRequestBuilder`, `BahnVorhersageHeuristic`, `TransferBlock` in `CommonComponents.kt`.
+Implementation: `BahnVorhersageClient`, `BahnVorhersageFptfMapper`, `BahnVorhersageHeuristic`, `loadTripRoutesForJourneys`.
 
 ## Contributing
 

@@ -69,7 +69,7 @@ val appModule = module {
     single { TrackedJourneyDelayCheckUseCase(get(), get(), get(), get()) }
     single { DeviceLocationProvider(androidContext()) }
     single<JourneySearchRepository> { JourneySearchUseCase(get(), get()) }
-    single { PredictionUseCase(get()) }
+    single { PredictionUseCase(get(), get()) }
     viewModel {
         SearchViewModel(get(), get(), get(), get(), get(), get(), get(), androidContext())
     }

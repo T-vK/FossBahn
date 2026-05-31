@@ -3,6 +3,7 @@ package de.openbahn.navigator.domain
 import de.openbahn.api.BahnVorhersageClient
 import de.openbahn.api.DbVendoClient
 import de.openbahn.api.JourneyRatingOptions
+import de.openbahn.api.loadTripRoutesForJourneys
 import de.openbahn.model.Journey
 import de.openbahn.model.JourneySearchOptions
 import de.openbahn.model.JourneySearchResult
@@ -63,10 +64,9 @@ class JourneySearchUseCase(
     override suspend fun rateJourneys(
         journeys: List<Journey>,
         ratingOptions: JourneyRatingOptions,
-    ): List<RatedJourney> = coroutineScope {
-        journeys.map { journey ->
-            async { predictionClient.rateJourney(journey, ratingOptions) }
-        }.awaitAll()
+    ): List<RatedJourney> {
+        val tripRoutes = loadTripRoutesForJourneys(journeys) { leg -> fetchFullLegRoute(leg) }
+        return predictionClient.rateJourneys(journeys, ratingOptions, tripRoutes)
     }
 
     override suspend fun fetchTripRoute(journeyId: String): List<StopEvent> =
@@ -76,9 +76,17 @@ class JourneySearchUseCase(
         withContext(Dispatchers.IO) { dbClient.fetchFullLegRoute(leg) }
 }
 
-class PredictionUseCase(private val client: BahnVorhersageClient) {
+class PredictionUseCase(
+    private val client: BahnVorhersageClient,
+    private val searchRepository: JourneySearchRepository,
+) {
     suspend fun rate(
         journey: Journey,
         ratingOptions: JourneyRatingOptions = JourneyRatingOptions(),
-    ): RatedJourney = client.rateJourney(journey, ratingOptions)
+    ): RatedJourney {
+        val tripRoutes = loadTripRoutesForJourneys(listOf(journey)) { leg ->
+            searchRepository.fetchFullLegRoute(leg)
+        }
+        return client.rateJourney(journey, ratingOptions, tripRoutes)
+    }
 }

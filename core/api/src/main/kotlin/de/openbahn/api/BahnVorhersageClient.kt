@@ -2,38 +2,101 @@ package de.openbahn.api
 
 import de.openbahn.api.debug.OpenBahnDebugLog
 import de.openbahn.model.Journey
+import de.openbahn.model.JourneyRatingOptions
 import de.openbahn.model.RatedJourney
+import de.openbahn.model.StopEvent
 import de.openbahn.model.StopTimelinessPrediction
 import de.openbahn.model.TransferPrediction
+import de.openbahn.model.tripRouteStops
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonObject
 
 /**
- * Transfer success and punctuality via Bahn-Vorhersage (optional) or local heuristics.
+ * Transfer success and punctuality via Bahn-Vorhersage.
  *
- * The bahnvorhersage.de website does **not** expose a public API for third-party apps.
- * Set [baseUrl] to a self-hosted predictor (see https://gitlab.com/bahnvorhersage/bahnvorhersage)
- * or leave empty to use estimates only.
+ * Default: [DEFAULT_MOBILE_BASE_URL] (`POST …/journeys`) — same public rating API as bahnvorhersage.de.
+ * Override with `bahnVorhersageApiUrl` in `gradle.properties` for a self-hosted `/rate-journeys/` predictor.
  */
 class BahnVorhersageClient(
-    private val baseUrl: String = DEFAULT_BASE_URL,
+    private val baseUrl: String = DEFAULT_MOBILE_BASE_URL,
     private val httpClient: HttpClient = DbVendoClient.createDefaultClient(),
 ) {
     suspend fun rateJourney(
         journey: Journey,
         options: JourneyRatingOptions = JourneyRatingOptions(),
-    ): RatedJourney {
-        if (baseUrl.isNotBlank()) {
-            rateFromApi(journey, options)?.let { return it.enrichWithHeuristics(journey, options) }
+        tripRoutes: Map<String, List<StopEvent>> = emptyMap(),
+    ): RatedJourney = rateJourneys(listOf(journey), options, tripRoutes).first()
+
+    suspend fun rateJourneys(
+        journeys: List<Journey>,
+        options: JourneyRatingOptions = JourneyRatingOptions(),
+        tripRoutes: Map<String, List<StopEvent>> = emptyMap(),
+    ): List<RatedJourney> {
+        if (journeys.isEmpty()) return emptyList()
+        if (baseUrl.isBlank()) {
+            return journeys.map { heuristicRating(it, options) }
         }
-        return heuristicRating(journey, options)
+        if (usesMobileV2Api()) {
+            rateFromMobileV2(journeys, options, tripRoutes)?.let { return it }
+        } else {
+            return journeys.map { journey ->
+                rateFromPredictorApi(journey, options)?.enrichWithHeuristics(journey, options)
+                    ?: heuristicRating(journey, options)
+            }
+        }
+        return journeys.map { heuristicRating(it, options) }
+    }
+
+    private fun usesMobileV2Api(): Boolean =
+        baseUrl.contains("/mobile/v2", ignoreCase = true)
+
+    private suspend fun rateFromMobileV2(
+        journeys: List<Journey>,
+        options: JourneyRatingOptions,
+        tripRoutes: Map<String, List<StopEvent>>,
+    ): List<RatedJourney>? {
+        val trips = buildTripPayload(journeys, tripRoutes)
+        if (trips.isEmpty()) return null
+        return try {
+            val body = BahnVorhersageFptfMapper.buildRateRequest(journeys, trips)
+            val url = baseUrl.trimEnd('/') + "/journeys"
+            val responseText: String = httpClient.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(body)
+            }.bodyAsText()
+            BahnVorhersageFptfMapper.parseRatedJourneys(responseText, journeys, options)
+        } catch (e: Exception) {
+            OpenBahnDebugLog.w("BahnVorhersage", "mobile v2 rating failed: ${e.message}")
+            null
+        }
+    }
+
+    private fun buildTripPayload(
+        journeys: List<Journey>,
+        tripRoutes: Map<String, List<StopEvent>>,
+    ): Map<String, List<StopEvent>> {
+        val result = mutableMapOf<String, List<StopEvent>>()
+        journeys.forEach { journey ->
+            journey.legs.filter { !it.isWalking }.forEach { leg ->
+                val tripId = leg.tripId?.trim().orEmpty()
+                if (tripId.isEmpty() || tripId in result) return@forEach
+                val route = tripRoutes[tripId]
+                    ?.takeIf { it.size >= 2 }
+                    ?: leg.tripRouteStops().takeIf { it.size >= 2 }
+                    ?: listOf(leg.origin, leg.destination)
+                if (route.size >= 2) {
+                    result[tripId] = route
+                }
+            }
+        }
+        return result
     }
 
     private fun heuristicRating(journey: Journey, options: JourneyRatingOptions): RatedJourney {
@@ -82,7 +145,11 @@ class BahnVorhersageClient(
         punctualityToleranceMinutes = options.punctualityToleranceMinutes,
     )
 
-    private suspend fun rateFromApi(journey: Journey, options: JourneyRatingOptions): RatedJourney? {
+    /** Self-hosted columnar `/rate-journeys/` predictor (legacy URL). */
+    private suspend fun rateFromPredictorApi(
+        journey: Journey,
+        options: JourneyRatingOptions,
+    ): RatedJourney? {
         if (!BahnVorhersageRequestBuilder.hasTransferEvents(journey)) return null
         return try {
             val body = BahnVorhersageRequestBuilder.build(journey, options.minTransferMinutes)
@@ -130,7 +197,7 @@ class BahnVorhersageClient(
                 punctualityIsEstimate = false,
             )
         } catch (e: Exception) {
-            OpenBahnDebugLog.w("BahnVorhersage", "rateJourney API failed for ${journey.id}: ${e.message}")
+            OpenBahnDebugLog.w("BahnVorhersage", "rate-journeys API failed for ${journey.id}: ${e.message}")
             null
         }
     }
@@ -254,7 +321,10 @@ class BahnVorhersageClient(
     )
 
     companion object {
-        /** No public API — use heuristic unless a self-hosted predictor URL is configured. */
-        const val DEFAULT_BASE_URL = ""
+        /** Public rating API used by bahnvorhersage.de (mobile app / web). */
+        const val DEFAULT_MOBILE_BASE_URL = "https://bahnvorhersage.de/api/mobile/v2"
+
+        /** Disable ML: set `bahnVorhersageApiUrl=` empty in gradle.properties. */
+        const val DEFAULT_BASE_URL = DEFAULT_MOBILE_BASE_URL
     }
 }

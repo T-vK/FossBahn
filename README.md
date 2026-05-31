@@ -6,7 +6,7 @@ A free, open-source Android app for planning journeys on German railways — wit
 
 - **Connection search** with common filters (transport modes, bike, direct connections, Deutschland-Ticket, via stops, accessibility, and more)
 - **Station boards** (departures and arrivals)
-- **Connection predictions** at transfers (Bahn-Vorhersage ML when self-hosted, otherwise estimated from transfer time — see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md))
+- **Connection predictions** at transfers (Bahn-Vorhersage ML via bahnvorhersage.de, with local fallback — see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md))
 - **Delay alerts** for journeys you are tracking
 - **Ticket wallet** — import PDF tickets; Deutschland-Ticket with photo
 - **English and German** interface

@@ -34,6 +34,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.openbahn.api.BahnVorhersageClient
 import de.openbahn.api.JourneyRatingOptions
+import de.openbahn.api.loadTripRoutesForJourneys
 import de.openbahn.model.Journey
 import de.openbahn.navigator.R
 import de.openbahn.navigator.data.UserPreferencesRepository
@@ -42,6 +43,7 @@ import de.openbahn.navigator.tracking.TrackedJourneyRefreshUseCase
 import de.openbahn.model.applyPassengerRightsSimulation
 import de.openbahn.navigator.BuildConfig
 import de.openbahn.navigator.data.PassengerRightsSimulationRepository
+import de.openbahn.navigator.domain.JourneySearchRepository
 import de.openbahn.navigator.domain.PassengerRightsRepository
 import de.openbahn.navigator.ui.components.JourneyCard
 import de.openbahn.navigator.ui.rights.PassengerRightsBanner
@@ -60,6 +62,7 @@ fun JourneyDetailScreen(
     onTrack: (() -> Unit)? = null,
     refreshUseCase: TrackedJourneyRefreshUseCase = koinInject(),
     predictionClient: BahnVorhersageClient = koinInject(),
+    journeySearch: JourneySearchRepository = koinInject(),
     userPreferences: UserPreferencesRepository = koinInject(),
     passengerRights: PassengerRightsRepository = koinInject(),
     simulationRepository: PassengerRightsSimulationRepository = koinInject(),
@@ -91,13 +94,14 @@ fun JourneyDetailScreen(
             showRightsBanner = passengerRights.shouldSurfaceRightsUi(assessment)
             if (payload.predictionsRequested) {
                 val tolerance = userPreferences.punctualityToleranceMinutes.first()
-                prediction = predictionClient.rateJourney(
-                    refreshed,
-                    JourneyRatingOptions(
-                        minTransferMinutes = payload.minTransferMinutes,
-                        punctualityToleranceMinutes = tolerance,
-                    ),
+                val options = JourneyRatingOptions(
+                    minTransferMinutes = payload.minTransferMinutes,
+                    punctualityToleranceMinutes = tolerance,
                 )
+                val tripRoutes = loadTripRoutesForJourneys(listOf(refreshed)) { leg ->
+                    journeySearch.fetchFullLegRoute(leg)
+                }
+                prediction = predictionClient.rateJourney(refreshed, options, tripRoutes)
             }
         } finally {
             isRefreshing = false

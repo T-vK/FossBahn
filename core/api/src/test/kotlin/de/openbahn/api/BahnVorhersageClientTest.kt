@@ -25,7 +25,7 @@ class BahnVorhersageClientTest {
             departure = "2026-05-30T10:00:00",
             arrival = "2026-05-30T12:00:00",
         )
-        val rated = BahnVorhersageClient().rateJourney(journey)
+        val rated = BahnVorhersageClient(baseUrl = "").rateJourney(journey)
         assertTrue(rated.predictions.isEmpty())
         assertNotNull(rated.punctualityProbability)
         assertTrue(rated.punctualityIsEstimate)
