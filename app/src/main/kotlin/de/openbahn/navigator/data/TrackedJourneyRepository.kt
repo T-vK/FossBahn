@@ -3,12 +3,17 @@ package de.openbahn.navigator.data
 import de.openbahn.model.Journey
 import de.openbahn.navigator.ui.util.isIsoLongArrived
 import de.openbahn.navigator.ui.util.isJourneyLongArrived
+import androidx.room.withTransaction
+import de.openbahn.navigator.data.OpenBahnDatabase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-class TrackedJourneyRepository(private val dao: TrackedJourneyDao) {
+class TrackedJourneyRepository(
+    private val dao: TrackedJourneyDao,
+    private val database: OpenBahnDatabase,
+) {
     fun observeActive(): Flow<List<TrackedJourneyWithJourney>> = dao.observeActive().map { list ->
         list.mapNotNull { entity ->
             val journey = runCatching { Json.decodeFromString<Journey>(entity.journeyJson) }.getOrNull()
@@ -51,8 +56,16 @@ class TrackedJourneyRepository(private val dao: TrackedJourneyDao) {
             }
         }
 
+    suspend fun findActiveWithJourney(id: String): TrackedJourneyWithJourney? {
+        val entity = dao.getActiveById(id) ?: return null
+        val journey = runCatching { Json.decodeFromString<Journey>(entity.journeyJson) }.getOrNull()
+            ?: return null
+        if (isJourneyLongArrived(journey) || isIsoLongArrived(entity.departureIso)) return null
+        return TrackedJourneyWithJourney(entity = entity, journey = journey)
+    }
+
     suspend fun updateJourney(id: String, journey: Journey) {
-        val active = dao.getActive().firstOrNull { it.id == id } ?: return
+        val active = dao.getActiveById(id) ?: return
         dao.upsert(
             active.copy(
                 journeyJson = Json.encodeToString(journey),
@@ -60,6 +73,14 @@ class TrackedJourneyRepository(private val dao: TrackedJourneyDao) {
                 refreshToken = journey.refreshToken ?: active.refreshToken,
             ),
         )
+    }
+
+    /** Refreshes many journeys in one transaction so the UI list updates once. */
+    suspend fun updateJourneys(updates: Map<String, Journey>) {
+        if (updates.isEmpty()) return
+        database.withTransaction {
+            updates.forEach { (id, journey) -> updateJourney(id, journey) }
+        }
     }
 
     suspend fun pruneArrived() {

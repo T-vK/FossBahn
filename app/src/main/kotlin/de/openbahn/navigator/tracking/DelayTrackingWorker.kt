@@ -1,7 +1,9 @@
 package de.openbahn.navigator.tracking
 
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.work.CoroutineWorker
@@ -12,6 +14,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import de.openbahn.api.debug.OpenBahnDebugLog
+import de.openbahn.navigator.MainActivity
 import de.openbahn.navigator.OpenBahnApplication
 import de.openbahn.navigator.R
 import de.openbahn.navigator.data.TrackedJourneyRepository
@@ -48,7 +51,7 @@ class DelayTrackingWorker(
                     refreshToken = token,
                     notificationIncrementMinutes = incrementMinutes,
                 ) ?: return@forEach
-                notifyDelay(tracked.fromName, tracked.toName, delayMinutes)
+                notifyDelay(tracked.id, tracked.fromName, tracked.toName, delayMinutes)
             }
             Result.success()
         } catch (e: Exception) {
@@ -57,8 +60,17 @@ class DelayTrackingWorker(
         }
     }
 
-    private fun notifyDelay(from: String, to: String, delayMinutes: Int) {
+    private fun notifyDelay(trackedJourneyId: String, from: String, to: String, delayMinutes: Int) {
         if (!canPostNotifications()) return
+        val contentIntent = PendingIntent.getActivity(
+            applicationContext,
+            trackedJourneyId.hashCode(),
+            Intent(applicationContext, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra(TrackingNotificationIntent.EXTRA_TRACKED_JOURNEY_ID, trackedJourneyId)
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
         val notification = NotificationCompat.Builder(
             applicationContext,
             OpenBahnApplication.CHANNEL_DELAY_ALERTS,
@@ -75,9 +87,10 @@ class DelayTrackingWorker(
             )
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
+            .setContentIntent(contentIntent)
             .build()
         applicationContext.getSystemService(NotificationManager::class.java)
-            .notify(from.hashCode() + to.hashCode(), notification)
+            .notify(trackedJourneyId.hashCode(), notification)
     }
 
     private fun canPostNotifications(): Boolean =
@@ -92,14 +105,13 @@ class DelayTrackingWorker(
         private const val WORK_NAME_PERIODIC = "delay_tracking"
         private const val WORK_NAME_ONCE = "delay_tracking_once"
 
+        /** Ensures periodic background checks; does not trigger an immediate refresh. */
         fun schedule(context: Context) {
-            val workManager = WorkManager.getInstance(context)
-            workManager.enqueueUniquePeriodicWork(
+            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORK_NAME_PERIODIC,
                 ExistingPeriodicWorkPolicy.KEEP,
                 PeriodicWorkRequestBuilder<DelayTrackingWorker>(15, TimeUnit.MINUTES).build(),
             )
-            runOnce(context)
         }
 
         /** Runs a refresh soon (e.g. after the user starts tracking). */

@@ -33,12 +33,15 @@ class TrackingViewModel(
     val tracked = repository.observeActive()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList<TrackedJourneyWithJourney>())
 
-    fun refreshNow() {
+    fun refreshNow(force: Boolean = false) {
         viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            if (!force && now - lastRefreshEpochMs < MIN_REFRESH_INTERVAL_MS) return@launch
             _isRefreshing.value = true
             try {
                 repository.pruneArrived()
                 refreshUseCase.refreshAllActive()
+                lastRefreshEpochMs = System.currentTimeMillis()
             } finally {
                 _isRefreshing.value = false
             }
@@ -59,5 +62,10 @@ class TrackingViewModel(
 
     fun enableBackgroundTracking(context: android.content.Context) {
         DelayTrackingWorker.schedule(context)
+    }
+
+    companion object {
+        private const val MIN_REFRESH_INTERVAL_MS = 60_000L
+        private var lastRefreshEpochMs = 0L
     }
 }

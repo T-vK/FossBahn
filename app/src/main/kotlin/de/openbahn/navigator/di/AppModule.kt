@@ -43,7 +43,7 @@ val appModule = module {
     single { LocationHistoryRepository(get(), get()) }
     single { FavoriteRouteRepository(get()) }
     single { TicketRepository(get(), androidContext()) }
-    single { TrackedJourneyRepository(get()) }
+    single { TrackedJourneyRepository(get(), get()) }
     single { TrackedJourneyRefreshUseCase(get(), get()) }
     single<JourneySearchRepository> { JourneySearchUseCase(get(), get()) }
     single { PredictionUseCase(get()) }
