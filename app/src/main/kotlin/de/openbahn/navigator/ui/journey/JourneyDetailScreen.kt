@@ -34,10 +34,15 @@ import de.openbahn.navigator.R
 import de.openbahn.navigator.data.UserPreferencesRepository
 import de.openbahn.navigator.navigation.JourneyDetailPayload
 import de.openbahn.navigator.tracking.TrackedJourneyRefreshUseCase
+import de.openbahn.navigator.domain.PassengerRightsRepository
 import de.openbahn.navigator.ui.components.JourneyCard
+import de.openbahn.navigator.ui.rights.PassengerRightsBanner
+import de.openbahn.navigator.ui.util.shareClaimDraftEmail
+import de.openbahn.rights.model.PassengerRightsAssessment
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,11 +53,15 @@ fun JourneyDetailScreen(
     refreshUseCase: TrackedJourneyRefreshUseCase = koinInject(),
     predictionClient: BahnVorhersageClient = koinInject(),
     userPreferences: UserPreferencesRepository = koinInject(),
+    passengerRights: PassengerRightsRepository = koinInject(),
 ) {
     var journey by remember(payload.journey.id) { mutableStateOf(payload.journey) }
     var prediction by remember(payload.journey.id) { mutableStateOf(payload.prediction) }
+    var rightsAssessment by remember(payload.journey.id) { mutableStateOf<PassengerRightsAssessment?>(null) }
+    var showRightsBanner by remember(payload.journey.id) { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     suspend fun refreshConnection() {
         if (isRefreshing) return
@@ -60,6 +69,12 @@ fun JourneyDetailScreen(
         try {
             val refreshed = refreshUseCase.refreshJourney(journey) ?: return
             journey = refreshed
+            val assessment = passengerRights.evaluate(
+                journey = refreshed,
+                minTransferMinutes = payload.minTransferMinutes ?: 0,
+            )
+            rightsAssessment = assessment
+            showRightsBanner = passengerRights.shouldSurfaceRightsUi(assessment)
             if (payload.predictionsRequested) {
                 val tolerance = userPreferences.punctualityToleranceMinutes.first()
                 prediction = predictionClient.rateJourney(
@@ -127,6 +142,21 @@ fun JourneyDetailScreen(
                     onTrack = onTrack,
                     modifier = Modifier.testTag("journey_detail_card"),
                 )
+            }
+            val assessment = rightsAssessment
+            if (assessment != null && showRightsBanner) {
+                item {
+                    PassengerRightsBanner(
+                        assessment = assessment,
+                        onCreateClaimDraft = {
+                            scope.launch {
+                                val draft = passengerRights.createOrUpdateDraft(assessment)
+                                context.shareClaimDraftEmail(draft)
+                            }
+                        },
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                }
             }
         }
     }

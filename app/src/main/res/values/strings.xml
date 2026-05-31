@@ -183,4 +183,18 @@
     <string name="notification_channel_tracking_desc">Shown while OpenBahn monitors tracked journeys for delays in the background</string>
     <string name="delay_notification_title">Delay on your journey</string>
     <string name="delay_notification_body">%1$s → %2$s: delay of %3$d minutes</string>
+    <string name="notification_channel_passenger_rights">Passenger rights</string>
+    <string name="notification_channel_passenger_rights_desc">Hints about compensation and replacement transport (no legal advice)</string>
+    <string name="passenger_rights_banner_title">Passenger rights (review required)</string>
+    <string name="passenger_rights_create_draft">Create claim draft &amp; send email</string>
+    <string name="passenger_rights_dticket_ledger">D-Ticket compensation this month: €%1$.2f / €%2$.2f cap</string>
+    <string name="passenger_rights_taxi_hint">Taxi (case-by-case):</string>
+    <string name="passenger_rights_ice_hint">Long-distance fallback (case-by-case):</string>
+    <string name="passenger_rights_claims_title">Claim drafts</string>
+    <string name="passenger_rights_claims_empty">No claim drafts yet. They appear when a connection qualifies for review.</string>
+    <string name="passenger_rights_tap_to_send">Tap to open in email app — review before sending</string>
+    <string name="passenger_rights_settings_heading">Passenger rights</string>
+    <string name="passenger_rights_notifications">Rights notifications</string>
+    <string name="passenger_rights_notifications_desc">Alerts when thresholds are reached (not a guarantee of compensation)</string>
+    <string name="passenger_rights_claims_settings_desc">Draft letters for operators — you confirm before sending</string>
 </resources>

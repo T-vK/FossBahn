@@ -29,6 +29,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onOpenClaims: () -> Unit = {},
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val appLanguage by viewModel.appLanguage.collectAsState()
@@ -95,6 +96,7 @@ fun SettingsScreen(
                     viewModel.setNearDepartureCheckIntervalSeconds(seconds)
                 },
             )
+            PassengerRightsSettingsSection(onOpenClaims = onOpenClaims)
         }
     }
 }

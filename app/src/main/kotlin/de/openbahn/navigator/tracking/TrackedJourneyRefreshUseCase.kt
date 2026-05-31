@@ -10,6 +10,7 @@ import kotlinx.serialization.json.Json
 class TrackedJourneyRefreshUseCase(
     private val client: DbVendoClient,
     private val repository: TrackedJourneyRepository,
+    private val rightsCheck: TrackedJourneyRightsCheckUseCase,
 ) {
     suspend fun refreshJourney(journey: Journey): Journey = refreshWithLiveData(journey)
 
@@ -42,6 +43,11 @@ class TrackedJourneyRefreshUseCase(
             currentDelayMinutes = maxDelay,
             lastNotifiedDelayMinutes = active.lastNotifiedDelayMinutes,
             incrementMinutes = notificationIncrementMinutes,
+        )
+        rightsCheck.evaluateAndNotify(
+            trackedId = entityId,
+            journey = merged,
+            minTransferMinutes = 0,
         )
         if (!decision.shouldNotify) return null
         repository.updateLastNotifiedDelay(entityId, decision.delayMinutes)

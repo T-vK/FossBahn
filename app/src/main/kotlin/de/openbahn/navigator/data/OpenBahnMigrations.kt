@@ -14,3 +14,23 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         )
     }
 }
+
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS claim_drafts (
+                id TEXT NOT NULL PRIMARY KEY,
+                journeyId TEXT NOT NULL,
+                createdAtEpochMillis INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                assessmentJson TEXT NOT NULL,
+                subject TEXT NOT NULL,
+                bodyText TEXT NOT NULL,
+                recipientEmail TEXT,
+                lastRightsNotifiedAtEpochMillis INTEGER
+            )
+            """.trimIndent(),
+        )
+    }
+}

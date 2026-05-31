@@ -54,6 +54,10 @@ class UserPreferencesRepository(private val context: Context) {
         it[KEY_BATTERY_OPTIMIZATION_DISMISSED] ?: false
     }
 
+    val passengerRightsNotificationsEnabled: Flow<Boolean> = dataStore.data.map {
+        it[KEY_PASSENGER_RIGHTS_NOTIFICATIONS] ?: true
+    }
+
     suspend fun currentAppLanguage(): AppLanguage = appLanguage.first()
 
     suspend fun setAppLanguage(language: AppLanguage) {
@@ -82,6 +86,17 @@ class UserPreferencesRepository(private val context: Context) {
         dataStore.edit { it[KEY_BATTERY_OPTIMIZATION_DISMISSED] = dismissed }
     }
 
+    suspend fun setPassengerRightsNotificationsEnabled(enabled: Boolean) {
+        dataStore.edit { it[KEY_PASSENGER_RIGHTS_NOTIFICATIONS] = enabled }
+    }
+
+    suspend fun loadDticketLedgerJson(yearMonth: String): String? =
+        dataStore.data.first()[dticketLedgerKey(yearMonth)]
+
+    suspend fun saveDticketLedgerJson(yearMonth: String, json: String) {
+        dataStore.edit { it[dticketLedgerKey(yearMonth)] = json }
+    }
+
     suspend fun setDeutschlandTicketConnectionsOnly(enabled: Boolean) {
         dataStore.edit { it[KEY_DTICKET_CONNECTIONS_ONLY] = enabled }
     }
@@ -102,7 +117,12 @@ class UserPreferencesRepository(private val context: Context) {
         private val KEY_NEAR_DEPARTURE_CHECK_SECONDS = intPreferencesKey("near_departure_check_seconds")
         private val KEY_BATTERY_OPTIMIZATION_DISMISSED =
             booleanPreferencesKey("battery_optimization_prompt_dismissed")
+        private val KEY_PASSENGER_RIGHTS_NOTIFICATIONS =
+            booleanPreferencesKey("passenger_rights_notifications")
 
         const val DEFAULT_NEAR_DEPARTURE_CHECK_SECONDS = 5
+
+        private fun dticketLedgerKey(yearMonth: String) =
+            stringPreferencesKey("dticket_ledger_$yearMonth")
     }
 }

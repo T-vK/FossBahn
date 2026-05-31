@@ -15,13 +15,15 @@ import kotlinx.serialization.json.Json
         RecentLocationEntity::class,
         FavoriteLocationEntity::class,
         FavoriteRouteEntity::class,
+        ClaimDraftEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
 abstract class OpenBahnDatabase : RoomDatabase() {
     abstract fun ticketDao(): TicketDao
+    abstract fun claimDraftDao(): ClaimDraftDao
     abstract fun trackedJourneyDao(): TrackedJourneyDao
     abstract fun recentLocationDao(): RecentLocationDao
     abstract fun favoriteLocationDao(): FavoriteLocationDao

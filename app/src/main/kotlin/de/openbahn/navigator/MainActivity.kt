@@ -34,6 +34,7 @@ import de.openbahn.navigator.ui.journey.JourneyDetailScreen
 import de.openbahn.navigator.ui.search.FiltersScreen
 import de.openbahn.navigator.ui.search.SearchScreen
 import de.openbahn.navigator.ui.search.SearchViewModel
+import de.openbahn.navigator.ui.rights.ClaimsScreen
 import de.openbahn.navigator.ui.settings.SettingsScreen
 import de.openbahn.navigator.ui.theme.OpenBahnTheme
 import de.openbahn.navigator.ui.tickets.TicketsScreen
@@ -72,6 +73,7 @@ class MainActivity : AppCompatActivity() {
 
                 val hideBottomBar = currentRoute == Routes.FILTERS ||
                     currentRoute == Routes.SETTINGS ||
+                    currentRoute == Routes.CLAIMS ||
                     currentRoute == Routes.JOURNEY_DETAIL
 
                 Scaffold(
@@ -118,7 +120,13 @@ class MainActivity : AppCompatActivity() {
                             FiltersScreen(onBack = { navController.popBackStack() })
                         }
                         composable(Routes.SETTINGS) {
-                            SettingsScreen(onBack = { navController.popBackStack() })
+                            SettingsScreen(
+                                onBack = { navController.popBackStack() },
+                                onOpenClaims = { navController.navigate(Routes.CLAIMS) },
+                            )
+                        }
+                        composable(Routes.CLAIMS) {
+                            ClaimsScreen(onBack = { navController.popBackStack() })
                         }
                         composable(Routes.FAVORITES) {
                             FavoritesScreen(
@@ -194,4 +202,5 @@ object Routes {
     const val TICKETS = "tickets"
     const val TRACKING = "tracking"
     const val JOURNEY_DETAIL = "journey_detail"
+    const val CLAIMS = "claims"
 }
