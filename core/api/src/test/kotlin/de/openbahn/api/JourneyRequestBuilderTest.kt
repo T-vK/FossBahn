@@ -4,8 +4,10 @@ import de.openbahn.model.AccessibilityFilter
 import de.openbahn.model.JourneySearchOptions
 import de.openbahn.api.haltIdForCoordinates
 import de.openbahn.model.Location
+import de.openbahn.model.LocationType
 import de.openbahn.model.TransportProduct
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.time.LocalDateTime
@@ -109,6 +111,21 @@ class JourneyRequestBuilderTest {
         val halt = body["abfahrtsHalt"]!!.toString().trim('"')
         assertTrue(halt.contains("@X="))
         assertTrue(halt.contains("@Y="))
+    }
+
+    @Test
+    fun `address location prefers coordinates over nearby stop eva`() {
+        val from = Location(
+            id = haltIdForCoordinates(52.5200, 13.4050, "Musterstraße 1, Berlin"),
+            name = "Musterstraße 1, Berlin",
+            type = LocationType.ADDRESS,
+            latitude = 52.52,
+            longitude = 13.405,
+            evaNumber = "8070001",
+        )
+        val halt = from.haltIdForJourney()
+        assertTrue(halt.contains("@X="), "expected coordinate halt, got $halt")
+        assertFalse(halt.contains("@L=8070001@"), "must not snap to bus stop EVA")
     }
 
     @Test

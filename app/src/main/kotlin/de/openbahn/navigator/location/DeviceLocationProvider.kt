@@ -9,15 +9,10 @@ import androidx.core.content.ContextCompat
 import de.openbahn.api.haltIdForCoordinates
 import de.openbahn.model.Location
 import de.openbahn.model.LocationType
-import de.openbahn.navigator.domain.JourneySearchRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
-import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.math.sqrt
 
 data class ResolvedDeviceLocation(
     /** Shown in the search field (street address or coordinates). */
@@ -28,21 +23,17 @@ data class ResolvedDeviceLocation(
 
 class DeviceLocationProvider(
     private val context: Context,
-    private val searchRepository: JourneySearchRepository,
 ) {
-    suspend fun resolveCurrentLocation(locale: String): ResolvedDeviceLocation? {
+    suspend fun resolveCurrentLocation(@Suppress("UNUSED_PARAMETER") locale: String): ResolvedDeviceLocation? {
         val coords = readCurrentCoordinates() ?: return null
         val (lat, lon) = coords
         val displayLabel = reverseGeocodeDisplayLabel(lat, lon) ?: formatCoordinates(lat, lon)
-        val nearby = searchRepository.searchLocationsNearby(lat, lon, locale)
-        val nearest = pickNearest(nearby, lat, lon)
         val searchLocation = Location(
             id = haltIdForCoordinates(lat, lon, displayLabel),
             name = displayLabel,
             type = LocationType.ADDRESS,
             latitude = lat,
             longitude = lon,
-            evaNumber = nearest?.evaNumber,
         )
         return ResolvedDeviceLocation(displayLabel = displayLabel, searchLocation = searchLocation)
     }
@@ -50,25 +41,6 @@ class DeviceLocationProvider(
     /** @deprecated Use [resolveCurrentLocation]; kept for callers not yet migrated. */
     suspend fun resolveCurrentStation(locale: String): Location? =
         resolveCurrentLocation(locale)?.searchLocation
-
-    private fun pickNearest(locations: List<Location>, lat: Double, lon: Double): Location? =
-        locations
-            .mapNotNull { loc ->
-                val la = loc.latitude ?: return@mapNotNull null
-                val lo = loc.longitude ?: return@mapNotNull null
-                loc to haversineMeters(lat, lon, la, lo)
-            }
-            .minByOrNull { it.second }
-            ?.first
-
-    private fun haversineMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-        val r = 6_371_000.0
-        val dLat = Math.toRadians(lat2 - lat1)
-        val dLon = Math.toRadians(lon2 - lon1)
-        val a = sin(dLat / 2) * sin(dLat / 2) +
-            cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLon / 2) * sin(dLon / 2)
-        return r * 2 * atan2(sqrt(a), sqrt(1 - a))
-    }
 
     private fun readCurrentCoordinates(): Pair<Double, Double>? {
         if (!hasLocationPermission()) return null

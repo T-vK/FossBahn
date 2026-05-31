@@ -2,6 +2,7 @@ package de.openbahn.api
 
 import de.openbahn.model.JourneySearchOptions
 import de.openbahn.model.Location
+import de.openbahn.model.LocationType
 import de.openbahn.model.TransportProduct
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
@@ -13,7 +14,14 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 /** bahn.de / db-vendo halt identifier for journey requests (abfahrtsHalt / ankunftsHalt). */
-fun Location.haltIdForJourney(): String = haltIdForJourney(id, evaNumber, latitude, longitude)
+fun Location.haltIdForJourney(): String = haltIdForJourney(
+    locationId = id,
+    evaNumber = evaNumber,
+    latitude = latitude,
+    longitude = longitude,
+    type = type,
+    label = name,
+)
 
 /** Stable bahn.de halt id for `/angebote/fahrplan` (avoids volatile `@p=` / `@i=` params from `/orte`). */
 fun haltIdForJourney(
@@ -21,7 +29,12 @@ fun haltIdForJourney(
     evaNumber: String? = null,
     latitude: Double? = null,
     longitude: Double? = null,
+    type: LocationType = LocationType.STATION,
+    label: String? = null,
 ): String {
+    if (type == LocationType.ADDRESS && latitude != null && longitude != null) {
+        return haltIdForCoordinates(latitude, longitude, label ?: locationId)
+    }
     val eva = evaNumber?.takeIf { it.isNotEmpty() && it.all(Char::isDigit) }
         ?: EVA_IN_HALT_ID.find(locationId)?.groupValues?.getOrNull(1)
         ?: locationId.takeIf { it.length >= 6 && it.all(Char::isDigit) }
