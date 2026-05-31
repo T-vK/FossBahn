@@ -107,6 +107,8 @@ data class TransferPrediction(
 data class RatedJourney(
     val journey: Journey,
     val predictions: List<TransferPrediction> = emptyList(),
+    /** Per-stop on-time probabilities for departures and arrivals shown in the UI. */
+    val stopTimeliness: List<StopTimelinessPrediction> = emptyList(),
     /**
      * Probability the final arrival is within [punctualityToleranceMinutes] of schedule
      * (0 = on time to the minute when using ML delay distributions).

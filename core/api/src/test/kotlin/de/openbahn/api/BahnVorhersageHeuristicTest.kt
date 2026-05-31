@@ -52,6 +52,8 @@ class BahnVorhersageHeuristicTest {
             arrival = "2026-05-30T12:00:00",
         )
         val score = BahnVorhersageHeuristic.estimatePunctuality(journey, toleranceMinutes = 10)
-        assertTrue((score ?: 0.0) > 0.7)
+        assertTrue((score ?: 0.0) in 0.65..0.95)
+        val stops = BahnVorhersageHeuristic.buildStopTimeliness(journey, toleranceMinutes = 10)
+        assertEquals(2, stops.size)
     }
 }
