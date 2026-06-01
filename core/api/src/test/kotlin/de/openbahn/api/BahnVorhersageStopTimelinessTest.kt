@@ -30,34 +30,41 @@ class BahnVorhersageStopTimelinessTest {
     }
 
     @Test
-    fun buildStopTimeliness_tightTransferLowersDownstreamDeparture() {
+    fun buildStopTimeliness_intermediateViaNotPenalizedByTightDownstreamTransfer() {
         val journey = Journey(
-            id = "transfer",
+            id = "via-transfer",
             legs = listOf(
                 Leg(
-                    origin = StopEvent("A", scheduledTime = "2026-05-30T10:00:00"),
-                    destination = StopEvent("B", scheduledTime = "2026-05-30T12:00:00"),
-                    lineName = "ICE 1",
+                    origin = StopEvent("Hamburg Hbf", scheduledTime = "2026-05-30T10:00:00"),
+                    destination = StopEvent("Berlin Hbf", scheduledTime = "2026-05-30T14:00:00"),
+                    intermediateStops = listOf(
+                        StopEvent("Hannover Hbf", scheduledTime = "2026-05-30T11:30:00", delayMinutes = 0),
+                    ),
+                    lineName = "ICE 701",
                 ),
                 Leg(
-                    origin = StopEvent("B", scheduledTime = "2026-05-30T12:08:00"),
-                    destination = StopEvent("C", scheduledTime = "2026-05-30T14:00:00"),
-                    lineName = "ICE 2",
+                    origin = StopEvent("Berlin Hbf", scheduledTime = "2026-05-30T14:08:00"),
+                    destination = StopEvent("München Hbf", scheduledTime = "2026-05-30T18:00:00"),
+                    lineName = "ICE 803",
                 ),
             ),
-            durationMinutes = 240,
+            durationMinutes = 480,
             transfers = 1,
             departure = "2026-05-30T10:00:00",
-            arrival = "2026-05-30T14:00:00",
+            arrival = "2026-05-30T18:00:00",
         )
         val stops = BahnVorhersageHeuristic.buildStopTimeliness(
             journey,
             de.openbahn.model.OnTimeToleranceSettings.uniform(10),
             minTransferMinutes = 10,
         )
-        val firstDep = stops.first { it.legIndex == 0 && !it.isArrival }
+        val via = stops.first { it.intermediateIndex == 0 }
         val secondDep = stops.first { it.legIndex == 1 && !it.isArrival }
-        assertTrue(secondDep.probability < firstDep.probability)
+        assertTrue(via.probability >= 0.7, "via on-time prob was ${via.probability}")
+        assertTrue(
+            via.probability >= secondDep.probability * 0.85,
+            "via (${via.probability}) should not be crushed by connection risk at ${secondDep.probability}",
+        )
     }
 
     private fun journey(origin: StopEvent, destination: StopEvent, lineName: String) = Journey(

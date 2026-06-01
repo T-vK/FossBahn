@@ -25,8 +25,6 @@ internal object BahnVorhersageHeuristic {
         minTransferMinutes: Int? = null,
     ): List<StopTimelinessPrediction> {
         val results = mutableListOf<StopTimelinessPrediction>()
-        var connectionFactor = 1.0
-        val railLegIndices = journey.legs.indices.filter { !journey.legs[it].isWalking }
         var legOrdinal = 0
 
         journey.legs.forEachIndexed { legIndex, leg ->
@@ -39,12 +37,12 @@ internal object BahnVorhersageHeuristic {
                     legIndex = legIndex,
                     intermediateIndex = null,
                     isArrival = false,
-                    probability = (connectionFactor * punctualityForStop(
+                    probability = punctualityForStop(
                         stop = leg.origin,
                         leg = leg,
                         toleranceMinutes = onTimeTolerance.departureMinutes,
                         minutesIntoTrip = minutesIntoTrip,
-                    )).coerceIn(0.05, 0.98),
+                    ).coerceIn(0.05, 0.98),
                     isEstimate = true,
                 ),
             )
@@ -56,12 +54,13 @@ internal object BahnVorhersageHeuristic {
                         legIndex = legIndex,
                         intermediateIndex = viaIndex,
                         isArrival = true,
-                        probability = (connectionFactor * punctualityForStop(
+                        probability = punctualityForStop(
                             stop = stop,
                             leg = leg,
                             toleranceMinutes = onTimeTolerance.viaStopMinutes,
                             minutesIntoTrip = viaMinutes,
-                        )).coerceIn(0.05, 0.98),
+                            isIntermediateVia = true,
+                        ).coerceIn(0.05, 0.98),
                         isEstimate = true,
                     ),
                 )
@@ -74,24 +73,18 @@ internal object BahnVorhersageHeuristic {
                     legIndex = legIndex,
                     intermediateIndex = null,
                     isArrival = true,
-                    probability = (connectionFactor * punctualityForStop(
+                    probability = punctualityForStop(
                         stop = leg.destination,
                         leg = leg,
                         toleranceMinutes = onTimeTolerance.arrivalMinutes,
                         minutesIntoTrip = arrivalMinutes,
                         isLegEndpoint = true,
-                    )).coerceIn(0.05, 0.98),
+                    ).coerceIn(0.05, 0.98),
                     isEstimate = true,
                 ),
             )
 
             legOrdinal++
-            val nextRailIndex = railLegIndices.firstOrNull { it > legIndex } ?: return@forEachIndexed
-            val nextLeg = journey.legs[nextRailIndex]
-            if (nextLeg.isWalking) return@forEachIndexed
-            val transferMins = BahnVorhersageRequestBuilder.transferMinutesBetween(leg.destination, nextLeg.origin)
-            val transferScore = scoreForTransferMinutes(transferMins, minTransferMinutes) ?: 0.5
-            connectionFactor *= transferScore
         }
         return results
     }
@@ -126,19 +119,22 @@ internal object BahnVorhersageHeuristic {
         toleranceMinutes: Int,
         minutesIntoTrip: Int,
         isLegEndpoint: Boolean = false,
+        isIntermediateVia: Boolean = false,
     ): Double {
         if (stop.cancelled) return 0.05
         val delay = stop.delayMinutes
             ?: delayMinutesFromTimes(stop.scheduledTime, stop.prognosedTime)
             ?: 0
         val baseline = productBaseline(leg.product, leg.lineName)
+        // Intermediate vias: light drift only (pass-through, not journey-end risk).
         val driftPenalty = when {
+            isIntermediateVia -> 1.0
             minutesIntoTrip >= 180 -> 0.88
             minutesIntoTrip >= 120 -> 0.92
             minutesIntoTrip >= 60 -> 0.96
             else -> 1.0
         }
-        val endpointPenalty = if (isLegEndpoint && minutesIntoTrip >= 90) 0.94 else 1.0
+        val endpointPenalty = if (!isIntermediateVia && isLegEndpoint && minutesIntoTrip >= 90) 0.94 else 1.0
 
         val core = when {
             delay > toleranceMinutes -> {
