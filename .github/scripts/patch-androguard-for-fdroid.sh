@@ -15,46 +15,32 @@ if marker in text:
     print("androguard already patched")
     raise SystemExit(0)
 
-original = text
-
-# Ensure _v2_blocks is a list (not NoOverwriteDict) when parsing signatures.
-text = re.sub(
+patched = False
+new_text, n = re.subn(
     r"self\._v2_blocks\s*=\s*NoOverwriteDict\(\)",
     f"self._v2_blocks = []  # {marker}",
     text,
 )
+if n:
+    text = new_text
+    patched = True
 
-# Guard before append (androguard 3.x / some 4.x layouts).
-needle = "self._v2_blocks.append(APKV2SignatureBlock"
-if needle in text:
-    text = text.replace(
-        needle,
-        f"if not isinstance(self._v2_blocks, list):\n"
-        f"            self._v2_blocks = []  # {marker}\n"
-        f"        {needle}",
-        1,
+# Some versions initialise via attribute assignment without NoOverwriteDict().
+match = re.search(r"^(\s*)def parse_v2_v3_signature\(self\):\n", text, re.M)
+if match and marker not in text:
+    indent = match.group(1)
+    text = re.sub(
+        r"^(\s*)def parse_v2_v3_signature\(self\):\n",
+        f"{indent}def parse_v2_v3_signature(self):\n{indent}    self._v2_blocks = []  # {marker}\n",
+        text,
+        count=1,
+        flags=re.M,
     )
+    patched = True
 
-# Newer androguard: method may be named parse_v2_v3_signature with different indent.
-if text == original:
-    match = re.search(r"^(\s*)def parse_v2_v3_signature\(self\):", text, re.M)
-    if match:
-        indent = match.group(1)
-        insert = (
-            f"{indent}def parse_v2_v3_signature(self):\n"
-            f"{indent}    self._v2_blocks = []  # {marker}\n"
-        )
-        text = re.sub(
-            r"^\s*def parse_v2_v3_signature\(self\):\n",
-            insert,
-            text,
-            count=1,
-            flags=re.M,
-        )
-
-if text == original:
+if not patched:
     raise SystemExit(f"Could not patch androguard at {init_py}")
 
 init_py.write_text(text)
-print(f"Patched {init_py}")
+print(f"Patched {init_py} ({n} NoOverwriteDict replacement(s))")
 PY
