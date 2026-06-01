@@ -10,6 +10,21 @@ internal object BahnVorhersageStationData {
         return defaultCoordsForName(stop.name)
     }
 
+    private val evaInHaltId = Regex("""@L=(\d{6,})@""")
+
+    /** Numeric EVA for bahnvorhersage Neo4j transfer lookup (`int(stop.id)`). */
+    fun evaIdForStop(stop: de.openbahn.model.StopEvent): String {
+        evaFromHaltId(stop.id)?.let { return it }
+        stop.id?.takeIf { it.length in 6..12 && it.all(Char::isDigit) }?.let { return it }
+        return "eva:${stop.name}"
+    }
+
+    fun evaFromHaltId(id: String?): String? {
+        if (id.isNullOrBlank()) return null
+        evaInHaltId.find(id)?.groupValues?.getOrNull(1)?.let { return it }
+        return id.takeIf { it.length in 6..12 && it.all(Char::isDigit) }
+    }
+
     fun coordsFromHaltId(id: String?): Pair<Double, Double>? {
         if (id.isNullOrBlank()) return null
         val m = Regex("""@X=(\d+)@Y=(\d+)@""").find(id) ?: return null

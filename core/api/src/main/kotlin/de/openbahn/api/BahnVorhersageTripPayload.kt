@@ -5,12 +5,6 @@ import de.openbahn.model.Leg
 import de.openbahn.model.StopEvent
 
 /**
- * Builds the `trips` map for `POST /api/mobile/v2/journeys`.
- *
- * Every rail leg's [ratingTripId] must appear in this map with stopovers that include
- * that leg's origin and destination station names (see bahnvorhersage `journeys_to_df`).
- */
-/**
  * Unique key per rail leg in the mobile v2 `trips` map.
  *
  * DB `journeyId` values repeat when the passenger stays on one train across sections;

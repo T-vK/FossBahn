@@ -19,7 +19,7 @@ if ! command -v java >/dev/null 2>&1; then
 fi
 
 if [[ -z "${JAVA_HOME:-}" ]]; then
-  if [[ -d "$PREFIX/lib/jvm/java-17-openjdk" ]]; then
+  if [[ -n "${PREFIX:-}" && -d "$PREFIX/lib/jvm/java-17-openjdk" ]]; then
     export JAVA_HOME="$PREFIX/lib/jvm/java-17-openjdk"
     export PATH="$JAVA_HOME/bin:$PATH"
     echo "Using JAVA_HOME=$JAVA_HOME"
@@ -31,4 +31,7 @@ rm -rf core/api/build/test-results/testDebugUnitTest
 ./gradlew :core:api:testDebugUnitTest \
   --tests "de.openbahn.api.DbVendoLiveApiTest" \
   --tests "de.openbahn.api.DbVendoLiveJourneyIntegrationTest" \
+  --tests "de.openbahn.api.BahnVorhersageMobileV2ProbeTest" \
+  --tests "de.openbahn.api.BahnVorhersageHamburgBerlinGateTest" \
+  --tests "de.openbahn.api.BahnVorhersageLiveIntegrationTest" \
   "$@"
