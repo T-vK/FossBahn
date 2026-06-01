@@ -256,25 +256,29 @@ internal object BahnVorhersageFptfMapper {
         val index = allStops.indexOf(stop)
         val isFirst = index <= 0
         val isLast = index >= allStops.lastIndex
-        val whenTime = stop.prognosedTime?.takeIf { it.isNotBlank() } ?: stop.scheduledTime
         return buildJsonObject {
             put("type", "stopover")
             putObject("stop", stopJson(stop))
             if (isFirst) {
                 put("plannedArrival", JsonNull)
             } else {
-                put("plannedArrival", stop.scheduledTime)
+                put("plannedArrival", timeJson(stop, scheduled = true))
             }
             if (isLast) {
                 put("plannedDeparture", JsonNull)
             } else {
-                put("plannedDeparture", stop.scheduledTime)
+                put("plannedDeparture", timeJson(stop, scheduled = true))
             }
-            if (!isFirst) {
-                put("arrival", JsonPrimitive(whenTime))
+            // bahnvorhersage `extract_arrival_departure` indexes these keys unconditionally.
+            if (isFirst) {
+                put("arrival", JsonNull)
+            } else {
+                put("arrival", JsonPrimitive(timeJson(stop)))
             }
-            if (!isLast) {
-                put("departure", JsonPrimitive(whenTime))
+            if (isLast) {
+                put("departure", JsonNull)
+            } else {
+                put("departure", JsonPrimitive(timeJson(stop)))
             }
             put("arrivalPlatform", stop.platform.orEmpty())
             put("departurePlatform", stop.platform.orEmpty())
@@ -284,7 +288,8 @@ internal object BahnVorhersageFptfMapper {
 
     private fun stopJson(stop: StopEvent): JsonObject {
         val (lat, lon) = BahnVorhersageStationData.coordsForStop(stop)
-            ?: (52.520 to 13.405)
+            ?: BahnVorhersageStationData.defaultCoordsForName(stop.name)
+            ?: (0.0 to 0.0)
         val stopId = stop.id?.takeIf { it.isNotBlank() } ?: "eva:${stop.name}"
         return buildJsonObject {
             put("id", stopId)

@@ -31,6 +31,22 @@ class BahnVorhersageFptfContractTest {
     }
 
     @Test
+    fun buildRateRequest_stopoversAlwaysIncludeArrivalAndDepartureKeys() {
+        val text = javaClass.getResource("/dbweb-journey-db-vendo-real.json")!!.readText()
+        val journey = JourneyResponseParser.parse(text).journeys.first()
+        val trips = buildTripRoutesForRating(journey)
+        val serialized = BahnVorhersageFptfMapper.buildRateRequest(listOf(journey), trips).toString()
+        assertTrue(
+            serialized.contains("\"arrival\":null") || serialized.contains("\"arrival\": null"),
+            "first stopover must send arrival:null (bahnvorhersage indexes the key)",
+        )
+        assertTrue(
+            serialized.contains("\"departure\":null") || serialized.contains("\"departure\": null"),
+            "last stopover must send departure:null",
+        )
+    }
+
+    @Test
     fun buildTripRoutesForRating_includesEveryRailLeg() {
         val text = javaClass.getResource("/dbweb-journey-db-vendo-real.json")!!.readText()
         val journey = JourneyResponseParser.parse(text).journeys.first()
