@@ -495,7 +495,6 @@ private fun LegLineHeader(
                 MaterialTheme.typography.bodySmall.copy(
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Medium,
-                    textDecoration = TextDecoration.Underline,
                 )
             } else {
                 MaterialTheme.typography.bodySmall.copy(

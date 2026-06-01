@@ -67,7 +67,8 @@ import java.time.Duration
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-private val TimelineTimeWidth = 52.dp
+/** Fixed width so clock + percent stack without wrapping and the rail stays aligned. */
+private val TimelineTimeWidth = 68.dp
 private val TimelineRailWidth = 28.dp
 private val TimelineDotLarge = 12.dp
 private val TimelineDotSmall = 8.dp
@@ -177,34 +178,36 @@ internal fun LegTimelineBlock(
                 enter = expandVertically(),
                 exit = shrinkVertically(),
             ) {
-                leg.intermediateStops.forEachIndexed { viaIndex, stop ->
-                    TimelineStopRow(
-                        stop = stop,
-                        stationLabel = stop.name,
-                        highlightLabel = null,
-                        showLineAbove = true,
-                        showLineBelow = true,
-                        nodeStyle = TimelineNodeStyle.Via,
-                        segmentColor = timelineSegmentColor(
-                            stop,
-                            prediction?.stopProbability(legIndex, intermediateIndex = viaIndex, isArrival = true),
-                        ),
-                        timelinessProbability = if (predictionsRequested) {
-                            prediction?.stopProbability(legIndex, intermediateIndex = viaIndex, isArrival = true)
-                        } else {
-                            null
-                        },
-                        timelinessIsEstimate = prediction?.stopTimelinessIsEstimate(
-                            legIndex,
-                            intermediateIndex = viaIndex,
-                            isArrival = true,
-                        ) == true,
-                        predictionsRequested = predictionsRequested,
-                        toleranceMinutes = tolerance,
-                        minTransferMinutesUsed = minTransfer,
-                        navigateTestTag = "leg_${legIndex}_via_stop",
-                        muted = false,
-                    )
+                Column {
+                    leg.intermediateStops.forEachIndexed { viaIndex, stop ->
+                        TimelineStopRow(
+                            stop = stop,
+                            stationLabel = stop.name,
+                            highlightLabel = null,
+                            showLineAbove = true,
+                            showLineBelow = true,
+                            nodeStyle = TimelineNodeStyle.Via,
+                            segmentColor = timelineSegmentColor(
+                                stop,
+                                prediction?.stopProbability(legIndex, intermediateIndex = viaIndex, isArrival = true),
+                            ),
+                            timelinessProbability = if (predictionsRequested) {
+                                prediction?.stopProbability(legIndex, intermediateIndex = viaIndex, isArrival = true)
+                            } else {
+                                null
+                            },
+                            timelinessIsEstimate = prediction?.stopTimelinessIsEstimate(
+                                legIndex,
+                                intermediateIndex = viaIndex,
+                                isArrival = true,
+                            ) == true,
+                            predictionsRequested = predictionsRequested,
+                            toleranceMinutes = tolerance,
+                            minTransferMinutesUsed = minTransfer,
+                            navigateTestTag = "leg_${legIndex}_via_stop",
+                            muted = false,
+                        )
+                    }
                 }
             }
         }
@@ -730,18 +733,20 @@ private fun TimelineTimeWithPercent(
     var showTooltip by remember { mutableStateOf(false) }
     val timeColor = if (delayed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
     val percentColor = transferProbabilityColor(probability)
-    Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+    Column(horizontalAlignment = Alignment.End) {
         Text(
             clock,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
             color = timeColor,
+            maxLines = 1,
         )
         Text(
             text = "($percent%)",
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Medium,
             color = percentColor,
+            maxLines = 1,
             modifier = Modifier
                 .clickable { showTooltip = true }
                 .testTag("timeliness_percent"),
