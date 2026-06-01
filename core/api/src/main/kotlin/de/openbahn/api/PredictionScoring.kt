@@ -21,6 +21,15 @@ internal object PredictionScoring {
         return sum.coerceIn(0.0, 1.0)
     }
 
+    /** Probability delay is exactly 0 minutes (minutengenau); used for bahnvorhersage.de display. */
+    fun probabilityExactlyOnTime(
+        distribution: List<Double>,
+        offset: Int,
+    ): Double {
+        if (offset < 0 || offset >= distribution.size) return 0.0
+        return distribution[offset].coerceIn(0.0, 1.0)
+    }
+
     /**
      * Probability the transfer works when [minTransferMinutes] is required,
      * given [prognosedTransferMinutes] scheduled/prognosed gap and delay PMF at the transfer.

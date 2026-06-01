@@ -152,11 +152,7 @@ internal object BahnVorhersageFptfMapper {
         } ?: return
         if (distribution.isEmpty()) return
         val offset = prediction["offset"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0
-        val probability = PredictionScoring.probabilityDelayAtMost(
-            distribution,
-            offset,
-            JourneyRatingOptions.BAHNVORHERSAGE_DISPLAY_TOLERANCE_MINUTES,
-        )
+        val probability = PredictionScoring.probabilityExactlyOnTime(distribution, offset)
         val idx = stops.indexOfFirst {
             it.legIndex == legIndex && it.intermediateIndex == null && it.isArrival == isArrival
         }
