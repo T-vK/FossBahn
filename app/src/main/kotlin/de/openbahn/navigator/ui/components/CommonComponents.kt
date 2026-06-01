@@ -349,7 +349,7 @@ private fun LegDetailsBlock(
     val journeySearch: JourneySearchRepository = koinInject()
     val scope = rememberCoroutineScope()
     val segmentStops = leg.tripRouteStops()
-    var showTripRoute by remember(legIndex, leg.tripId, leg.lineDetail) { mutableStateOf(false) }
+    var showTripDetail by remember(legIndex, leg.tripId, leg.lineDetail) { mutableStateOf(false) }
     var loadedStops by remember(legIndex, leg.tripId) { mutableStateOf<List<StopEvent>?>(null) }
     var routeLoading by remember(legIndex, leg.tripId) { mutableStateOf(false) }
     val canShowTripRoute = leg.lineDetail != null &&
@@ -376,32 +376,23 @@ private fun LegDetailsBlock(
         leg = leg,
         canShowTripRoute = canShowTripRoute,
         onTripNumberClick = {
-            showTripRoute = !showTripRoute
-            if (showTripRoute) loadFullRouteIfNeeded()
+            loadFullRouteIfNeeded()
+            showTripDetail = true
         },
     )
-    val displayStops = loadedStops ?: segmentStops
-    val showRouteInTimeline = showTripRoute && canShowTripRoute && displayStops.size >= 2
-    if (showTripRoute && routeLoading) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.Center,
-        ) {
-            CircularProgressIndicator(Modifier.size(20.dp))
-        }
-    } else {
-        LegTimelineBlock(
+    LegTimelineBlock(
+        leg = leg,
+        legIndex = legIndex,
+        prediction = prediction,
+        predictionsRequested = predictionsRequested,
+    )
+    if (showTripDetail && canShowTripRoute) {
+        TripDetailDialog(
             leg = leg,
-            legIndex = legIndex,
-            prediction = prediction,
-            predictionsRequested = predictionsRequested,
-            routeStops = if (showRouteInTimeline) displayStops else null,
-            routeBoardAt = if (showRouteInTimeline) leg.origin.name else null,
-            routeAlightAt = if (showRouteInTimeline) leg.destination.name else null,
-            routeBoardScheduled = if (showRouteInTimeline) leg.origin.scheduledTime else null,
-            routeAlightScheduled = if (showRouteInTimeline) leg.destination.scheduledTime else null,
+            stops = loadedStops,
+            isLoading = routeLoading,
+            fallbackStops = segmentStops,
+            onDismiss = { showTripDetail = false },
         )
     }
     if (leg.origin.remarks.isNotEmpty() || leg.destination.remarks.isNotEmpty()) {

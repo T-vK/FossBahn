@@ -38,7 +38,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
@@ -113,6 +112,8 @@ internal fun LegTimelineBlock(
                         isAlight -> stringResource(R.string.trip_route_alight_here)
                         else -> null
                     },
+                    spineLineAbove = stopIndex > 0,
+                    spineLineBelow = stopIndex < routeStops.lastIndex,
                     nodeStyle = when {
                         stopIndex == 0 -> TimelineNodeStyle.Origin
                         stopIndex == routeStops.lastIndex -> TimelineNodeStyle.Destination
@@ -140,6 +141,8 @@ internal fun LegTimelineBlock(
             stop = leg.origin,
             stationLabel = leg.origin.name,
             highlightLabel = stringResource(R.string.departure),
+            spineLineAbove = false,
+            spineLineBelow = true,
             nodeStyle = TimelineNodeStyle.Origin,
             segmentColor = timelineSegmentColor(
                 leg.origin,
@@ -167,6 +170,8 @@ internal fun LegTimelineBlock(
                 viaCount = viaCount,
                 onToggle = { viaExpanded = !viaExpanded },
                 legIndex = legIndex,
+                spineLineAbove = true,
+                spineLineBelow = true,
             )
             AnimatedVisibility(
                 visible = viaExpanded,
@@ -179,6 +184,8 @@ internal fun LegTimelineBlock(
                             stop = stop,
                             stationLabel = stop.name,
                             highlightLabel = null,
+                            spineLineAbove = true,
+                            spineLineBelow = true,
                             nodeStyle = TimelineNodeStyle.Via,
                             segmentColor = timelineSegmentColor(
                                 stop,
@@ -209,6 +216,8 @@ internal fun LegTimelineBlock(
             stop = leg.destination,
             stationLabel = leg.destination.name,
             highlightLabel = stringResource(R.string.arrival),
+            spineLineAbove = true,
+            spineLineBelow = false,
             nodeStyle = TimelineNodeStyle.Destination,
             segmentColor = timelineSegmentColor(
                 leg.destination,
@@ -409,6 +418,8 @@ private fun TimelineStopRow(
     stop: StopEvent,
     stationLabel: String,
     highlightLabel: String?,
+    spineLineAbove: Boolean,
+    spineLineBelow: Boolean,
     nodeStyle: TimelineNodeStyle,
     segmentColor: Color,
     timelinessProbability: Double?,
@@ -433,6 +444,7 @@ private fun TimelineStopRow(
     Row(
         modifier
             .fillMaxWidth()
+            .height(IntrinsicSize.Min)
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -445,12 +457,12 @@ private fun TimelineStopRow(
             toleranceMinutes = toleranceMinutes,
             minTransferMinutesUsed = minTransferMinutesUsed,
         )
-        Box(
-            Modifier.width(TimelineRailWidth),
-            contentAlignment = Alignment.Center,
-        ) {
-            TimelineDot(nodeStyle = nodeStyle, color = segmentColor)
-        }
+        TimelineRailColumn(
+            showLineAbove = spineLineAbove,
+            showLineBelow = spineLineBelow,
+            lineColor = segmentColor,
+            nodeStyle = nodeStyle,
+        )
         Column(
             Modifier
                 .weight(1f)
@@ -506,25 +518,25 @@ private fun TimelineViaSection(
     viaCount: Int,
     onToggle: () -> Unit,
     legIndex: Int,
+    spineLineAbove: Boolean,
+    spineLineBelow: Boolean,
 ) {
     Row(
         Modifier
             .fillMaxWidth()
+            .height(IntrinsicSize.Min)
             .clickable(onClick = onToggle)
             .padding(vertical = 4.dp)
             .testTag("leg_${legIndex}_intermediate_toggle"),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.width(TimelineTimeWidth))
-        Box(
-            Modifier.width(TimelineRailWidth),
-            contentAlignment = Alignment.Center,
-        ) {
-            TimelineDot(
-                nodeStyle = TimelineNodeStyle.ViaCollapsed,
-                color = MaterialTheme.colorScheme.outline,
-            )
-        }
+        TimelineRailColumn(
+            showLineAbove = spineLineAbove,
+            showLineBelow = spineLineBelow,
+            lineColor = MaterialTheme.colorScheme.outline,
+            nodeStyle = TimelineNodeStyle.ViaCollapsed,
+        )
         Row(
             Modifier
                 .weight(1f)
@@ -556,24 +568,50 @@ private fun TimelineLegSpine(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    val lineColor = MaterialTheme.colorScheme.outline
-    val railCenterX = TimelineTimeWidth + TimelineRailWidth / 2
-    Column(
-        modifier
-            .fillMaxWidth()
-            .drawBehind {
-                val stroke = 2.dp.toPx()
-                val x = railCenterX.toPx()
-                drawLine(
-                    color = lineColor,
-                    start = Offset(x, 0f),
-                    end = Offset(x, size.height),
-                    strokeWidth = stroke,
-                    cap = StrokeCap.Round,
-                )
-            },
-    ) {
+    Column(modifier.fillMaxWidth()) {
         content()
+    }
+}
+
+@Composable
+private fun TimelineRailColumn(
+    showLineAbove: Boolean,
+    showLineBelow: Boolean,
+    lineColor: Color,
+    nodeStyle: TimelineNodeStyle,
+) {
+    Box(
+        Modifier
+            .width(TimelineRailWidth)
+            .fillMaxHeight(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            Modifier.fillMaxHeight(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            if (showLineAbove) {
+                Box(
+                    Modifier
+                        .width(2.dp)
+                        .weight(1f)
+                        .background(lineColor),
+                )
+            } else {
+                Box(Modifier.weight(1f))
+            }
+            TimelineDot(nodeStyle = nodeStyle, color = lineColor)
+            if (showLineBelow) {
+                Box(
+                    Modifier
+                        .width(2.dp)
+                        .weight(1f)
+                        .background(lineColor),
+                )
+            } else {
+                Box(Modifier.weight(1f))
+            }
+        }
     }
 }
 

@@ -167,6 +167,7 @@
     <string name="hide_intermediate_stations">Hide intermediate stations</string>
     <string name="prior_stations_heading">Earlier stops (before your departure)</string>
     <string name="trip_route_heading">Complete route</string>
+    <string name="trip_detail_route_unavailable">Could not load the full trip route.</string>
     <string name="trip_route_board_here">Your departure</string>
     <string name="trip_route_alight_here">Your arrival</string>
     <string name="trip_route_your_stop">Your stop</string>

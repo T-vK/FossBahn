@@ -167,6 +167,7 @@
     <string name="hide_intermediate_stations">Zwischenstationen ausblenden</string>
     <string name="prior_stations_heading">Frühere Halte (vor Ihrer Abfahrt)</string>
     <string name="trip_route_heading">Gesamte Strecke</string>
+    <string name="trip_detail_route_unavailable">Die vollständige Fahrt konnte nicht geladen werden.</string>
     <string name="trip_route_board_here">Ihre Abfahrt</string>
     <string name="trip_route_alight_here">Ihre Ankunft</string>
     <string name="trip_route_your_stop">Ihr Halt</string>
