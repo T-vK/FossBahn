@@ -124,13 +124,6 @@ fun SearchScreen(
         if (state.isLoading) dismissKeyboard()
     }
 
-    if (state.showOnboarding) {
-        DeutschlandTicketOnboardingDialog(
-            onDismissOnly = viewModel::dismissOnboarding,
-            onEnableFilter = { viewModel.completeOnboarding(deutschlandTicketOnly = true) },
-        )
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -458,6 +451,13 @@ fun SearchScreen(
                 Spacer(Modifier.padding(bottom = 8.dp))
             }
         }
+    }
+
+    if (state.showOnboarding) {
+        DeutschlandTicketOnboardingDialog(
+            onDismissOnly = viewModel::dismissOnboarding,
+            onEnableFilter = { viewModel.completeOnboarding(deutschlandTicketOnly = true) },
+        )
     }
 }
 

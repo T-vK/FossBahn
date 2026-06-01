@@ -68,11 +68,21 @@ class OpenBahnApplication : Application() {
                 description = getString(R.string.notification_channel_passenger_rights_desc)
             },
         )
+        manager.createNotificationChannel(
+            NotificationChannel(
+                CHANNEL_APP_UPDATES,
+                getString(R.string.notification_channel_app_updates),
+                NotificationManager.IMPORTANCE_DEFAULT,
+            ).apply {
+                description = getString(R.string.notification_channel_app_updates_desc)
+            },
+        )
     }
 
     companion object {
         const val CHANNEL_DELAY_ALERTS = "delay_alerts"
         const val CHANNEL_JOURNEY_TRACKING = "journey_tracking"
         const val CHANNEL_PASSENGER_RIGHTS = "passenger_rights"
+        const val CHANNEL_APP_UPDATES = "app_updates"
     }
 }

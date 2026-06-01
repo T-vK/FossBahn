@@ -19,6 +19,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,10 +47,14 @@ import de.openbahn.navigator.ui.theme.OpenBahnTheme
 import de.openbahn.navigator.ui.tickets.TicketsScreen
 import de.openbahn.navigator.ui.tracking.TrackingScreen
 import de.openbahn.navigator.ui.tracking.TrackingViewModel
+import de.openbahn.navigator.ui.update.AppUpdateDialog
+import de.openbahn.navigator.update.AppUpdateCoordinator
 import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
 import org.koin.androidx.compose.koinViewModel
 
 class MainActivity : AppCompatActivity() {
+    private val appUpdateCoordinator: AppUpdateCoordinator by inject()
     private val pendingOpenTrackedJourneyId = mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -64,6 +69,7 @@ class MainActivity : AppCompatActivity() {
                 val searchViewModel: SearchViewModel = koinViewModel()
                 val trackingViewModel: TrackingViewModel = koinViewModel()
                 val openTrackedJourneyId by pendingOpenTrackedJourneyId
+                val pendingAppUpdate by appUpdateCoordinator.pendingUpdate.collectAsState()
                 val drawerState = rememberDrawerState(DrawerValue.Closed)
                 val scope = rememberCoroutineScope()
 
@@ -212,6 +218,14 @@ class MainActivity : AppCompatActivity() {
                             }
                         }
                     }
+                }
+
+                pendingAppUpdate?.let { update ->
+                    AppUpdateDialog(
+                        versionName = update.versionName,
+                        onInstall = { appUpdateCoordinator.installFrom(this@MainActivity) },
+                        onLater = { appUpdateCoordinator.deferUpdate() },
+                    )
                 }
             }
         }

@@ -33,6 +33,7 @@ import de.openbahn.navigator.ui.search.SearchViewModel
 import de.openbahn.navigator.ui.about.ChangelogViewModel
 import de.openbahn.navigator.ui.settings.SettingsViewModel
 import de.openbahn.navigator.update.AppReleaseResolver
+import de.openbahn.navigator.update.AppUpdateCoordinator
 import de.openbahn.navigator.update.AppUpdateMonitor
 import de.openbahn.navigator.update.FdroidRepoClient
 import de.openbahn.navigator.update.GitHubReleaseClient
@@ -63,6 +64,7 @@ val appModule = module {
     single { GitHubReleaseClient() }
     single { FdroidRepoClient() }
     single { AppReleaseResolver(get(), get()) }
+    single { AppUpdateCoordinator(androidContext(), get()) }
     single { AppUpdateMonitor(androidContext(), get(), get()) }
     single { PendingSearchRepository() }
     single { LocationHistoryRepository(get(), get()) }

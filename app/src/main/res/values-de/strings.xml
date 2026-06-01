@@ -242,4 +242,12 @@
     <string name="settings_auto_update_title">Entwicklung: Auto-Update</string>
     <string name="settings_auto_update_hint">Prüft alle 5 Sekunden das F-Droid-Repo und GitHub Releases auf eine neuere Debug-APK, lädt sie herunter und öffnet den Installer. Erfordert Erlaubnis für unbekannte Apps. Standard: aus.</string>
     <string name="settings_auto_update_switch">Auto-Update aktivieren</string>
+    <string name="notification_channel_app_updates">App-Updates</string>
+    <string name="notification_channel_app_updates_desc">Hinweis, wenn ein neuer Debug-Build heruntergeladen wurde</string>
+    <string name="app_update_notification_title">Update bereit</string>
+    <string name="app_update_notification_body">Version %1$s kann installiert werden. Tippen zum Öffnen.</string>
+    <string name="app_update_dialog_title">Update verfügbar</string>
+    <string name="app_update_dialog_message">Version %1$s ist bereit. Jetzt installieren?</string>
+    <string name="app_update_dialog_install">Installieren</string>
+    <string name="app_update_dialog_later">Später</string>
 </resources>

@@ -1,5 +1,6 @@
 package de.openbahn.navigator.update
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -50,33 +51,32 @@ class AppUpdateInstaller(private val context: Context) {
         return context.packageManager.canRequestPackageInstalls()
     }
 
-    fun openInstallPermissionSettings() {
+    fun openInstallPermissionSettings(activity: Activity) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-            data = Uri.parse("package:${context.packageName}")
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            data = Uri.parse("package:${activity.packageName}")
         }
-        context.startActivity(intent)
+        activity.startActivity(intent)
     }
 
-    fun promptInstall(apkFile: File): Boolean {
+    /** Launch the system installer from a foreground activity (interactive, no NEW_TASK). */
+    fun promptInstall(activity: Activity, apkFile: File): Boolean {
         if (!apkFile.exists()) return false
         if (!canInstallPackages()) {
             OpenBahnDebugLog.w("AppUpdate", "Install blocked: unknown sources not allowed")
-            openInstallPermissionSettings()
             return false
         }
         val uri: Uri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.fileprovider",
+            activity,
+            "${activity.packageName}.fileprovider",
             apkFile,
         )
         val intent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, "application/vnd.android.package-archive")
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         return runCatching {
-            context.startActivity(intent)
+            activity.startActivity(intent)
             true
         }.getOrElse {
             OpenBahnDebugLog.w("AppUpdate", "Install intent failed: ${it.message}", it)
