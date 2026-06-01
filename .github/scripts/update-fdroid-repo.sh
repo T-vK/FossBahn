@@ -33,6 +33,8 @@ echo "Publish URL: $REPO_URL"
 
 python3 -m pip install --quiet --upgrade pip
 python3 -m pip install --quiet fdroidserver Pillow
+chmod +x "$ROOT/.github/scripts/patch-androguard-for-fdroid.sh"
+"$ROOT/.github/scripts/patch-androguard-for-fdroid.sh"
 
 python3 "$ROOT/.github/scripts/generate-fdroid-icons.py"
 
@@ -100,7 +102,6 @@ rm -f repo/index-v1.json repo/index-v2.json \
   repo/index-v1.jar repo/index-v2.jar \
   repo/index.css repo/entry.jar 2>/dev/null || true
 
-export PYTHONSTARTUP="$ROOT/.github/fdroid-py-patches/androguard_patch.py"
 fdroid update --delete-unknown --verbose
 
 INDEX_ADDR="$(python3 -c "import json; print(json.load(open('repo/index-v2.json'))['repo']['address'])")"
