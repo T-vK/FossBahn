@@ -93,10 +93,10 @@ fun JourneyDetailScreen(
             rightsAssessment = assessment
             showRightsBanner = passengerRights.shouldSurfaceRightsUi(assessment)
             if (payload.predictionsRequested) {
-                val tolerance = userPreferences.punctualityToleranceMinutes.first()
+                val onTimeTolerance = userPreferences.onTimeTolerance.first()
                 val options = JourneyRatingOptions(
                     minTransferMinutes = payload.minTransferMinutes,
-                    punctualityToleranceMinutes = tolerance,
+                    onTimeTolerance = onTimeTolerance,
                 )
                 val tripRoutes = loadTripRoutesForJourneys(listOf(refreshed)) { leg ->
                     journeySearch.fetchFullLegRoute(leg)

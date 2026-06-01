@@ -145,7 +145,7 @@ class BahnVorhersageClient(
         }
         val stopTimeliness = BahnVorhersageHeuristic.buildStopTimeliness(
             journey,
-            options.punctualityToleranceMinutes,
+            options.onTimeTolerance,
             options.minTransferMinutes,
         )
         return RatedJourney(
@@ -158,7 +158,8 @@ class BahnVorhersageClient(
             }?.probability,
             punctualityIsEstimate = true,
             minTransferMinutesUsed = options.minTransferMinutes,
-            punctualityToleranceMinutes = options.punctualityToleranceMinutes,
+            onTimeTolerance = options.onTimeTolerance,
+            punctualityToleranceMinutes = options.onTimeTolerance.arrivalMinutes,
         )
     }
 
@@ -180,7 +181,8 @@ class BahnVorhersageClient(
 
     private fun RatedJourney.withMetadata(options: JourneyRatingOptions): RatedJourney = copy(
         minTransferMinutesUsed = options.minTransferMinutes,
-        punctualityToleranceMinutes = options.punctualityToleranceMinutes,
+        onTimeTolerance = options.onTimeTolerance,
+        punctualityToleranceMinutes = options.onTimeTolerance.arrivalMinutes,
     )
 
     /** Self-hosted columnar `/rate-journeys/` predictor (legacy URL). */
@@ -269,7 +271,7 @@ class BahnVorhersageClient(
     ): List<StopTimelinessPrediction> {
         val base = BahnVorhersageHeuristic.buildStopTimeliness(
             journey,
-            options.punctualityToleranceMinutes,
+            options.onTimeTolerance,
             options.minTransferMinutes,
         ).toMutableList()
         val distributions = response.predictions.orEmpty()

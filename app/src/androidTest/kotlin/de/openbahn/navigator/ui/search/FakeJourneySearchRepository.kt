@@ -67,7 +67,8 @@ class FakeJourneySearchRepository : JourneySearchRepository {
                 punctualityProbability = 0.9,
                 punctualityIsEstimate = true,
                 minTransferMinutesUsed = ratingOptions.minTransferMinutes,
-                punctualityToleranceMinutes = ratingOptions.punctualityToleranceMinutes,
+                onTimeTolerance = ratingOptions.onTimeTolerance,
+                punctualityToleranceMinutes = ratingOptions.onTimeTolerance.arrivalMinutes,
             )
         }
 

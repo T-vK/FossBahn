@@ -12,6 +12,7 @@ import de.openbahn.api.haltIdForJourney
 import de.openbahn.model.Journey
 import de.openbahn.model.JourneySearchOptions
 import de.openbahn.model.Location
+import de.openbahn.model.OnTimeToleranceSettings
 import de.openbahn.model.RatedJourney
 import de.openbahn.model.TransportProduct
 import de.openbahn.model.ViaStop
@@ -73,7 +74,7 @@ data class SearchUiState(
     val locale: String = "de",
     val hasSearched: Boolean = false,
     val showOnboarding: Boolean = false,
-    val punctualityToleranceMinutes: Int = JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES,
+    val onTimeTolerance: OnTimeToleranceSettings = OnTimeToleranceSettings(),
     /** Incremented when a new search returns results; UI scrolls to the first connection. */
     val scrollToResultsToken: Long = 0L,
     val viaStops: List<ViaStopField> = emptyList(),
@@ -146,8 +147,8 @@ class SearchViewModel(
             }
         }
         viewModelScope.launch {
-            userPreferences.punctualityToleranceMinutes.collect { tolerance ->
-                _state.update { it.copy(punctualityToleranceMinutes = tolerance) }
+            userPreferences.onTimeTolerance.collect { tolerance ->
+                _state.update { it.copy(onTimeTolerance = tolerance) }
             }
         }
         viewModelScope.launch {
@@ -161,7 +162,7 @@ class SearchViewModel(
 
     private fun currentRatingOptions(): JourneyRatingOptions = JourneyRatingOptions(
         minTransferMinutes = _state.value.options.minTransferMinutes,
-        punctualityToleranceMinutes = _state.value.punctualityToleranceMinutes,
+        onTimeTolerance = _state.value.onTimeTolerance,
     )
 
     fun completeOnboarding(deutschlandTicketOnly: Boolean) {

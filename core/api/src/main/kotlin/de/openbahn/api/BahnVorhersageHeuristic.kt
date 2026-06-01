@@ -2,6 +2,7 @@ package de.openbahn.api
 
 import de.openbahn.model.Journey
 import de.openbahn.model.Leg
+import de.openbahn.model.OnTimeToleranceSettings
 import de.openbahn.model.StopEvent
 import de.openbahn.model.StopTimelinessPrediction
 import de.openbahn.model.TransferPrediction
@@ -20,7 +21,7 @@ internal object BahnVorhersageHeuristic {
 
     fun buildStopTimeliness(
         journey: Journey,
-        toleranceMinutes: Int,
+        onTimeTolerance: OnTimeToleranceSettings = OnTimeToleranceSettings(),
         minTransferMinutes: Int? = null,
     ): List<StopTimelinessPrediction> {
         val results = mutableListOf<StopTimelinessPrediction>()
@@ -41,7 +42,7 @@ internal object BahnVorhersageHeuristic {
                     probability = (connectionFactor * punctualityForStop(
                         stop = leg.origin,
                         leg = leg,
-                        toleranceMinutes = toleranceMinutes,
+                        toleranceMinutes = onTimeTolerance.departureMinutes,
                         minutesIntoTrip = minutesIntoTrip,
                     )).coerceIn(0.05, 0.98),
                     isEstimate = true,
@@ -58,7 +59,7 @@ internal object BahnVorhersageHeuristic {
                         probability = (connectionFactor * punctualityForStop(
                             stop = stop,
                             leg = leg,
-                            toleranceMinutes = toleranceMinutes,
+                            toleranceMinutes = onTimeTolerance.viaStopMinutes,
                             minutesIntoTrip = viaMinutes,
                         )).coerceIn(0.05, 0.98),
                         isEstimate = true,
@@ -76,7 +77,7 @@ internal object BahnVorhersageHeuristic {
                     probability = (connectionFactor * punctualityForStop(
                         stop = leg.destination,
                         leg = leg,
-                        toleranceMinutes = toleranceMinutes,
+                        toleranceMinutes = onTimeTolerance.arrivalMinutes,
                         minutesIntoTrip = arrivalMinutes,
                         isLegEndpoint = true,
                     )).coerceIn(0.05, 0.98),
@@ -95,8 +96,8 @@ internal object BahnVorhersageHeuristic {
         return results
     }
 
-    fun estimatePunctuality(journey: Journey, toleranceMinutes: Int): Double? {
-        val stops = buildStopTimeliness(journey, toleranceMinutes, minTransferMinutes = null)
+    fun estimatePunctuality(journey: Journey, onTimeTolerance: OnTimeToleranceSettings): Double? {
+        val stops = buildStopTimeliness(journey, onTimeTolerance, minTransferMinutes = null)
         val lastRailLeg = journey.legs.indexOfLast { !it.isWalking }
         if (lastRailLeg < 0) return null
         return stops.firstOrNull {

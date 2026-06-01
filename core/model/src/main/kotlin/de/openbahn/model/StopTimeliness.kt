@@ -27,6 +27,11 @@ fun RatedJourney.stopProbability(
     }
     ?.probability
 
+fun RatedJourney.toleranceMinutesForStop(
+    intermediateIndex: Int? = null,
+    isArrival: Boolean,
+): Int = effectiveOnTimeTolerance().forStop(intermediateIndex, isArrival)
+
 fun RatedJourney.stopTimelinessIsEstimate(
     legIndex: Int,
     intermediateIndex: Int? = null,

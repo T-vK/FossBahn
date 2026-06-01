@@ -51,8 +51,10 @@ import de.openbahn.model.railTransferCount
 import de.openbahn.api.JourneyRatingOptions
 import de.openbahn.model.RatedJourney
 import de.openbahn.model.StopEvent
+import de.openbahn.model.OnTimeToleranceSettings
 import de.openbahn.model.stopProbability
 import de.openbahn.model.stopTimelinessIsEstimate
+import de.openbahn.model.toleranceMinutesForStop
 import de.openbahn.model.delayMinutesFromTimes
 import de.openbahn.model.tripRouteStops
 import de.openbahn.model.withDelaysFrom
@@ -418,8 +420,10 @@ private fun JourneyTimeRangeHeader(
     val lastLegIndex = journey.legs.indexOfLast { !it.isWalking }.takeIf { it >= 0 } ?: journey.legs.lastIndex
     val first = journey.legs.getOrNull(firstLegIndex)?.origin
     val last = journey.legs.getOrNull(lastLegIndex)?.destination
-    val tolerance = prediction?.punctualityToleranceMinutes
-        ?: JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES
+    val depTolerance = prediction?.toleranceMinutesForStop(intermediateIndex = null, isArrival = false)
+        ?: OnTimeToleranceSettings.DEFAULT_MINUTES
+    val arrTolerance = prediction?.toleranceMinutesForStop(intermediateIndex = null, isArrival = true)
+        ?: OnTimeToleranceSettings.DEFAULT_MINUTES
     val depScheduled = first?.scheduledTime ?: journey.departure
     val arrScheduled = last?.scheduledTime ?: journey.arrival
     val depDelay = first?.delayMinutes
@@ -442,7 +446,7 @@ private fun JourneyTimeRangeHeader(
                     null
                 },
                 timelinessIsEstimate = prediction?.stopTimelinessIsEstimate(firstLegIndex, isArrival = false) == true,
-                toleranceMinutes = tolerance,
+                toleranceMinutes = depTolerance,
                 minTransferMinutesUsed = prediction?.minTransferMinutesUsed,
             )
             Text("–", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -458,7 +462,7 @@ private fun JourneyTimeRangeHeader(
                     null
                 },
                 timelinessIsEstimate = prediction?.stopTimelinessIsEstimate(lastLegIndex, isArrival = true) == true,
-                toleranceMinutes = tolerance,
+                toleranceMinutes = arrTolerance,
                 minTransferMinutesUsed = prediction?.minTransferMinutesUsed,
             )
         }

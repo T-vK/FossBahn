@@ -51,9 +51,50 @@ class BahnVorhersageHeuristicTest {
             departure = "2026-05-30T10:00:00",
             arrival = "2026-05-30T12:00:00",
         )
-        val score = BahnVorhersageHeuristic.estimatePunctuality(journey, toleranceMinutes = 10)
+        val tolerance = de.openbahn.model.OnTimeToleranceSettings.uniform(10)
+        val score = BahnVorhersageHeuristic.estimatePunctuality(journey, tolerance)
         assertTrue((score ?: 0.0) in 0.65..0.95)
-        val stops = BahnVorhersageHeuristic.buildStopTimeliness(journey, toleranceMinutes = 10)
+        val stops = BahnVorhersageHeuristic.buildStopTimeliness(journey, tolerance)
         assertEquals(2, stops.size)
+    }
+
+    @Test
+    fun buildStopTimeliness_departureToleranceAffectsDepartureScoreOnly() {
+        val journey = Journey(
+            id = "delayed-departure",
+            legs = listOf(
+                Leg(
+                    origin = StopEvent("A", scheduledTime = "2026-05-30T10:00:00", delayMinutes = 8),
+                    destination = StopEvent("B", scheduledTime = "2026-05-30T12:00:00", delayMinutes = 0),
+                    lineName = "RE 1",
+                ),
+            ),
+            durationMinutes = 120,
+            transfers = 0,
+            departure = "2026-05-30T10:00:00",
+            arrival = "2026-05-30T12:00:00",
+        )
+        val looseDeparture = de.openbahn.model.OnTimeToleranceSettings(
+            departureMinutes = 15,
+            viaStopMinutes = 5,
+            arrivalMinutes = 5,
+        )
+        val strictDeparture = de.openbahn.model.OnTimeToleranceSettings(
+            departureMinutes = 5,
+            viaStopMinutes = 15,
+            arrivalMinutes = 15,
+        )
+        fun departureScore(tolerance: de.openbahn.model.OnTimeToleranceSettings) =
+            BahnVorhersageHeuristic.buildStopTimeliness(journey, tolerance)
+                .first { it.intermediateIndex == null && !it.isArrival }
+                .probability
+        val arrivalScore = BahnVorhersageHeuristic.buildStopTimeliness(journey, strictDeparture)
+            .first { it.intermediateIndex == null && it.isArrival }
+            .probability
+        assertTrue(departureScore(looseDeparture) > departureScore(strictDeparture))
+        val looseArrival = BahnVorhersageHeuristic.buildStopTimeliness(journey, looseDeparture)
+            .first { it.intermediateIndex == null && it.isArrival }
+            .probability
+        assertTrue(looseArrival > departureScore(strictDeparture))
     }
 }
