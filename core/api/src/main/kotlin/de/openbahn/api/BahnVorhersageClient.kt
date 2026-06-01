@@ -51,7 +51,8 @@ class BahnVorhersageClient(
             usesMobileV2Api() -> "mobile-v2"
             else -> "rate-journeys"
         }
-        BahnVorhersageDebug.logRateBatchStart(baseUrl, apiMode, journeys, options, tripRoutes)
+        val builtTrips = buildTripRoutesForRating(journeys, tripRoutes)
+        BahnVorhersageDebug.logRateBatchStart(baseUrl, apiMode, journeys, options, builtTrips)
         if (baseUrl.isBlank()) {
             BahnVorhersageDebug.logHeuristicFallback("baseUrl is blank", journeys.size)
             return journeys.map { heuristicRating(it, options) }
@@ -85,7 +86,7 @@ class BahnVorhersageClient(
         tripRoutes: Map<String, List<StopEvent>>,
     ): List<RatedJourney> =
         journeys.map { journey ->
-            val trips = buildTripPayload(listOf(journey), tripRoutes)
+            val trips = buildTripRoutesForRating(journey, tripRoutes)
             rateFromMobileV2Batch(listOf(journey), options, trips)?.firstOrNull()
                 ?: heuristicRating(journey, options).also {
                     BahnVorhersageDebug.logHeuristicFallback(
@@ -134,22 +135,7 @@ class BahnVorhersageClient(
     private fun buildTripPayload(
         journeys: List<Journey>,
         tripRoutes: Map<String, List<StopEvent>>,
-    ): Map<String, List<StopEvent>> {
-        val result = mutableMapOf<String, List<StopEvent>>()
-        journeys.forEach { journey ->
-            journey.legs.forEachIndexed { legIndex, leg ->
-                if (leg.isWalking) return@forEachIndexed
-                val tripId = syntheticTripId(journey.id, legIndex)
-                if (tripId in result) return@forEachIndexed
-                val fetched = leg.tripId?.trim()?.let { tripRoutes[it] }.orEmpty()
-                val route = routeStopsForRating(leg, fetched)
-                if (route.size >= 2) {
-                    result[tripId] = route
-                }
-            }
-        }
-        return result
-    }
+    ): Map<String, List<StopEvent>> = buildTripRoutesForRating(journeys, tripRoutes)
 
     private fun heuristicRating(journey: Journey, options: JourneyRatingOptions): RatedJourney {
         val transfers = if (BahnVorhersageRequestBuilder.hasTransferEvents(journey)) {

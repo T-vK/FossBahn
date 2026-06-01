@@ -21,6 +21,9 @@ import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 /**
  * Maps OpenBahn [Journey] models to/from the FPTF JSON used by
@@ -28,6 +31,9 @@ import kotlinx.serialization.json.putJsonObject
  */
 internal object BahnVorhersageFptfMapper {
     private val json = Json { ignoreUnknownKeys = true }
+    private val berlin = ZoneId.of("Europe/Berlin")
+    private val localDateTime = DateTimeFormatter.ISO_LOCAL_DATE_TIME
+    private val offsetDateTime = DateTimeFormatter.ISO_OFFSET_DATE_TIME
 
     fun buildRateRequest(
         journeys: List<Journey>,
@@ -205,16 +211,17 @@ internal object BahnVorhersageFptfMapper {
 
     private fun legJson(leg: Leg, journeyId: String, legIndex: Int): JsonObject {
         if (leg.isWalking) {
+            // bahnvorhersage.api.fptf.leg_or_transfer only treats `walking: true` as a transfer.
             return buildJsonObject {
-                put("type", "transfer")
+                put("walking", true)
                 putObject("origin", stopJson(leg.origin))
                 putObject("destination", stopJson(leg.destination))
                 put("departure", timeJson(leg.origin))
                 put("arrival", timeJson(leg.destination))
                 leg.distanceMeters?.let { put("distance", it) }
-                put("mode", "walk")
             }
         }
+        val tripId = ratingTripId(journeyId, legIndex, leg)
         return buildJsonObject {
             put("type", "leg")
             putObject("origin", stopJson(leg.origin))
@@ -226,7 +233,7 @@ internal object BahnVorhersageFptfMapper {
             put("departurePlatform", leg.origin.platform.orEmpty())
             put("arrivalPlatform", leg.destination.platform.orEmpty())
             put("cancelled", leg.origin.cancelled || leg.destination.cancelled)
-            put("tripId", BahnVorhersageClient.syntheticTripId(journeyId, legIndex))
+            put("tripId", tripId)
             putObject("line", lineJson(leg))
         }
     }
@@ -302,6 +309,11 @@ internal object BahnVorhersageFptfMapper {
         } else {
             stop.prognosedTime?.takeIf { it.isNotBlank() } ?: stop.scheduledTime
         }
-        return raw.take(19)
+        if (raw.isBlank()) return raw
+        return runCatching {
+            LocalDateTime.parse(raw.take(19), localDateTime)
+                .atZone(berlin)
+                .format(offsetDateTime)
+        }.getOrElse { raw.take(19) }
     }
 }

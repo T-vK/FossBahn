@@ -1,6 +1,7 @@
 package de.openbahn.navigator.domain
 
 import de.openbahn.api.BahnVorhersageClient
+import de.openbahn.api.buildTripRoutesForRating
 import de.openbahn.api.DbVendoClient
 import de.openbahn.api.loadTripRoutesForJourneys
 import de.openbahn.api.debug.OpenBahnDebugLog
@@ -71,7 +72,8 @@ class JourneySearchUseCase(
         ratingOptions: JourneyRatingOptions,
     ): RatedJourney {
         OpenBahnDebugLog.d("Search", "rateJourney: ${journey.id}")
-        return runCatching { predictionClient.rateJourney(journey, ratingOptions, emptyMap()) }
+        val tripRoutes = buildTripRoutesForRating(journey)
+        return runCatching { predictionClient.rateJourney(journey, ratingOptions, tripRoutes) }
             .onFailure { e ->
                 OpenBahnDebugLog.w("BahnVorhersage", "rateJourney threw: ${e.message}", e)
             }

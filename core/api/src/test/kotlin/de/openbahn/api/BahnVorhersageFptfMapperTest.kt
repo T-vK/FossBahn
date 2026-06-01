@@ -106,10 +106,33 @@ class BahnVorhersageFptfMapperTest {
             departure = "2026-05-30T10:00:00",
             arrival = "2026-05-30T12:00:00",
         )
+        val trips = buildTripRoutesForRating(listOf(journey))
         val body = BahnVorhersageFptfMapper.buildRateRequest(
             journeys = listOf(journey),
-            tripRoutes = emptyMap(),
+            tripRoutes = trips,
         )
+        assertTrue(trips.containsKey("openbahn-j-no-trip-leg0"))
         assertTrue(body.toString().contains("openbahn-j-no-trip-leg0"))
+    }
+
+    @Test
+    fun buildRateRequest_timesIncludeBerlinOffset() {
+        val journey = Journey(
+            id = "j1",
+            legs = listOf(
+                Leg(
+                    origin = StopEvent("Berlin Hbf", scheduledTime = "2026-06-01T10:00:00"),
+                    destination = StopEvent("Hamburg Hbf", scheduledTime = "2026-06-01T12:00:00"),
+                    lineName = "ICE 701",
+                ),
+            ),
+            durationMinutes = 120,
+            transfers = 0,
+            departure = "2026-06-01T10:00:00",
+            arrival = "2026-06-01T12:00:00",
+        )
+        val trips = buildTripRoutesForRating(listOf(journey))
+        val body = BahnVorhersageFptfMapper.buildRateRequest(listOf(journey), trips).toString()
+        assertTrue(body.contains("+02:00") || body.contains("+01:00"), "times should carry Europe/Berlin offset")
     }
 }
