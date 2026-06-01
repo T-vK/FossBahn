@@ -2,6 +2,7 @@ package de.openbahn.navigator.domain
 
 import de.openbahn.api.BahnVorhersageClient
 import de.openbahn.api.DbVendoClient
+import de.openbahn.api.debug.OpenBahnDebugLog
 import de.openbahn.api.JourneyRatingOptions
 import de.openbahn.api.loadTripRoutesForJourneys
 import de.openbahn.model.Journey
@@ -65,8 +66,13 @@ class JourneySearchUseCase(
         journeys: List<Journey>,
         ratingOptions: JourneyRatingOptions,
     ): List<RatedJourney> {
+        OpenBahnDebugLog.d("Search", "rateJourneys: ${journeys.size} connection(s)")
         val tripRoutes = loadTripRoutesForJourneys(journeys) { leg -> fetchFullLegRoute(leg) }
-        return predictionClient.rateJourneys(journeys, ratingOptions, tripRoutes)
+        return runCatching { predictionClient.rateJourneys(journeys, ratingOptions, tripRoutes) }
+            .onFailure { e ->
+                OpenBahnDebugLog.w("BahnVorhersage", "rateJourneys threw: ${e.message}", e)
+            }
+            .getOrElse { emptyList() }
     }
 
     override suspend fun fetchTripRoute(journeyId: String): List<StopEvent> =

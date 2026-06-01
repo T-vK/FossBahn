@@ -604,7 +604,15 @@ class SearchViewModel(
             val rated = if (_state.value.showPredictions) {
                 val newOnes = page.journeys.filter { it.id !in existingIds }
                 val newRated = if (newOnes.isNotEmpty()) {
-                    searchUseCase.rateJourneys(newOnes, currentRatingOptions())
+                    runCatching { searchUseCase.rateJourneys(newOnes, currentRatingOptions()) }
+                        .onFailure { e ->
+                            OpenBahnDebugLog.w(
+                                "Search",
+                                "predictions failed for ${newOnes.size} journey(s): ${e.message}",
+                                e,
+                            )
+                        }
+                        .getOrElse { emptyList() }
                 } else {
                     emptyList()
                 }

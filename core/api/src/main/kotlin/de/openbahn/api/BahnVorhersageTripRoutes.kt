@@ -1,5 +1,6 @@
 package de.openbahn.api
 
+import de.openbahn.api.debug.OpenBahnDebugLog
 import de.openbahn.model.Journey
 import de.openbahn.model.Leg
 import de.openbahn.model.StopEvent
@@ -26,10 +27,23 @@ suspend fun loadTripRoutesForJourneys(
         .map { (tripId, leg) ->
             async {
                 val stops = runCatching { fetchFullLegRoute(leg) }
+                    .onFailure { e ->
+                        OpenBahnDebugLog.w(
+                            "BahnVorhersage",
+                            "trip route fetch failed tripId=${tripId.take(48)} " +
+                                "line=${leg.lineName}: ${e.message}",
+                            e,
+                        )
+                    }
                     .getOrElse { emptyList() }
                     .takeIf { it.size >= 2 }
                     ?: leg.tripRouteStops().takeIf { it.size >= 2 }
-                    ?: listOf(leg.origin, leg.destination)
+                    ?: listOf(leg.origin, leg.destination).also {
+                        OpenBahnDebugLog.d(
+                            "BahnVorhersage",
+                            "trip route fallback origin→dest tripId=${tripId.take(48)} stops=${it.size}",
+                        )
+                    }
                 tripId to stops
             }
         }

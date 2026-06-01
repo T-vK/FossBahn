@@ -7,6 +7,7 @@ import de.openbahn.model.StopEvent
 import de.openbahn.model.StopTimelinessPrediction
 import de.openbahn.model.TransferPrediction
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -59,12 +60,37 @@ internal object BahnVorhersageFptfMapper {
         journeys: List<Journey>,
         options: JourneyRatingOptions,
     ): List<RatedJourney>? {
-        val rated = runCatching { json.parseToJsonElement(responseBody).jsonArray }.getOrNull() ?: return null
-        if (rated.size != journeys.size) return null
+        val root = runCatching { json.parseToJsonElement(responseBody) }.getOrElse { e ->
+            BahnVorhersageDebug.logParseFailure("invalid JSON: ${e.message}", responseBody)
+            return null
+        }
+        val rated = root as? JsonArray
+        if (rated == null) {
+            BahnVorhersageDebug.logParseFailure(
+                "root is ${root::class.simpleName}, expected array",
+                responseBody,
+            )
+            return null
+        }
+        if (rated.size != journeys.size) {
+            BahnVorhersageDebug.logParseFailure(
+                "array size ${rated.size} != journeys ${journeys.size}",
+                responseBody,
+            )
+            return null
+        }
         return rated.mapIndexed { index, element ->
+            val obj = element as? JsonObject
+                ?: run {
+                    BahnVorhersageDebug.logParseFailure(
+                        "journey[$index] is not an object",
+                        responseBody,
+                    )
+                    return null
+                }
             toRatedJourney(
                 journey = journeys[index],
-                ratedJson = element.jsonObject,
+                ratedJson = obj,
                 options = options,
             )
         }

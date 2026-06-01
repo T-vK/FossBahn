@@ -1,6 +1,5 @@
 package de.openbahn.api
 
-import de.openbahn.api.debug.OpenBahnDebugLog
 import de.openbahn.model.Journey
 import de.openbahn.model.RatedJourney
 import de.openbahn.model.StopEvent
@@ -14,6 +13,9 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import io.ktor.http.isSuccess
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -39,18 +41,36 @@ class BahnVorhersageClient(
         tripRoutes: Map<String, List<StopEvent>> = emptyMap(),
     ): List<RatedJourney> {
         if (journeys.isEmpty()) return emptyList()
+        val apiMode = when {
+            baseUrl.isBlank() -> "heuristic-only"
+            usesMobileV2Api() -> "mobile-v2"
+            else -> "rate-journeys"
+        }
+        BahnVorhersageDebug.logRateBatchStart(baseUrl, apiMode, journeys, options, tripRoutes)
         if (baseUrl.isBlank()) {
+            BahnVorhersageDebug.logHeuristicFallback("baseUrl is blank", journeys.size)
             return journeys.map { heuristicRating(it, options) }
         }
         if (usesMobileV2Api()) {
-            rateFromMobileV2(journeys, options, tripRoutes)?.let { return it }
+            rateFromMobileV2(journeys, options, tripRoutes)?.let { rated ->
+                BahnVorhersageDebug.logRatedSummary(rated)
+                return rated
+            }
+            BahnVorhersageDebug.logHeuristicFallback("mobile v2 returned no ML ratings", journeys.size)
         } else {
             return journeys.map { journey ->
                 rateFromPredictorApi(journey, options)?.enrichWithHeuristics(journey, options)
-                    ?: heuristicRating(journey, options)
-            }
+                    ?: heuristicRating(journey, options).also {
+                        BahnVorhersageDebug.logHeuristicFallback(
+                            "predictor API failed for ${journey.id}",
+                            1,
+                        )
+                    }
+            }.also { BahnVorhersageDebug.logRatedSummary(it) }
         }
-        return journeys.map { heuristicRating(it, options) }
+        return journeys.map { heuristicRating(it, options) }.also {
+            BahnVorhersageDebug.logRatedSummary(it)
+        }
     }
 
     private fun usesMobileV2Api(): Boolean =
@@ -64,14 +84,29 @@ class BahnVorhersageClient(
         val trips = buildTripPayload(journeys, tripRoutes)
         return try {
             val body = BahnVorhersageFptfMapper.buildRateRequest(journeys, trips)
+            val requestPayload = jsonEncoder.encodeToString(JsonElement.serializer(), body)
             val url = baseUrl.trimEnd('/') + "/journeys"
-            val responseText: String = httpClient.post(url) {
+            BahnVorhersageDebug.logHttpRequest(url, requestPayload.length, journeys.size, trips.size)
+            val response = httpClient.post(url) {
                 contentType(ContentType.Application.Json)
                 setBody(body)
-            }.bodyAsText()
+            }
+            val status = response.status.value
+            val responseText = response.bodyAsText()
+            BahnVorhersageDebug.logHttpResponse(status, responseText.length, responseText)
+            if (!response.status.isSuccess()) {
+                return null
+            }
             BahnVorhersageFptfMapper.parseRatedJourneys(responseText, journeys, options)
+                ?: run {
+                    BahnVorhersageDebug.logParseFailure(
+                        "see earlier mapper message",
+                        responseText,
+                    )
+                    null
+                }
         } catch (e: Exception) {
-            OpenBahnDebugLog.w("BahnVorhersage", "mobile v2 rating failed: ${e.message}")
+            BahnVorhersageDebug.logException("mobile v2", e)
             null
         }
     }
@@ -198,7 +233,7 @@ class BahnVorhersageClient(
                 punctualityIsEstimate = false,
             )
         } catch (e: Exception) {
-            OpenBahnDebugLog.w("BahnVorhersage", "rate-journeys API failed for ${journey.id}: ${e.message}")
+            BahnVorhersageDebug.logException("rate-journeys for ${journey.id}", e)
             null
         }
     }
@@ -311,6 +346,8 @@ class BahnVorhersageClient(
     )
 
     companion object {
+        private val jsonEncoder = Json { ignoreUnknownKeys = true }
+
         /** Public rating API used by bahnvorhersage.de (mobile app / web). */
         const val DEFAULT_MOBILE_BASE_URL = "https://bahnvorhersage.de/api/mobile/v2"
 
