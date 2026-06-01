@@ -239,6 +239,6 @@
     <string name="debug_logs_copied">Logs copied to clipboard</string>
     <string name="debug_logs_empty_copy">Nothing to copy</string>
     <string name="settings_auto_update_title">Development: auto-update</string>
-    <string name="settings_auto_update_hint">Checks GitHub every 5 seconds for a newer debug APK, downloads it, and opens the installer. Requires permission to install unknown apps. Off by default.</string>
+    <string name="settings_auto_update_hint">Checks the F-Droid repo and GitHub Releases every 5 seconds for a newer debug APK, downloads it, and opens the installer. Requires permission to install unknown apps. Off by default.</string>
     <string name="settings_auto_update_switch">Enable auto-update</string>
 </resources>

@@ -97,4 +97,4 @@ fun AboutScreen(onBack: () -> Unit) {
 }
 
 private const val GITHUB_REPO_URL = "https://github.com/T-vK/FossBahn"
-private const val FDROID_REPO_URL = "https://t-vk.github.io/FossBahn/fdroid/repo"
+private val FDROID_REPO_URL = de.openbahn.navigator.update.FdroidRepoClient.DEFAULT_REPO_URL

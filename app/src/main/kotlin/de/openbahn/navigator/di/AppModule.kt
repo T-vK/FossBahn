@@ -31,7 +31,9 @@ import de.openbahn.navigator.ui.favorites.FavoritesViewModel
 import de.openbahn.navigator.ui.search.SearchViewModel
 import de.openbahn.navigator.ui.about.ChangelogViewModel
 import de.openbahn.navigator.ui.settings.SettingsViewModel
+import de.openbahn.navigator.update.AppReleaseResolver
 import de.openbahn.navigator.update.AppUpdateMonitor
+import de.openbahn.navigator.update.FdroidRepoClient
 import de.openbahn.navigator.update.GitHubReleaseClient
 import de.openbahn.navigator.ui.tickets.TicketsViewModel
 import de.openbahn.navigator.ui.tracking.TrackingViewModel
@@ -57,7 +59,9 @@ val appModule = module {
     single { get<OpenBahnDatabase>().favoriteRouteDao() }
     single { UserPreferencesRepository(androidContext()) }
     single { GitHubReleaseClient() }
-    single { AppUpdateMonitor(androidContext(), get()) }
+    single { FdroidRepoClient() }
+    single { AppReleaseResolver(get(), get()) }
+    single { AppUpdateMonitor(androidContext(), get(), get()) }
     single { PendingSearchRepository() }
     single { LocationHistoryRepository(get(), get()) }
     single { FavoriteRouteRepository(get()) }

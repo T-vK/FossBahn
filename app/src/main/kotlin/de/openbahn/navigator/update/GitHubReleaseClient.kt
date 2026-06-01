@@ -91,6 +91,8 @@ class GitHubReleaseClient(
             readTimeout = 30_000
             setRequestProperty("Accept", "application/vnd.github+json")
             setRequestProperty("User-Agent", "OpenBahnNavigator")
+            useCaches = false
+            setRequestProperty("Cache-Control", "no-cache")
         }
         return try {
             if (connection.responseCode !in 200..299) return null

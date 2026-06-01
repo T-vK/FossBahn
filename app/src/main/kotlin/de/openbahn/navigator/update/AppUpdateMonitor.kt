@@ -12,9 +12,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class AppUpdateMonitor(
-    context: Context,
+    private val context: Context,
     private val userPreferences: UserPreferencesRepository,
-    private val releaseClient: GitHubReleaseClient = GitHubReleaseClient(),
+    private val releaseResolver: AppReleaseResolver = AppReleaseResolver(),
     private val installer: AppUpdateInstaller = AppUpdateInstaller(context),
 ) {
     private var lastHandledVersionCode: Int = 0
@@ -29,7 +29,10 @@ class AppUpdateMonitor(
                         lastHandledVersionCode = 0
                         return@collectLatest
                     }
-                    OpenBahnDebugLog.d("AppUpdate", "Auto-update polling started (every 5s)")
+                    OpenBahnDebugLog.d(
+                        "AppUpdate",
+                        "Auto-update polling started (F-Droid repo + GitHub, every 5s)",
+                    )
                     while (isActive) {
                         checkAndUpdate()
                         delay(CHECK_INTERVAL_MS)
@@ -40,20 +43,24 @@ class AppUpdateMonitor(
 
     private suspend fun checkAndUpdate() {
         if (downloadInProgress) return
-        val latest = releaseClient.fetchLatestApk() ?: return
+        val latest = releaseResolver.fetchLatestApk(context.packageName) ?: return
         val installedCode = BuildConfig.VERSION_CODE
         if (latest.versionCode <= installedCode) return
         if (latest.versionCode == lastHandledVersionCode) return
 
         OpenBahnDebugLog.d(
             "AppUpdate",
-            "New version ${latest.versionName} (${latest.versionCode}) > installed $installedCode",
+            "New version ${latest.versionName} (${latest.versionCode}) > installed $installedCode " +
+                "from ${latest.downloadUrl}",
         )
         downloadInProgress = true
         try {
             val apk = installer.downloadApk(latest) ?: return
-            lastHandledVersionCode = latest.versionCode
-            installer.promptInstall(apk)
+            if (installer.promptInstall(apk)) {
+                lastHandledVersionCode = latest.versionCode
+            } else {
+                OpenBahnDebugLog.w("AppUpdate", "Install prompt not shown; will retry on next poll")
+            }
         } finally {
             downloadInProgress = false
         }

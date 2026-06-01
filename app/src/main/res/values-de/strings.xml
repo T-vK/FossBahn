@@ -239,6 +239,6 @@
     <string name="debug_logs_copied">Protokoll in die Zwischenablage kopiert</string>
     <string name="debug_logs_empty_copy">Nichts zum Kopieren</string>
     <string name="settings_auto_update_title">Entwicklung: Auto-Update</string>
-    <string name="settings_auto_update_hint">Prüft alle 5 Sekunden GitHub auf eine neuere Debug-APK, lädt sie herunter und öffnet den Installer. Erfordert Erlaubnis für unbekannte Apps. Standard: aus.</string>
+    <string name="settings_auto_update_hint">Prüft alle 5 Sekunden das F-Droid-Repo und GitHub Releases auf eine neuere Debug-APK, lädt sie herunter und öffnet den Installer. Erfordert Erlaubnis für unbekannte Apps. Standard: aus.</string>
     <string name="settings_auto_update_switch">Auto-Update aktivieren</string>
 </resources>
