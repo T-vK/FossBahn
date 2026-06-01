@@ -168,6 +168,11 @@
     <string name="prediction_tooltip_body_estimate">Estimated chance this stop is within %1$d minutes of schedule. Bahn-Vorhersage could not be reached; based on current delays, product, and connections.</string>
     <string name="prediction_tooltip_body_estimate_exact">Estimated chance this stop matches the scheduled time to the minute. Bahn-Vorhersage could not be reached.</string>
     <string name="prediction_tooltip_transfer_buffer">Connection scoring uses a minimum transfer of %1$d minutes from your search filters.</string>
+    <string name="prediction_tooltip_transfer_title">Connection probability</string>
+    <string name="prediction_tooltip_transfer_body_ml">Chance you reach the onward train in time at this transfer, based on Bahn-Vorhersage delay forecasts.</string>
+    <string name="prediction_tooltip_transfer_body_estimate">Estimated chance you make this connection. Bahn-Vorhersage was not available; based on scheduled transfer time and current delays.</string>
+    <string name="prediction_tooltip_transfer_scheduled_time">Scheduled transfer time: %1$d minutes.</string>
+    <string name="prediction_tooltip_transfer_worst_leg">Shown value is the weakest connection on this route.</string>
     <string name="transfer_at">Transfer at %1$s</string>
     <string name="departure">Departure</string>
     <string name="arrival">Arrival</string>

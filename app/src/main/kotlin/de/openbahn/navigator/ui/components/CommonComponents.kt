@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -27,8 +28,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -529,19 +532,35 @@ private fun JourneyPredictionSummary(
 ) {
     val percent = { value: Double -> (value * 100).toInt().coerceIn(0, 100) }
     if (journey.railTransferCount() == 0) return
-    val worst = prediction.predictions.mapNotNull { it.successProbability }.minOrNull() ?: return
+    val worstPrediction = prediction.predictions
+        .filter { it.successProbability != null }
+        .minByOrNull { it.successProbability!! }
+        ?: return
+    val worst = worstPrediction.successProbability ?: return
     val buffer = prediction.minTransferMinutesUsed
     val text = if (buffer != null) {
         stringResource(R.string.prediction_summary_transfer_buffer, buffer, percent(worst))
     } else {
         stringResource(R.string.prediction_summary_transfer, percent(worst))
     }
+    var showDialog by remember { mutableStateOf(false) }
     Text(
         text = text,
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.testTag("journey_prediction_summary"),
+        modifier = Modifier
+            .clickable { showDialog = true }
+            .testTag("journey_prediction_summary"),
     )
+    if (showDialog) {
+        TransferProbabilityDialog(
+            isEstimate = worstPrediction.isEstimate,
+            minTransferMinutesUsed = buffer,
+            scheduledTransferMinutes = null,
+            showWorstLegNote = prediction.predictions.count { it.successProbability != null } > 1,
+            onDismiss = { showDialog = false },
+        )
+    }
 }
 
 @Composable
@@ -644,6 +663,104 @@ private fun TimelinessTimeWithPercent(
             toleranceMinutes = toleranceMinutes,
             minTransferMinutesUsed = minTransferMinutesUsed,
             onDismiss = { showTooltip = false },
+        )
+    }
+}
+
+@Composable
+internal fun transferProbabilityColor(probability: Double): Color = when {
+    probability >= 0.8 -> MaterialTheme.colorScheme.tertiary
+    probability >= 0.5 -> MaterialTheme.colorScheme.primary
+    else -> MaterialTheme.colorScheme.error
+}
+
+@Composable
+internal fun TransferProbabilityDialog(
+    isEstimate: Boolean,
+    minTransferMinutesUsed: Int?,
+    scheduledTransferMinutes: Int?,
+    showWorstLegNote: Boolean = false,
+    onDismiss: () -> Unit,
+) {
+    val body = if (isEstimate) {
+        stringResource(R.string.prediction_tooltip_transfer_body_estimate)
+    } else {
+        stringResource(R.string.prediction_tooltip_transfer_body_ml)
+    }
+    val bufferNote = minTransferMinutesUsed?.let {
+        stringResource(R.string.prediction_tooltip_transfer_buffer, it)
+    }
+    val transferTimeNote = scheduledTransferMinutes?.takeIf { it >= 0 }?.let {
+        stringResource(R.string.prediction_tooltip_transfer_scheduled_time, it)
+    }
+    val worstLegNote = if (showWorstLegNote) {
+        stringResource(R.string.prediction_tooltip_transfer_worst_leg)
+    } else {
+        null
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.prediction_tooltip_transfer_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(body)
+                transferTimeNote?.let { Text(it) }
+                bufferNote?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                worstLegNote?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(android.R.string.ok))
+            }
+        },
+    )
+}
+
+@Composable
+internal fun TransferProbabilityChip(
+    percent: Int,
+    probability: Double,
+    isEstimate: Boolean,
+    minTransferMinutesUsed: Int?,
+    scheduledTransferMinutes: Int?,
+    modifier: Modifier = Modifier,
+    testTag: String = "transfer_prediction",
+) {
+    var showDialog by remember { mutableStateOf(false) }
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+        modifier = modifier
+            .clickable { showDialog = true }
+            .testTag(testTag),
+    ) {
+        Text(
+            text = "$percent%",
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = transferProbabilityColor(probability),
+        )
+    }
+    if (showDialog) {
+        TransferProbabilityDialog(
+            isEstimate = isEstimate,
+            minTransferMinutesUsed = minTransferMinutesUsed,
+            scheduledTransferMinutes = scheduledTransferMinutes,
+            onDismiss = { showDialog = false },
         )
     }
 }

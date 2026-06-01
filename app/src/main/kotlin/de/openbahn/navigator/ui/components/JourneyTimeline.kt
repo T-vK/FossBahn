@@ -326,20 +326,14 @@ internal fun TransferTimelineBlock(
                     )
                 }
             }
-            if (percent != null) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-                    modifier = Modifier.testTag("transfer_prediction"),
-                ) {
-                    Text(
-                        text = "$percent%",
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = transferProbabilityColor(probability),
-                    )
-                }
+            if (percent != null && probability != null) {
+                TransferProbabilityChip(
+                    percent = percent,
+                    probability = probability,
+                    isEstimate = prediction?.isEstimate == true,
+                    minTransferMinutesUsed = minTransferMinutesUsed,
+                    scheduledTransferMinutes = transferMins?.toInt(),
+                )
             } else if (predictionsRequested) {
                 Text(
                     stringResource(R.string.prediction_unavailable),
@@ -827,13 +821,6 @@ private fun timelineSegmentColor(stop: StopEvent, probability: Double?): Color {
     if (delay > 0) return MaterialTheme.colorScheme.error.copy(alpha = 0.85f)
     probability?.let { return transferProbabilityColor(it) }
     return MaterialTheme.colorScheme.tertiary
-}
-
-@Composable
-private fun transferProbabilityColor(probability: Double): Color = when {
-    probability >= 0.8 -> MaterialTheme.colorScheme.tertiary
-    probability >= 0.5 -> MaterialTheme.colorScheme.primary
-    else -> MaterialTheme.colorScheme.error
 }
 
 private fun transferMinutesBetween(arrival: StopEvent, departure: StopEvent): Long? {

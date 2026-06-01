@@ -168,6 +168,11 @@
     <string name="prediction_tooltip_body_estimate">Geschätzte Wahrscheinlichkeit für höchstens %1$d Minuten Abweichung von der Planzeit. Bahn-Vorhersage war nicht erreichbar; basierend auf aktueller Verspätung, Verkehrsmittel und Anschlüssen.</string>
     <string name="prediction_tooltip_body_estimate_exact">Geschätzte Wahrscheinlichkeit für minutengenaue Einhaltung der Planzeit. Bahn-Vorhersage war nicht erreichbar.</string>
     <string name="prediction_tooltip_transfer_buffer">Anschlussbewertung nutzt mindestens %1$d Minuten Umsteigezeit aus deinen Suchfiltern.</string>
+    <string name="prediction_tooltip_transfer_title">Anschlusswahrscheinlichkeit</string>
+    <string name="prediction_tooltip_transfer_body_ml">Wahrscheinlichkeit, den Anschlusszug rechtzeitig zu erreichen – basierend auf Bahn-Vorhersage-Verspätungsprognosen.</string>
+    <string name="prediction_tooltip_transfer_body_estimate">Geschätzte Wahrscheinlichkeit für diesen Anschluss. Bahn-Vorhersage war nicht verfügbar; basierend auf geplanter Umsteigezeit und aktueller Verspätung.</string>
+    <string name="prediction_tooltip_transfer_scheduled_time">Geplante Umsteigezeit: %1$d Minuten.</string>
+    <string name="prediction_tooltip_transfer_worst_leg">Angezeigt wird der schwächste Anschluss auf dieser Verbindung.</string>
     <string name="transfer_at">Umstieg in %1$s</string>
     <string name="departure">Abfahrt</string>
     <string name="arrival">Ankunft</string>
