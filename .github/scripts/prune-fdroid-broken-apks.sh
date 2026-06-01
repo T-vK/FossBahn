@@ -7,7 +7,7 @@ FDROID="$ROOT/fdroid"
 APP_ID="de.openbahn.navigator.debug"
 
 # Version codes known to crash fdroidserver/androguard during index (see release logs).
-KNOWN_BAD_CODES="${FDROID_KNOWN_BAD_VERSION_CODES:-1701}"
+KNOWN_BAD_CODES="${FDROID_KNOWN_BAD_VERSION_CODES:-}"
 
 SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
 APKSIGNER=""

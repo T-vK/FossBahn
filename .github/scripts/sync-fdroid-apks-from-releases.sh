@@ -7,7 +7,7 @@ FDROID="$ROOT/fdroid"
 APP_ID="de.openbahn.navigator.debug"
 OWNER_REPO="${GITHUB_REPOSITORY:-T-vK/FossBahn}"
 # Skip version codes that break fdroid update (androguard signing parse on legacy builds).
-SKIP_CODES="${FDROID_SKIP_VERSION_CODES:-1701}"
+SKIP_CODES="${FDROID_SKIP_VERSION_CODES:-}"
 
 has_version() {
   local code="$1"
