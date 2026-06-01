@@ -11,26 +11,33 @@ import androidx.compose.material.icons.filled.ConfirmationNumber
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import de.openbahn.navigator.tracking.TrackingNotificationIntent
+import de.openbahn.navigator.ui.about.AboutScreen
+import de.openbahn.navigator.ui.about.ChangelogScreen
+import de.openbahn.navigator.ui.debug.DebugLogScreen
 import de.openbahn.navigator.ui.favorites.FavoritesScreen
 import de.openbahn.navigator.ui.journey.JourneyDetailScreen
+import de.openbahn.navigator.ui.menu.AppDrawerSheet
 import de.openbahn.navigator.ui.search.FiltersScreen
 import de.openbahn.navigator.ui.search.SearchScreen
 import de.openbahn.navigator.ui.search.SearchViewModel
@@ -40,6 +47,7 @@ import de.openbahn.navigator.ui.theme.OpenBahnTheme
 import de.openbahn.navigator.ui.tickets.TicketsScreen
 import de.openbahn.navigator.ui.tracking.TrackingScreen
 import de.openbahn.navigator.ui.tracking.TrackingViewModel
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
 class MainActivity : AppCompatActivity() {
@@ -56,8 +64,20 @@ class MainActivity : AppCompatActivity() {
                 val currentRoute = backStack?.destination?.route
                 val searchViewModel: SearchViewModel = koinViewModel()
                 val trackingViewModel: TrackingViewModel = koinViewModel()
-                val context = LocalContext.current
                 val openTrackedJourneyId by pendingOpenTrackedJourneyId
+                val drawerState = rememberDrawerState(DrawerValue.Closed)
+                val scope = rememberCoroutineScope()
+
+                fun openDrawer() {
+                    scope.launch { drawerState.open() }
+                }
+
+                fun closeDrawerAndNavigate(route: String) {
+                    scope.launch {
+                        drawerState.close()
+                        navController.navigate(route)
+                    }
+                }
 
                 LaunchedEffect(openTrackedJourneyId) {
                     val journeyId = openTrackedJourneyId ?: return@LaunchedEffect
@@ -74,97 +94,125 @@ class MainActivity : AppCompatActivity() {
                 val hideBottomBar = currentRoute == Routes.FILTERS ||
                     currentRoute == Routes.SETTINGS ||
                     currentRoute == Routes.CLAIMS ||
-                    currentRoute == Routes.JOURNEY_DETAIL
+                    currentRoute == Routes.JOURNEY_DETAIL ||
+                    currentRoute == Routes.ABOUT ||
+                    currentRoute == Routes.CHANGELOG ||
+                    currentRoute == Routes.DEBUG_LOGS
 
-                Scaffold(
-                    bottomBar = {
-                        if (!hideBottomBar) {
-                            NavigationBar {
-                                listOf(
-                                    Triple(Routes.SEARCH, Icons.Default.Route, R.string.nav_connections),
-                                    Triple(Routes.FAVORITES, Icons.Default.Star, R.string.nav_favorites),
-                                    Triple(Routes.TICKETS, Icons.Default.ConfirmationNumber, R.string.nav_tickets),
-                                    Triple(Routes.TRACKING, Icons.Default.Notifications, R.string.nav_tracking),
-                                ).forEach { (route, icon, labelRes) ->
-                                    NavigationBarItem(
-                                        selected = currentRoute == route,
-                                        onClick = {
-                                            navController.navigate(route) {
-                                                popUpTo(Routes.SEARCH) { saveState = true }
-                                                launchSingleTop = true
-                                                restoreState = true
-                                            }
-                                        },
-                                        icon = { Icon(icon, null) },
-                                        label = { Text(stringResource(labelRes)) },
-                                    )
+                ModalNavigationDrawer(
+                    drawerState = drawerState,
+                    drawerContent = {
+                        AppDrawerSheet(
+                            onSettings = { closeDrawerAndNavigate(Routes.SETTINGS) },
+                            onAbout = { closeDrawerAndNavigate(Routes.ABOUT) },
+                            onChangelog = { closeDrawerAndNavigate(Routes.CHANGELOG) },
+                            onDebugLogs = { closeDrawerAndNavigate(Routes.DEBUG_LOGS) },
+                        )
+                    },
+                ) {
+                    Scaffold(
+                        bottomBar = {
+                            if (!hideBottomBar) {
+                                NavigationBar {
+                                    listOf(
+                                        Triple(Routes.SEARCH, Icons.Default.Route, R.string.nav_connections),
+                                        Triple(Routes.FAVORITES, Icons.Default.Star, R.string.nav_favorites),
+                                        Triple(Routes.TICKETS, Icons.Default.ConfirmationNumber, R.string.nav_tickets),
+                                        Triple(Routes.TRACKING, Icons.Default.Notifications, R.string.nav_tracking),
+                                    ).forEach { (route, icon, labelRes) ->
+                                        NavigationBarItem(
+                                            selected = currentRoute == route,
+                                            onClick = {
+                                                navController.navigate(route) {
+                                                    popUpTo(Routes.SEARCH) { saveState = true }
+                                                    launchSingleTop = true
+                                                    restoreState = true
+                                                }
+                                            },
+                                            icon = { Icon(icon, null) },
+                                            label = { Text(stringResource(labelRes)) },
+                                        )
+                                    }
                                 }
                             }
-                        }
-                    },
-                ) { padding ->
-                    NavHost(
-                        navController = navController,
-                        startDestination = Routes.SEARCH,
-                        modifier = Modifier.padding(padding),
-                    ) {
-                        composable(Routes.SEARCH) {
-                            SearchScreen(
-                                onOpenFilters = { navController.navigate(Routes.FILTERS) },
-                                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
-                                onOpenJourneyDetail = { navController.navigate(Routes.JOURNEY_DETAIL) },
-                                viewModel = searchViewModel,
-                            )
-                        }
-                        composable(Routes.FILTERS) {
-                            FiltersScreen(onBack = { navController.popBackStack() })
-                        }
-                        composable(Routes.SETTINGS) {
-                            SettingsScreen(
-                                onBack = { navController.popBackStack() },
-                                onOpenClaims = { navController.navigate(Routes.CLAIMS) },
-                            )
-                        }
-                        composable(Routes.CLAIMS) {
-                            ClaimsScreen(onBack = { navController.popBackStack() })
-                        }
-                        composable(Routes.FAVORITES) {
-                            FavoritesScreen(
-                                onSearchRoute = {
-                                    navController.navigate(Routes.SEARCH) {
-                                        popUpTo(Routes.SEARCH) { inclusive = true }
-                                        launchSingleTop = true
-                                    }
-                                },
-                            )
-                        }
-                        composable(Routes.TICKETS) { TicketsScreen() }
-                        composable(Routes.TRACKING) {
-                            TrackingScreen(
-                                viewModel = trackingViewModel,
-                                onOpenJourneyDetail = { navController.navigate(Routes.JOURNEY_DETAIL) },
-                                onShowAlternatives = {
-                                    navController.navigate(Routes.SEARCH) {
-                                        popUpTo(Routes.SEARCH) { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                },
-                            )
-                        }
-                        composable(Routes.JOURNEY_DETAIL) { entry ->
-                            val payload = remember(entry.id) {
-                                de.openbahn.navigator.navigation.JourneyNavigation.consume()
-                            }
-                            if (payload != null) {
-                                JourneyDetailScreen(
-                                    payload = payload,
-                                    onBack = { navController.popBackStack() },
-                                    onTrack = { searchViewModel.trackJourney(payload.journey) },
+                        },
+                    ) { padding ->
+                        NavHost(
+                            navController = navController,
+                            startDestination = Routes.SEARCH,
+                            modifier = Modifier.padding(padding),
+                        ) {
+                            composable(Routes.SEARCH) {
+                                SearchScreen(
+                                    onOpenDrawer = ::openDrawer,
+                                    onOpenFilters = { navController.navigate(Routes.FILTERS) },
+                                    onOpenJourneyDetail = { navController.navigate(Routes.JOURNEY_DETAIL) },
+                                    viewModel = searchViewModel,
                                 )
-                            } else {
-                                LaunchedEffect(Unit) {
-                                    navController.popBackStack()
+                            }
+                            composable(Routes.FILTERS) {
+                                FiltersScreen(onBack = { navController.popBackStack() })
+                            }
+                            composable(Routes.SETTINGS) {
+                                SettingsScreen(
+                                    onBack = { navController.popBackStack() },
+                                    onOpenClaims = { navController.navigate(Routes.CLAIMS) },
+                                )
+                            }
+                            composable(Routes.CLAIMS) {
+                                ClaimsScreen(onBack = { navController.popBackStack() })
+                            }
+                            composable(Routes.ABOUT) {
+                                AboutScreen(onBack = { navController.popBackStack() })
+                            }
+                            composable(Routes.CHANGELOG) {
+                                ChangelogScreen(onBack = { navController.popBackStack() })
+                            }
+                            composable(Routes.DEBUG_LOGS) {
+                                DebugLogScreen(onBack = { navController.popBackStack() })
+                            }
+                            composable(Routes.FAVORITES) {
+                                FavoritesScreen(
+                                    onOpenDrawer = ::openDrawer,
+                                    onSearchRoute = {
+                                        navController.navigate(Routes.SEARCH) {
+                                            popUpTo(Routes.SEARCH) { inclusive = true }
+                                            launchSingleTop = true
+                                        }
+                                    },
+                                )
+                            }
+                            composable(Routes.TICKETS) {
+                                TicketsScreen(onOpenDrawer = ::openDrawer)
+                            }
+                            composable(Routes.TRACKING) {
+                                TrackingScreen(
+                                    onOpenDrawer = ::openDrawer,
+                                    viewModel = trackingViewModel,
+                                    onOpenJourneyDetail = { navController.navigate(Routes.JOURNEY_DETAIL) },
+                                    onShowAlternatives = {
+                                        navController.navigate(Routes.SEARCH) {
+                                            popUpTo(Routes.SEARCH) { saveState = true }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    },
+                                )
+                            }
+                            composable(Routes.JOURNEY_DETAIL) { entry ->
+                                val payload = remember(entry.id) {
+                                    de.openbahn.navigator.navigation.JourneyNavigation.consume()
+                                }
+                                if (payload != null) {
+                                    JourneyDetailScreen(
+                                        payload = payload,
+                                        onBack = { navController.popBackStack() },
+                                        onTrack = { searchViewModel.trackJourney(payload.journey) },
+                                    )
+                                } else {
+                                    LaunchedEffect(Unit) {
+                                        navController.popBackStack()
+                                    }
                                 }
                             }
                         }
@@ -203,4 +251,7 @@ object Routes {
     const val TRACKING = "tracking"
     const val JOURNEY_DETAIL = "journey_detail"
     const val CLAIMS = "claims"
+    const val ABOUT = "about"
+    const val CHANGELOG = "changelog"
+    const val DEBUG_LOGS = "debug_logs"
 }

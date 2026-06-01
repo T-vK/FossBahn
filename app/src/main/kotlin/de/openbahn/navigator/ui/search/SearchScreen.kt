@@ -17,7 +17,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Add
@@ -69,8 +69,8 @@ import org.koin.androidx.compose.koinViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
+    onOpenDrawer: () -> Unit,
     onOpenFilters: () -> Unit,
-    onOpenSettings: () -> Unit,
     onOpenJourneyDetail: () -> Unit,
     viewModel: SearchViewModel = koinViewModel(),
 ) {
@@ -135,13 +135,15 @@ fun SearchScreen(
             TopAppBar(
                 modifier = Modifier.testTag("search_screen_title"),
                 title = { Text(stringResource(R.string.search_title)) },
-                actions = {
+                navigationIcon = {
                     IconButton(onClick = {
                         dismissKeyboard()
-                        onOpenSettings()
+                        onOpenDrawer()
                     }) {
-                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings_title))
+                        Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.menu_open))
                     }
+                },
+                actions = {
                     IconButton(onClick = {
                         dismissKeyboard()
                         onOpenFilters()

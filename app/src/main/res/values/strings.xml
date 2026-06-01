@@ -213,4 +213,23 @@
     <string name="passenger_rights_sim_dticket_120">D-Ticket 120 min</string>
     <string name="passenger_rights_sim_eu_60">Long-distance 60 min</string>
     <string name="passenger_rights_sim_taxi">Last connection / taxi</string>
+    <string name="menu_open">Open menu</string>
+    <string name="menu_about">About</string>
+    <string name="menu_changelog">Changelog</string>
+    <string name="menu_debug_logs">Debug logs</string>
+    <string name="about_version">Version %1$s (%2$d)</string>
+    <string name="about_description">Open-source connection planner for Deutsche Bahn with delay predictions, live tracking, and ticket wallet.</string>
+    <string name="about_github">Project on GitHub</string>
+    <string name="about_fdroid_repo">F-Droid repository</string>
+    <string name="changelog_error">Could not load changelog: %1$s</string>
+    <string name="changelog_empty">No releases found.</string>
+    <string name="changelog_no_notes">No release notes.</string>
+    <string name="debug_logs_copy">Copy</string>
+    <string name="debug_logs_clear">Clear</string>
+    <string name="debug_logs_empty">No log entries yet. Use the app (search, tracking, updates) to collect diagnostics.</string>
+    <string name="debug_logs_copied">Logs copied to clipboard</string>
+    <string name="debug_logs_empty_copy">Nothing to copy</string>
+    <string name="settings_auto_update_title">Development: auto-update</string>
+    <string name="settings_auto_update_hint">Checks GitHub every 5 seconds for a newer debug APK, downloads it, and opens the installer. Requires permission to install unknown apps. Off by default.</string>
+    <string name="settings_auto_update_switch">Enable auto-update</string>
 </resources>

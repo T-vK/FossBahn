@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,6 +43,7 @@ import org.koin.androidx.compose.koinViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TrackingScreen(
+    onOpenDrawer: () -> Unit,
     onOpenJourneyDetail: () -> Unit,
     onShowAlternatives: () -> Unit,
     viewModel: TrackingViewModel = koinViewModel(),
@@ -89,6 +91,11 @@ fun TrackingScreen(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.tracking_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onOpenDrawer) {
+                        Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.menu_open))
+                    }
+                },
                 actions = {
                     IconButton(onClick = { showInfoDialog = true }) {
                         Icon(

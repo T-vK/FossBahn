@@ -8,6 +8,7 @@ import de.openbahn.navigator.data.UserPreferencesRepository
 import de.openbahn.navigator.di.appModule
 import de.openbahn.navigator.locale.AppLocaleManager
 import de.openbahn.navigator.tracking.JourneyTrackingCoordinator
+import de.openbahn.navigator.update.AppUpdateMonitor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -35,6 +36,7 @@ class OpenBahnApplication : Application() {
         applicationScope.launch {
             getKoin().get<JourneyTrackingCoordinator>().restoreOnLaunch()
         }
+        getKoin().get<AppUpdateMonitor>().start(applicationScope)
     }
 
     private fun createNotificationChannels() {
