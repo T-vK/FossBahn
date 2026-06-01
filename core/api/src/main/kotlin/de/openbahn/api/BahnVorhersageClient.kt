@@ -235,7 +235,7 @@ class BahnVorhersageClient(
                 stopTimeliness = stopTimeliness,
                 punctualityProbability = punctuality,
                 punctualityIsEstimate = false,
-            )
+            ).withMetadata(options)
         } catch (e: Exception) {
             BahnVorhersageDebug.logException("rate-journeys for ${journey.id}", e)
             null
@@ -259,7 +259,11 @@ class BahnVorhersageClient(
         val distributions = response.predictions.orEmpty()
         if (distributions.isEmpty()) return null
         val arrivalDistribution = distributions.lastOrNull() ?: return null
-        return PredictionScoring.probabilityExactlyOnTime(arrivalDistribution, offset)
+        return PredictionScoring.probabilityOnTime(
+            arrivalDistribution,
+            offset,
+            options.onTimeTolerance.arrivalMinutes,
+        )
     }
 
     private fun stopTimelinessFromApi(
@@ -284,7 +288,11 @@ class BahnVorhersageClient(
             val nextLeg = journey.legs.getOrNull(prediction.legIndex + 1) ?: return@forEachIndexed
             if (leg.isWalking || nextLeg.isWalking) return@forEachIndexed
 
-            val arrivalProb = PredictionScoring.probabilityExactlyOnTime(distribution, offset)
+            val arrivalProb = PredictionScoring.probabilityOnTime(
+                distribution,
+                offset,
+                options.onTimeTolerance.forStop(intermediateIndex = null, isArrival = true),
+            )
             replaceStopProbability(base, prediction.legIndex, intermediateIndex = null, isArrival = true, arrivalProb, isEstimate = false)
 
             val transferMins = transferMinutesAt(journey, prediction.legIndex)
@@ -313,11 +321,14 @@ class BahnVorhersageClient(
         val lastRail = journey.legs.indexOfLast { !it.isWalking }
         val finalDistribution = distributions.lastOrNull()
         if (lastRail >= 0 && finalDistribution != null) {
-            val finalProb = PredictionScoring.probabilityExactlyOnTime(finalDistribution, offset)
+            val finalProb = PredictionScoring.probabilityOnTime(
+                finalDistribution,
+                offset,
+                options.onTimeTolerance.arrivalMinutes,
+            )
             replaceStopProbability(base, lastRail, intermediateIndex = null, isArrival = true, finalProb, isEstimate = false)
         }
-        val hasMl = base.any { !it.isEstimate }
-        return if (hasMl) base.filter { !it.isEstimate } else base
+        return base
     }
 
     private fun replaceStopProbability(

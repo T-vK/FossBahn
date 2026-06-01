@@ -41,7 +41,7 @@ class BahnVorhersageFptfMapperTest {
     }
 
     @Test
-    fun parseRatedJourneys_usesExactOnTimeProbability_notUserTolerance() {
+    fun parseRatedJourneys_respectsOnTimeToleranceFromDelayDistribution() {
         val journey = Journey(
             id = "j1",
             legs = listOf(
@@ -86,9 +86,21 @@ class BahnVorhersageFptfMapperTest {
         }
         assertFalse(departure.isEstimate)
         assertFalse(arrival.isEstimate)
-        assertEquals(0.8, departure.probability, 0.001)
-        assertEquals(0.5, arrival.probability, 0.001)
+        assertEquals(1.0, departure.probability, 0.001)
+        assertEquals(1.0, arrival.probability, 0.001)
         assertTrue(rated.first().stopTimeliness.none { it.intermediateIndex != null })
+
+        val exactOnly = BahnVorhersageFptfMapper.parseRatedJourneys(
+            responseBody = response,
+            journeys = listOf(journey),
+            options = JourneyRatingOptions(
+                onTimeTolerance = de.openbahn.model.OnTimeToleranceSettings.uniform(0),
+            ),
+        )!!
+        val exactDeparture = exactOnly.first().stopTimeliness.first {
+            it.legIndex == 0 && !it.isArrival && it.intermediateIndex == null
+        }
+        assertEquals(0.8, exactDeparture.probability, 0.001)
     }
 
     @Test

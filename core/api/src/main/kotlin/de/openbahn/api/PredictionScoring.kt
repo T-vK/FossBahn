@@ -21,13 +21,24 @@ internal object PredictionScoring {
         return sum.coerceIn(0.0, 1.0)
     }
 
-    /** Probability delay is exactly 0 minutes (minutengenau); used for bahnvorhersage.de display. */
+    /** Probability delay is exactly 0 minutes (minutengenau). */
     fun probabilityExactlyOnTime(
         distribution: List<Double>,
         offset: Int,
     ): Double {
         if (offset < 0 || offset >= distribution.size) return 0.0
         return distribution[offset].coerceIn(0.0, 1.0)
+    }
+
+    /** On-time probability for the user’s tolerance (0 = minutengenau). */
+    fun probabilityOnTime(
+        distribution: List<Double>,
+        offset: Int,
+        toleranceMinutes: Int,
+    ): Double = if (toleranceMinutes <= 0) {
+        probabilityExactlyOnTime(distribution, offset)
+    } else {
+        probabilityDelayAtMost(distribution, offset, toleranceMinutes)
     }
 
     /**

@@ -144,12 +144,7 @@ internal object BahnVorhersageFptfMapper {
         }
 
         val lastRail = journey.legs.indexOfLast { !it.isWalking }
-        val hasMlStops = heuristicStops.any { !it.isEstimate }
-        val stopTimeliness = if (hasMlStops) {
-            heuristicStops.filter { !it.isEstimate }
-        } else {
-            heuristicStops
-        }
+        val stopTimeliness = heuristicStops
         val punctuality = stopTimeliness.firstOrNull {
             it.legIndex == lastRail && it.intermediateIndex == null && it.isArrival
         }?.probability
@@ -194,7 +189,8 @@ internal object BahnVorhersageFptfMapper {
         } ?: return
         if (distribution.isEmpty()) return
         val offset = prediction["offset"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0
-        val probability = PredictionScoring.probabilityExactlyOnTime(distribution, offset)
+        val tolerance = options.onTimeTolerance.forStop(intermediateIndex = null, isArrival = isArrival)
+        val probability = PredictionScoring.probabilityOnTime(distribution, offset, tolerance)
         val idx = stops.indexOfFirst {
             it.legIndex == legIndex && it.intermediateIndex == null && it.isArrival == isArrival
         }
