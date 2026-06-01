@@ -21,8 +21,39 @@ runs:
     - name: Set up Gradle
       uses: gradle/actions/setup-gradle@v4
 
-    - name: Set up Android SDK
-      uses: android-actions/setup-android@v3
+    - name: Install cmdline tools (attempt 1)
+      id: android_tools_1
+      uses: android-actions/setup-android@v4
+      with:
+        packages: ''
+      continue-on-error: true
+
+    - name: Install cmdline tools (attempt 2)
+      id: android_tools_2
+      if: steps.android_tools_1.outcome == 'failure'
+      uses: android-actions/setup-android@v4
+      with:
+        packages: ''
+      continue-on-error: true
+
+    - name: Install cmdline tools (attempt 3)
+      id: android_tools_3
+      if: steps.android_tools_2.outcome == 'failure'
+      uses: android-actions/setup-android@v4
+      with:
+        packages: ''
+
+    - name: Install Android SDK packages
+      shell: bash
+      run: |
+        if [ "${{ steps.android_tools_1.outcome }}" != "success" ] && \
+           [ "${{ steps.android_tools_2.outcome }}" != "success" ] && \
+           [ "${{ steps.android_tools_3.outcome }}" != "success" ]; then
+          echo "Failed to install Android cmdline tools" >&2
+          exit 1
+        fi
+        chmod +x .github/scripts/install-android-sdk.sh
+        .github/scripts/install-android-sdk.sh
 
     - name: Write local.properties
       shell: bash
