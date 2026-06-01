@@ -19,23 +19,25 @@ internal fun routeStopsForRating(leg: Leg, fetchedRoute: List<StopEvent>): List<
         segment.size >= 2 -> segment
         else -> listOf(leg.origin, leg.destination)
     }
-    if (base.size <= 12) return base.withDelaysFrom(segment)
 
     val boardIdx = boardIndexInRoute(base, leg.origin.name, leg.origin.scheduledTime)
     val alightIdx = alightIndexInRoute(base, leg.destination.name, leg.destination.scheduledTime, boardIdx)
-    if (boardIdx < 0 || alightIdx < boardIdx) {
-        return if (segment.size >= 2) segment else base
+    if (boardIdx >= 0 && alightIdx >= boardIdx) {
+        val trimmed = base.subList(boardIdx, alightIdx + 1)
+        if (trimmed.size >= 2 && trimmed.size < base.size) {
+            if (base.size - trimmed.size >= 2) {
+                OpenBahnDebugLog.d(
+                    "BahnVorhersage",
+                    "trimmed trip route ${base.size}→${trimmed.size} stops for ${leg.lineName} " +
+                        "${leg.origin.name}→${leg.destination.name}",
+                )
+            }
+            return trimmed.withDelaysFrom(segment)
+        }
     }
-    val trimmed = base.subList(boardIdx, alightIdx + 1)
-    if (trimmed.size < 2) {
-        return if (segment.size >= 2) segment else base
+    return when {
+        segment.size >= 2 -> segment
+        base.size >= 2 -> base
+        else -> listOf(leg.origin, leg.destination)
     }
-    if (base.size - trimmed.size >= 4) {
-        OpenBahnDebugLog.d(
-            "BahnVorhersage",
-            "trimmed trip route ${base.size}→${trimmed.size} stops for ${leg.lineName} " +
-                "${leg.origin.name}→${leg.destination.name}",
-        )
-    }
-    return trimmed.withDelaysFrom(segment)
 }
