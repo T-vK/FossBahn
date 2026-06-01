@@ -34,15 +34,6 @@ fun PassengerRightsSimulationSection(
     val activePreset = presetForConfig(config)
 
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            stringResource(R.string.passenger_rights_simulation_heading),
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Text(
-            stringResource(R.string.passenger_rights_simulation_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
         SettingsFilterChipFlow {
             PassengerRightsSimulationPreset.entries.forEach { preset ->
                 FilterChip(

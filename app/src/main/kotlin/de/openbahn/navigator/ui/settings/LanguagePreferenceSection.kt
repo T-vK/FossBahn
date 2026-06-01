@@ -1,11 +1,8 @@
 package de.openbahn.navigator.ui.settings
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -20,18 +17,11 @@ fun LanguagePreferenceSection(
     onSelect: (AppLanguage) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = stringResource(R.string.settings_language),
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Text(
-            text = stringResource(R.string.settings_language_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        LanguageChipRow(selected = selected, onSelect = onSelect)
-    }
+    LanguageChipRow(
+        selected = selected,
+        onSelect = onSelect,
+        modifier = modifier,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,8 +29,9 @@ fun LanguagePreferenceSection(
 private fun LanguageChipRow(
     selected: AppLanguage,
     onSelect: (AppLanguage) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    SettingsFilterChipFlow {
+    SettingsFilterChipFlow(modifier = modifier.fillMaxWidth()) {
         FilterChip(
             selected = selected == AppLanguage.SYSTEM,
             onClick = { onSelect(AppLanguage.SYSTEM) },

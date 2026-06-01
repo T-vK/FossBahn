@@ -6,6 +6,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.ripple
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -102,16 +103,10 @@ fun JourneyCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .testTag("journey_card")
-            .then(
-                if (onOpenFullscreen != null) {
-                    Modifier.clickable(onClick = onOpenFullscreen)
-                } else {
-                    Modifier
-                },
-            ),
+            .testTag("journey_card"),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
+        SelectionContainer {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(
                 Modifier.fillMaxWidth(),
@@ -265,16 +260,27 @@ fun JourneyCard(
                 }
             }
 
-            if (onTrack != null) {
+            if (onOpenFullscreen != null || onTrack != null) {
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    TextButton(onClick = onTrack) {
-                        Text(stringResource(R.string.track_journey))
+                    if (onOpenFullscreen != null) {
+                        TextButton(
+                            onClick = onOpenFullscreen,
+                            modifier = Modifier.testTag("journey_open_detail"),
+                        ) {
+                            Text(stringResource(R.string.journey_detail_title))
+                        }
+                    }
+                    if (onTrack != null) {
+                        TextButton(onClick = onTrack) {
+                            Text(stringResource(R.string.track_journey))
+                        }
                     }
                 }
             }
+        }
         }
     }
 }

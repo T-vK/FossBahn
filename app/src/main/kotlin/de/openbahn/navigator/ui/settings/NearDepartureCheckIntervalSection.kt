@@ -20,18 +20,11 @@ fun NearDepartureCheckIntervalSection(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = stringResource(R.string.settings_near_departure_check),
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Text(
-            text = stringResource(R.string.settings_near_departure_check_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        NearDepartureCheckChipRow(selectedSeconds = selectedSeconds, onSelect = onSelect)
-    }
+    NearDepartureCheckChipRow(
+        selectedSeconds = selectedSeconds,
+        onSelect = onSelect,
+        modifier = modifier,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,9 +32,10 @@ fun NearDepartureCheckIntervalSection(
 private fun NearDepartureCheckChipRow(
     selectedSeconds: Int,
     onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val choices = listOf(5, 10, 15, 30, 60)
-    SettingsFilterChipFlow {
+    SettingsFilterChipFlow(modifier = modifier.fillMaxWidth()) {
         choices.forEach { seconds ->
             FilterChip(
                 selected = selectedSeconds == seconds,

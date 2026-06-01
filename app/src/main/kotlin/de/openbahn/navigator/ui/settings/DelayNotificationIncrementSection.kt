@@ -20,18 +20,11 @@ fun DelayNotificationIncrementSection(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = stringResource(R.string.settings_delay_notification_increment),
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Text(
-            text = stringResource(R.string.settings_delay_notification_increment_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        DelayNotificationIncrementChipRow(selectedMinutes = selectedMinutes, onSelect = onSelect)
-    }
+    DelayNotificationIncrementChipRow(
+        selectedMinutes = selectedMinutes,
+        onSelect = onSelect,
+        modifier = modifier,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,9 +32,10 @@ fun DelayNotificationIncrementSection(
 private fun DelayNotificationIncrementChipRow(
     selectedMinutes: Int,
     onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val choices = listOf(1, 2, 3, 5, 10)
-    SettingsFilterChipFlow {
+    SettingsFilterChipFlow(modifier = modifier.fillMaxWidth()) {
         choices.forEach { minutes ->
             FilterChip(
                 selected = selectedMinutes == minutes,

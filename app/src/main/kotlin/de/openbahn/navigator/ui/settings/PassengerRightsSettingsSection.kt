@@ -31,21 +31,16 @@ fun PassengerRightsSettingsSection(
     val scope = rememberCoroutineScope()
 
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            stringResource(R.string.passenger_rights_settings_heading),
-            style = MaterialTheme.typography.titleMedium,
-        )
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    stringResource(R.string.passenger_rights_notifications),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            }
+            Text(
+                stringResource(R.string.passenger_rights_notifications),
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f),
+            )
             Switch(
                 checked = enabled,
                 onCheckedChange = { checked ->
@@ -53,11 +48,6 @@ fun PassengerRightsSettingsSection(
                 },
             )
         }
-        Text(
-            stringResource(R.string.passenger_rights_notifications_desc),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
         Text(
             stringResource(R.string.passenger_rights_claims_title),
             style = MaterialTheme.typography.bodyLarge,

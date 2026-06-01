@@ -71,6 +71,7 @@ import org.koin.androidx.compose.koinViewModel
 fun SearchScreen(
     onOpenDrawer: () -> Unit,
     onOpenFilters: () -> Unit,
+    onOpenFavorites: () -> Unit,
     onOpenJourneyDetail: () -> Unit,
     viewModel: SearchViewModel = koinViewModel(),
 ) {
@@ -144,6 +145,15 @@ fun SearchScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = {
+                        dismissKeyboard()
+                        onOpenFavorites()
+                    }) {
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = stringResource(R.string.search_open_favorites),
+                        )
+                    }
                     IconButton(onClick = {
                         dismissKeyboard()
                         onOpenFilters()

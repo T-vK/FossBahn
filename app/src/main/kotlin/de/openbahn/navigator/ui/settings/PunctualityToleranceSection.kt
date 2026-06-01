@@ -20,18 +20,11 @@ fun PunctualityToleranceSection(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = stringResource(R.string.settings_punctuality),
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Text(
-            text = stringResource(R.string.settings_punctuality_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        PunctualityToleranceChipRow(selectedMinutes = selectedMinutes, onSelect = onSelect)
-    }
+    PunctualityToleranceChipRow(
+        selectedMinutes = selectedMinutes,
+        onSelect = onSelect,
+        modifier = modifier,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,9 +32,10 @@ fun PunctualityToleranceSection(
 private fun PunctualityToleranceChipRow(
     selectedMinutes: Int,
     onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val choices = listOf(0, 5, 10, 15)
-    SettingsFilterChipFlow {
+    SettingsFilterChipFlow(modifier = modifier.fillMaxWidth()) {
         choices.forEach { minutes ->
             FilterChip(
                 selected = selectedMinutes == minutes,

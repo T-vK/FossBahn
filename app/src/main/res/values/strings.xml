@@ -65,6 +65,14 @@
     <string name="info_no_connections_filters">No connections found with the current filters (transport modes, direct only, etc.). Open Filters and reset or widen your selection.</string>
     <string name="filters">Options</string>
     <string name="settings_title">Settings</string>
+    <string name="settings_search_hint">Search settings</string>
+    <string name="settings_search_empty">No settings match your search.</string>
+    <string name="settings_category_general">General</string>
+    <string name="settings_category_predictions">Predictions</string>
+    <string name="settings_category_live_updates">Live Updates</string>
+    <string name="settings_category_development">Development</string>
+    <string name="settings_category_debug">Debug</string>
+    <string name="search_open_favorites">Open favorites</string>
     <string name="settings_dticket_only">D-Ticket connections only (default)</string>
     <string name="settings_dticket_only_hint">Applies to new searches and is remembered. You can still change it per search under Options.</string>
     <string name="settings_delay_notification_increment">Delay alert step (Live Updates)</string>

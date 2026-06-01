@@ -10,7 +10,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ConfirmationNumber
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Route
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalNavigationDrawer
@@ -92,6 +91,7 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 val hideBottomBar = currentRoute == Routes.FILTERS ||
+                    currentRoute == Routes.FAVORITES ||
                     currentRoute == Routes.SETTINGS ||
                     currentRoute == Routes.CLAIMS ||
                     currentRoute == Routes.JOURNEY_DETAIL ||
@@ -116,7 +116,6 @@ class MainActivity : AppCompatActivity() {
                                 NavigationBar {
                                     listOf(
                                         Triple(Routes.SEARCH, Icons.Default.Route, R.string.nav_connections),
-                                        Triple(Routes.FAVORITES, Icons.Default.Star, R.string.nav_favorites),
                                         Triple(Routes.TICKETS, Icons.Default.ConfirmationNumber, R.string.nav_tickets),
                                         Triple(Routes.TRACKING, Icons.Default.Notifications, R.string.nav_tracking),
                                     ).forEach { (route, icon, labelRes) ->
@@ -146,6 +145,7 @@ class MainActivity : AppCompatActivity() {
                                 SearchScreen(
                                     onOpenDrawer = ::openDrawer,
                                     onOpenFilters = { navController.navigate(Routes.FILTERS) },
+                                    onOpenFavorites = { navController.navigate(Routes.FAVORITES) },
                                     onOpenJourneyDetail = { navController.navigate(Routes.JOURNEY_DETAIL) },
                                     viewModel = searchViewModel,
                                 )
@@ -173,13 +173,8 @@ class MainActivity : AppCompatActivity() {
                             }
                             composable(Routes.FAVORITES) {
                                 FavoritesScreen(
-                                    onOpenDrawer = ::openDrawer,
-                                    onSearchRoute = {
-                                        navController.navigate(Routes.SEARCH) {
-                                            popUpTo(Routes.SEARCH) { inclusive = true }
-                                            launchSingleTop = true
-                                        }
-                                    },
+                                    onBack = { navController.popBackStack() },
+                                    onSearchRoute = { navController.popBackStack() },
                                 )
                             }
                             composable(Routes.TICKETS) {
