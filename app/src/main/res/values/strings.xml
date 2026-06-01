@@ -153,8 +153,8 @@
     <string name="prediction_tooltip_title">On-time probability</string>
     <string name="prediction_tooltip_body_ml">Chance this stop is within %1$d minutes of the scheduled time (Bahn-Vorhersage model).</string>
     <string name="prediction_tooltip_body_ml_exact">Chance this stop matches the scheduled time to the minute (Bahn-Vorhersage model).</string>
-    <string name="prediction_tooltip_body_estimate">Estimated chance this stop is within %1$d minutes of schedule (no ML server; based on delays, product, and connections).</string>
-    <string name="prediction_tooltip_body_estimate_exact">Estimated chance this stop matches the scheduled time to the minute (no ML server).</string>
+    <string name="prediction_tooltip_body_estimate">Estimated chance this stop is within %1$d minutes of schedule. Bahn-Vorhersage could not be reached; based on current delays, product, and connections.</string>
+    <string name="prediction_tooltip_body_estimate_exact">Estimated chance this stop matches the scheduled time to the minute. Bahn-Vorhersage could not be reached.</string>
     <string name="prediction_tooltip_transfer_buffer">Connection scoring uses a minimum transfer of %1$d minutes from your search filters.</string>
     <string name="transfer_at">Transfer at %1$s</string>
     <string name="departure">Departure</string>

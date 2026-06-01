@@ -13,10 +13,7 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-/**
- * Fallback transfer scores when the Bahn-Vorhersage API is unavailable.
- * bahnvorhersage.de does not offer a public HTTP API for third-party apps.
- */
+/** Fallback scores when the Bahn-Vorhersage API is unreachable or returns no predictions. */
 internal object BahnVorhersageHeuristic {
     private val berlin = ZoneId.of("Europe/Berlin")
     private val isoLocal = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")

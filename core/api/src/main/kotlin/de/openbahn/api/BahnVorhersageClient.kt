@@ -62,7 +62,6 @@ class BahnVorhersageClient(
         tripRoutes: Map<String, List<StopEvent>>,
     ): List<RatedJourney>? {
         val trips = buildTripPayload(journeys, tripRoutes)
-        if (trips.isEmpty()) return null
         return try {
             val body = BahnVorhersageFptfMapper.buildRateRequest(journeys, trips)
             val url = baseUrl.trimEnd('/') + "/journeys"
@@ -83,10 +82,13 @@ class BahnVorhersageClient(
     ): Map<String, List<StopEvent>> {
         val result = mutableMapOf<String, List<StopEvent>>()
         journeys.forEach { journey ->
-            journey.legs.filter { !it.isWalking }.forEach { leg ->
-                val tripId = leg.tripId?.trim().orEmpty()
-                if (tripId.isEmpty() || tripId in result) return@forEach
-                val route = tripRoutes[tripId]
+            journey.legs.forEachIndexed { legIndex, leg ->
+                if (leg.isWalking) return@forEachIndexed
+                val tripId = leg.tripId?.trim().orEmpty().ifEmpty {
+                    syntheticTripId(journey.id, legIndex)
+                }
+                if (tripId in result) return@forEachIndexed
+                val route = tripRoutes[leg.tripId?.trim().orEmpty()]
                     ?.takeIf { it.size >= 2 }
                     ?: leg.tripRouteStops().takeIf { it.size >= 2 }
                     ?: listOf(leg.origin, leg.destination)
@@ -275,7 +277,8 @@ class BahnVorhersageClient(
             val finalProb = PredictionScoring.probabilityExactlyOnTime(finalDistribution, offset)
             replaceStopProbability(base, lastRail, intermediateIndex = null, isArrival = true, finalProb, isEstimate = false)
         }
-        return base
+        val hasMl = base.any { !it.isEstimate }
+        return if (hasMl) base.filter { !it.isEstimate } else base
     }
 
     private fun replaceStopProbability(
@@ -313,5 +316,8 @@ class BahnVorhersageClient(
 
         /** Disable ML: set `bahnVorhersageApiUrl=` empty in gradle.properties. */
         const val DEFAULT_BASE_URL = DEFAULT_MOBILE_BASE_URL
+
+        internal fun syntheticTripId(journeyId: String, legIndex: Int): String =
+            "openbahn-${journeyId}-leg$legIndex"
     }
 }

@@ -109,14 +109,20 @@ internal object BahnVorhersageFptfMapper {
         }
 
         val lastRail = journey.legs.indexOfLast { !it.isWalking }
-        val punctuality = heuristicStops.firstOrNull {
+        val hasMlStops = heuristicStops.any { !it.isEstimate }
+        val stopTimeliness = if (hasMlStops) {
+            heuristicStops.filter { !it.isEstimate }
+        } else {
+            heuristicStops
+        }
+        val punctuality = stopTimeliness.firstOrNull {
             it.legIndex == lastRail && it.intermediateIndex == null && it.isArrival
         }?.probability
 
         return RatedJourney(
             journey = journey,
             predictions = transfers,
-            stopTimeliness = heuristicStops,
+            stopTimeliness = stopTimeliness,
             punctualityProbability = punctuality,
             punctualityIsEstimate = false,
             minTransferMinutesUsed = options.minTransferMinutes,
@@ -165,13 +171,13 @@ internal object BahnVorhersageFptfMapper {
         put("type", "journey")
         journey.refreshToken?.let { put("refreshToken", it) }
         putJsonArray("legs") {
-            journey.legs.forEach { leg ->
-                add(legJson(leg))
+            journey.legs.forEachIndexed { legIndex, leg ->
+                add(legJson(leg, journey.id, legIndex))
             }
         }
     }
 
-    private fun legJson(leg: Leg): JsonObject {
+    private fun legJson(leg: Leg, journeyId: String, legIndex: Int): JsonObject {
         if (leg.isWalking) {
             return buildJsonObject {
                 put("type", "transfer")
@@ -194,7 +200,12 @@ internal object BahnVorhersageFptfMapper {
             put("departurePlatform", leg.origin.platform.orEmpty())
             put("arrivalPlatform", leg.destination.platform.orEmpty())
             put("cancelled", leg.origin.cancelled || leg.destination.cancelled)
-            leg.tripId?.let { put("tripId", it) }
+            put(
+                "tripId",
+                leg.tripId?.trim().orEmpty().ifEmpty {
+                    BahnVorhersageClient.syntheticTripId(journeyId, legIndex)
+                },
+            )
             putObject("line", lineJson(leg))
         }
     }

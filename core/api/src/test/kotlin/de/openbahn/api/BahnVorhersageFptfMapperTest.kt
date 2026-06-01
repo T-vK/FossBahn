@@ -85,5 +85,30 @@ class BahnVorhersageFptfMapperTest {
         assertFalse(arrival.isEstimate)
         assertEquals(0.8, departure.probability, 0.001)
         assertEquals(0.5, arrival.probability, 0.001)
+        assertTrue(rated.first().stopTimeliness.none { it.intermediateIndex != null })
+    }
+
+    @Test
+    fun buildRateRequest_usesSyntheticTripIdWhenLegHasNoTripId() {
+        val journey = Journey(
+            id = "j-no-trip",
+            legs = listOf(
+                Leg(
+                    origin = StopEvent("Berlin Hbf", scheduledTime = "2026-05-30T10:00:00"),
+                    destination = StopEvent("Hamburg Hbf", scheduledTime = "2026-05-30T12:00:00"),
+                    lineName = "ICE 701",
+                    tripId = null,
+                ),
+            ),
+            durationMinutes = 120,
+            transfers = 0,
+            departure = "2026-05-30T10:00:00",
+            arrival = "2026-05-30T12:00:00",
+        )
+        val body = BahnVorhersageFptfMapper.buildRateRequest(
+            journeys = listOf(journey),
+            tripRoutes = emptyMap(),
+        )
+        assertTrue(body.toString().contains("openbahn-j-no-trip-leg0"))
     }
 }

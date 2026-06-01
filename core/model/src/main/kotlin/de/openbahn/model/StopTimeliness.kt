@@ -31,11 +31,14 @@ fun RatedJourney.stopTimelinessIsEstimate(
     legIndex: Int,
     intermediateIndex: Int? = null,
     isArrival: Boolean,
-): Boolean = stopTimeliness
-    .firstOrNull {
-        it.legIndex == legIndex &&
-            it.intermediateIndex == intermediateIndex &&
-            it.isArrival == isArrival
-    }
-    ?.isEstimate
-    ?: punctualityIsEstimate
+): Boolean {
+    if (!punctualityIsEstimate) return false
+    return stopTimeliness
+        .firstOrNull {
+            it.legIndex == legIndex &&
+                it.intermediateIndex == intermediateIndex &&
+                it.isArrival == isArrival
+        }
+        ?.isEstimate
+        ?: true
+}
