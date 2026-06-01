@@ -4,6 +4,7 @@ import androidx.room.Room
 import de.openbahn.api.BahnVorhersageClient
 import de.openbahn.api.DbVendoClient
 import de.openbahn.navigator.BuildConfig
+import de.openbahn.navigator.data.ChangelogRepository
 import de.openbahn.navigator.data.FavoriteRouteRepository
 import de.openbahn.navigator.data.LocationHistoryRepository
 import de.openbahn.navigator.data.MIGRATION_3_4
@@ -58,6 +59,7 @@ val appModule = module {
     single { get<OpenBahnDatabase>().favoriteLocationDao() }
     single { get<OpenBahnDatabase>().favoriteRouteDao() }
     single { UserPreferencesRepository(androidContext()) }
+    single { ChangelogRepository(androidContext(), get()) }
     single { GitHubReleaseClient() }
     single { FdroidRepoClient() }
     single { AppReleaseResolver(get(), get()) }

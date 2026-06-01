@@ -5,6 +5,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -40,7 +41,10 @@ class GitHubReleaseClient(
     private val json = Json { ignoreUnknownKeys = true }
 
     suspend fun fetchLatestApk(): ReleaseApk? = withContext(Dispatchers.IO) {
-        val release = fetchJson("https://api.github.com/repos/$owner/$repo/releases/latest")
+        val response = fetchHttp("https://api.github.com/repos/$owner/$repo/releases/latest")
+            ?: return@withContext null
+        if (response.code !in 200..299) return@withContext null
+        val release = response.body
             ?.let { runCatching { json.decodeFromString<GhRelease>(it) }.getOrNull() }
             ?: return@withContext null
         release.assets
@@ -49,10 +53,21 @@ class GitHubReleaseClient(
     }
 
     suspend fun fetchRecentReleases(limit: Int = 15): List<ReleaseNote> = withContext(Dispatchers.IO) {
-        val body = fetchJson("https://api.github.com/repos/$owner/$repo/releases?per_page=$limit")
-            ?: return@withContext emptyList()
-        val releases = runCatching { json.decodeFromString<List<GhRelease>>(body) }.getOrNull()
-            ?: return@withContext emptyList()
+        val url = "https://api.github.com/repos/$owner/$repo/releases?per_page=$limit"
+        val response = fetchHttp(url) ?: throw IOException("Could not reach GitHub")
+        if (response.code !in 200..299) {
+            val detail = response.body?.lineSequence()?.firstOrNull()?.take(160)
+            throw IOException(
+                buildString {
+                    append("GitHub releases HTTP ${response.code}")
+                    if (!detail.isNullOrBlank()) append(": ").append(detail)
+                },
+            )
+        }
+        val body = response.body ?: throw IOException("GitHub releases response was empty")
+        val releases = runCatching { json.decodeFromString<List<GhRelease>>(body) }.getOrElse { cause ->
+            throw IOException("Could not parse GitHub releases", cause)
+        }
         releases.mapNotNull { release ->
             val version = release.tagName.removePrefix("v").ifBlank { return@mapNotNull null }
             ReleaseNote(versionName = version, body = release.body.trim())
@@ -84,7 +99,9 @@ class GitHubReleaseClient(
         private val VERSION_NAME_IN_NAME = Regex("""OpenBahnNavigator-v([\d.]+)-\d+""", RegexOption.IGNORE_CASE)
     }
 
-    private fun fetchJson(url: String): String? {
+    private data class HttpResponse(val code: Int, val body: String?)
+
+    private fun fetchHttp(url: String): HttpResponse? {
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = 15_000
@@ -95,8 +112,12 @@ class GitHubReleaseClient(
             setRequestProperty("Cache-Control", "no-cache")
         }
         return try {
-            if (connection.responseCode !in 200..299) return null
-            connection.inputStream.bufferedReader().use { it.readText() }
+            val code = connection.responseCode
+            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+            val text = stream?.bufferedReader()?.use { it.readText() }
+            HttpResponse(code, text)
+        } catch (_: Exception) {
+            null
         } finally {
             connection.disconnect()
         }

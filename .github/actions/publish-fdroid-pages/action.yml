@@ -34,6 +34,12 @@ runs:
         chmod +x .github/scripts/prepare-fdroid-signing.sh
         .github/scripts/prepare-fdroid-signing.sh
 
+    - name: Embed changelog in APK assets
+      shell: bash
+      run: |
+        chmod +x .github/scripts/generate-changelog-assets.sh
+        .github/scripts/generate-changelog-assets.sh
+
     - name: Build F-Droid repo and Pages site
       shell: bash
       run: |

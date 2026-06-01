@@ -233,6 +233,7 @@
     <string name="changelog_error">Could not load changelog: %1$s</string>
     <string name="changelog_empty">No releases found.</string>
     <string name="changelog_no_notes">No release notes.</string>
+    <string name="changelog_refresh_failed">Could not refresh from GitHub (%1$s). Showing saved release notes.</string>
     <string name="debug_logs_copy">Copy</string>
     <string name="debug_logs_clear">Clear</string>
     <string name="debug_logs_empty">No log entries yet. Use the app (search, tracking, updates) to collect diagnostics.</string>

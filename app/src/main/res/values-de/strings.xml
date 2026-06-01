@@ -233,6 +233,7 @@
     <string name="changelog_error">Änderungsprotokoll konnte nicht geladen werden: %1$s</string>
     <string name="changelog_empty">Keine Releases gefunden.</string>
     <string name="changelog_no_notes">Keine Release-Notizen.</string>
+    <string name="changelog_refresh_failed">Aktualisierung von GitHub fehlgeschlagen (%1$s). Gespeicherte Release-Notizen werden angezeigt.</string>
     <string name="debug_logs_copy">Kopieren</string>
     <string name="debug_logs_clear">Leeren</string>
     <string name="debug_logs_empty">Noch keine Einträge. Nutze die App (Suche, Live-Updates, Updates), um Diagnosedaten zu sammeln.</string>

@@ -96,6 +96,12 @@ jobs:
           git tag "${{ steps.semver.outputs.version }}"
           git push origin "${{ steps.semver.outputs.version }}"
 
+      - name: Embed changelog in APK assets
+        if: steps.semver.outputs.skip == 'false'
+        run: |
+          chmod +x .github/scripts/generate-changelog-assets.sh
+          .github/scripts/generate-changelog-assets.sh
+
       - name: Build debug APK (GitHub Release + F-Droid repo)
         if: steps.semver.outputs.skip == 'false'
         id: build

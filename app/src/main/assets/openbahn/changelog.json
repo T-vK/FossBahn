@@ -1,0 +1,84 @@
+{
+  "releases": [
+    {
+      "versionName": "0.23.4",
+      "body": "## OpenBahn Navigator v0.23.4\n\n### Fixes\n\n- load full vehicle route via fahrt and board mitVias fallback\n\n### Install\n\nDownload the attached **OpenBahnNavigator** debug APK (CI-signed).\n\n**F-Droid custom repo:** [Add repository](https://t-vk.github.io/FossBahn/fdroid/) — `https://t-vk.github.io/FossBahn/fdroid/repo` (package `de.openbahn.navigator.debug`).\n\n_Built automatically from `main`._"
+    },
+    {
+      "versionName": "0.23.3",
+      "body": "## OpenBahn Navigator v0.23.3\n\n### Fixes\n\n- read last commit in release changelog git log\n\n### Install\n\nDownload the attached **OpenBahnNavigator** debug APK (CI-signed).\n\n**F-Droid custom repo:** [Add repository](https://t-vk.github.io/FossBahn/fdroid/) — `https://t-vk.github.io/FossBahn/fdroid/repo` (package `de.openbahn.navigator.debug`).\n\n_Built automatically from `main`._"
+    },
+    {
+      "versionName": "0.23.2",
+      "body": "## OpenBahn Navigator v0.23.2\n\n### Fixes\n\n- Fix full vehicle route display when tapping trip number\n\n### Install\n\nDownload the attached **OpenBahnNavigator** debug APK (CI-signed).\n\n**F-Droid custom repo:** [Add repository](https://t-vk.github.io/FossBahn/fdroid/) — `https://t-vk.github.io/FossBahn/fdroid/repo` (package `de.openbahn.navigator.debug`).\n\n_Built automatically from `main`._"
+    },
+    {
+      "versionName": "0.23.1",
+      "body": "## OpenBahn Navigator v0.23.1\n\n### Fixes\n\n- tap Fahrtnummer to show full train route stops\n\n### Install\n\nDownload the attached **OpenBahnNavigator** debug APK (CI-signed).\n\n**F-Droid custom repo:** [Add repository](https://t-vk.github.io/FossBahn/fdroid/) — `https://t-vk.github.io/FossBahn/fdroid/repo` (package `de.openbahn.navigator.debug`).\n\n_Built automatically from `main`._"
+    },
+    {
+      "versionName": "0.23.0",
+      "body": "## OpenBahn Navigator v0.23.0\n\n### New\n\n- show line designation with trip number and prior stops\n\n### Install\n\nDownload the attached **OpenBahnNavigator** debug APK (CI-signed).\n\n**F-Droid custom repo:** [Add repository](https://t-vk.github.io/FossBahn/fdroid/) — `https://t-vk.github.io/FossBahn/fdroid/repo` (package `de.openbahn.navigator.debug`).\n\n_Built automatically from `main`._"
+    },
+    {
+      "versionName": "0.22.3",
+      "body": "## OpenBahn Navigator v0.22.3\n\n### Fixes\n\n- release changelog range and show line plus train labels\n\n### Install\n\nDownload the attached **OpenBahnNavigator** debug APK (CI-signed).\n\n**F-Droid custom repo:** [Add repository](https://t-vk.github.io/FossBahn/fdroid/) — `https://t-vk.github.io/FossBahn/fdroid/repo` (package `de.openbahn.navigator.debug`).\n\n_Built automatically from `main`._"
+    },
+    {
+      "versionName": "0.22.2",
+      "body": "## OpenBahn Navigator v0.22.2\n\n### Fixes\n\n- enable pinch zoom on PDF ticket previews\n\n### Install\n\nDownload the attached **OpenBahnNavigator** debug APK (CI-signed).\n\n**F-Droid custom repo:** [Add repository](https://t-vk.github.io/FossBahn/fdroid/) — `https://t-vk.github.io/FossBahn/fdroid/repo` (package `de.openbahn.navigator.debug`).\n\n_Built automatically from `main`._"
+    },
+    {
+      "versionName": "0.22.1",
+      "body": "## OpenBahn Navigator v0.22.1\n\n### Fixes\n\n- dismiss keyboard when searching or leaving fields\n\n### Install\n\nDownload the attached **OpenBahnNavigator** debug APK (CI-signed).\n\n**F-Droid custom repo:** [Add repository](https://t-vk.github.io/FossBahn/fdroid/) — `https://t-vk.github.io/FossBahn/fdroid/repo` (package `de.openbahn.navigator.debug`).\n\n_Built automatically from `main`._"
+    },
+    {
+      "versionName": "0.22.0",
+      "body": "## OpenBahn Navigator v0.22.0\n\n### New\n\n- delete tickets, PDF viewer, zoom, and max brightness\n\n### Install\n\nDownload the attached **OpenBahnNavigator** debug APK (CI-signed).\n\n**F-Droid custom repo:** [Add repository](https://t-vk.github.io/FossBahn/fdroid/) — `https://t-vk.github.io/FossBahn/fdroid/repo` (package `de.openbahn.navigator.debug`).\n\n_Built automatically from `main`._"
+    },
+    {
+      "versionName": "0.21.0",
+      "body": "## OpenBahn Navigator v0.21.0\n\n### New\n\n- GPS address, walk legs, API warnings, map navigation\n\n### Fixes\n\n- use first-parent log for concise release changelogs\n\n### Install\n\nDownload the attached **OpenBahnNavigator** debug APK (CI-signed).\n\n**F-Droid custom repo:** [Add repository](https://t-vk.github.io/FossBahn/fdroid/) — `https://t-vk.github.io/FossBahn/fdroid/repo` (package `de.openbahn.navigator.debug`).\n\n_Built automatically from `main`._"
+    },
+    {
+      "versionName": "0.20.0",
+      "body": "## OpenBahn Navigator v0.20.0\n\n### New\n\n- share connections and simplify punctuality display\n\n### Install\n\nDownload the attached **OpenBahnNavigator** debug APK (CI-signed).\n\n**F-Droid custom repo:** [Add repository](https://t-vk.github.io/FossBahn/fdroid/) — `https://t-vk.github.io/FossBahn/fdroid/repo` (package `de.openbahn.navigator.debug`).\n\n_Built automatically from `main`._"
+    },
+    {
+      "versionName": "0.19.6",
+      "body": "## OpenBahn Navigator v0.19.6\n\n### Fixes\n\n- open delay notification on Live Updates tab and scroll to journey\n\n### Install\n\nDownload the attached **OpenBahnNavigator** debug APK (CI-signed).\n\n**F-Droid custom repo:** [Add repository](https://t-vk.github.io/FossBahn/fdroid/) — `https://t-vk.github.io/FossBahn/fdroid/repo` (package `de.openbahn.navigator.debug`).\n\n_Built automatically from `main`._"
+    },
+    {
+      "versionName": "0.19.5",
+      "body": "## OpenBahn Navigator v0.19.5\n\n### Fixes\n\n- empty fahrplan responses for journey search\n\n### Install\n\nDownload the attached **OpenBahnNavigator** debug APK (CI-signed).\n\n**F-Droid custom repo:** [Add repository](https://t-vk.github.io/FossBahn/fdroid/) — `https://t-vk.github.io/FossBahn/fdroid/repo` (package `de.openbahn.navigator.debug`).\n\n_Built automatically from `main`._"
+    },
+    {
+      "versionName": "0.19.4",
+      "body": "## OpenBahn Navigator v0.19.4\n\n### Fixes\n\n- wrap settings filter chips so labels are not squished\n\n### Install\n\nDownload the attached **OpenBahnNavigator** debug APK (CI-signed).\n\n**F-Droid custom repo:** [Add repository](https://t-vk.github.io/FossBahn/fdroid/) — `https://t-vk.github.io/FossBahn/fdroid/repo` (package `de.openbahn.navigator.debug`).\n\n_Built automatically from `main`._"
+    },
+    {
+      "versionName": "0.19.3",
+      "body": "## OpenBahn Navigator v0.19.3\n\n### Fixes\n\n- restore journey search (Berlin time, stations, halt ids, filters)\n\n### Install\n\nDownload the attached **OpenBahnNavigator** debug APK (CI-signed).\n\n**F-Droid custom repo:** [Add repository](https://t-vk.github.io/FossBahn/fdroid/) — `https://t-vk.github.io/FossBahn/fdroid/repo` (package `de.openbahn.navigator.debug`).\n\n_Built automatically from `main`._"
+    },
+    {
+      "versionName": "0.19.2",
+      "body": "## OpenBahn Navigator v0.19.2\n\n### Fixes\n\n- correct YAML in publish-fdroid-pages composite action\n\n### Install\n\nDownload the attached **OpenBahnNavigator** debug APK (CI-signed).\n\n**F-Droid custom repo:** [Add repository](https://t-vk.github.io/FossBahn/fdroid/) — `https://t-vk.github.io/FossBahn/fdroid/repo` (package `de.openbahn.navigator.debug`).\n\n_Built automatically from `main`._"
+    },
+    {
+      "versionName": "0.19.1",
+      "body": "## OpenBahn Navigator v0.19.1\n\n### Fixes\n\n- migrate tracked journey locations to schema v4\n- keep multiple APK versions for downgrade support\n\n### Install\n\nDownload the attached **OpenBahnNavigator** debug APK (CI-signed).\n\n**F-Droid custom repo:** [Add repository](https://t-vk.github.io/FossBahn/fdroid/) — `https://t-vk.github.io/FossBahn/fdroid/repo` (package `de.openbahn.navigator.debug`).\n\n_Built automatically from `main`._"
+    },
+    {
+      "versionName": "0.19.0",
+      "body": "## OpenBahn Navigator v0.19.0\n\n### New\n\n- adaptive live tracking, via stops, location picker, and alternatives\n\n### Install\n\nDownload the attached **OpenBahnNavigator** debug APK (CI-signed).\n\n**F-Droid custom repo:** [Add repository](https://t-vk.github.io/FossBahn/fdroid/) — `https://t-vk.github.io/FossBahn/fdroid/repo` (package `de.openbahn.navigator.debug`).\n\n_Built automatically from `main`._"
+    },
+    {
+      "versionName": "0.18.0",
+      "body": "## OpenBahn Navigator v0.18.0\n\n### New\n\n- reliable background delay alerts via foreground service\n- open delay notifications in Live Updates and fix list scroll\n- unify date, time, and Now in one segmented row\n\n### Install\n\nDownload the attached **OpenBahnNavigator** debug APK (CI-signed).\n\n**F-Droid custom repo:** [Add repository](https://t-vk.github.io/FossBahn/fdroid/) — `https://t-vk.github.io/FossBahn/fdroid/repo` (package `de.openbahn.navigator.debug`).\n\n_Built automatically from `main`._"
+    },
+    {
+      "versionName": "0.17.1",
+      "body": "## OpenBahn Navigator v0.17.1\n\n### Fixes\n\n- restore live updates refresh and background tracking\n\n### Install\n\nDownload the attached **OpenBahnNavigator** debug APK (CI-signed).\n\n**F-Droid custom repo:** [Add repository](https://t-vk.github.io/FossBahn/fdroid/) — `https://t-vk.github.io/FossBahn/fdroid/repo` (package `de.openbahn.navigator.debug`).\n\n_Built automatically from `main`._"
+    }
+  ]
+}

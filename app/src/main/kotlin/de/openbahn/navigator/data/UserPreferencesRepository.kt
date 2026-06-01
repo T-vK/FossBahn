@@ -63,6 +63,8 @@ class UserPreferencesRepository(private val context: Context) {
     }
 
     /** Development: poll GitHub releases and auto-install newer APKs. Off by default. */
+    val changelogCacheJson: Flow<String?> = dataStore.data.map { it[KEY_CHANGELOG_CACHE] }
+
     val autoUpdateEnabled: Flow<Boolean> = dataStore.data.map {
         it[KEY_AUTO_UPDATE_ENABLED] ?: false
     }
@@ -124,6 +126,10 @@ class UserPreferencesRepository(private val context: Context) {
         dataStore.edit { it[KEY_AUTO_UPDATE_ENABLED] = enabled }
     }
 
+    suspend fun setChangelogCacheJson(json: String) {
+        dataStore.edit { it[KEY_CHANGELOG_CACHE] = json }
+    }
+
     suspend fun completeOnboarding(deutschlandTicketOnlyDefault: Boolean) {
         dataStore.edit {
             it[KEY_ONBOARDING_DONE] = true
@@ -145,6 +151,7 @@ class UserPreferencesRepository(private val context: Context) {
         private val KEY_PASSENGER_RIGHTS_SIMULATION =
             stringPreferencesKey("passenger_rights_simulation_json")
         private val KEY_AUTO_UPDATE_ENABLED = booleanPreferencesKey("auto_update_enabled")
+        private val KEY_CHANGELOG_CACHE = stringPreferencesKey("changelog_cache_json")
 
         const val DEFAULT_NEAR_DEPARTURE_CHECK_SECONDS = 5
 
