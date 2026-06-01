@@ -152,7 +152,11 @@
     <string name="prediction_summary_punctuality_estimate">On time (≤%1$d min, estimated): %2$d%%</string>
     <string name="prediction_summary_punctuality_estimate_exact">On time (to the minute, estimated): %d%%</string>
     <string name="settings_punctuality">On-time definition</string>
-    <string name="settings_punctuality_hint">How much delay still counts as on time for arrival probability in search results.</string>
+    <string name="settings_punctuality_hint">How much delay still counts as on time at each stop type. Affects estimated stop percentages when Bahn-Vorhersage is unavailable; connection success % is separate.</string>
+    <string name="settings_on_time_departure">Departure</string>
+    <string name="settings_on_time_via">Intermediate stops</string>
+    <string name="settings_on_time_arrival">Arrival</string>
+    <string name="settings_on_time_transfer_note">Connection success percentages use your minimum transfer time from search filters and are shown on transfers. The values below apply to departure, via, and arrival on-time labels.</string>
     <string name="settings_punctuality_exact">To the minute</string>
     <string name="settings_punctuality_minutes">≤%d min</string>
     <string name="settings_punctuality_minutes_default">≤%d min (default)</string>

@@ -74,7 +74,9 @@ class BahnVorhersageFptfMapperTest {
         val rated = BahnVorhersageFptfMapper.parseRatedJourneys(
             responseBody = response,
             journeys = listOf(journey),
-            options = JourneyRatingOptions(punctualityToleranceMinutes = 10),
+            options = JourneyRatingOptions(
+                onTimeTolerance = de.openbahn.model.OnTimeToleranceSettings.uniform(10),
+            ),
         )!!
         val departure = rated.first().stopTimeliness.first {
             it.legIndex == 0 && !it.isArrival && it.intermediateIndex == null

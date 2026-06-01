@@ -121,8 +121,7 @@ private fun predictionSummaryLine(
     prediction: RatedJourney,
 ): String? {
     val percent = { value: Double -> (value * 100).toInt().coerceIn(0, 100) }
-    val tolerance = prediction.punctualityToleranceMinutes
-        ?: JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES
+    val tolerance = prediction.effectiveOnTimeTolerance().arrivalMinutes
     return when {
         journey.transfers > 0 -> {
             val worst = prediction.predictions.mapNotNull { it.successProbability }.minOrNull() ?: return null

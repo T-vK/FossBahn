@@ -58,8 +58,10 @@ import de.openbahn.model.boardIndexInRoute
 import de.openbahn.model.delayMinutesFromTimes
 import de.openbahn.model.routeStopSegment
 import de.openbahn.model.stationNamesMatch
+import de.openbahn.model.OnTimeToleranceSettings
 import de.openbahn.model.stopProbability
 import de.openbahn.model.stopTimelinessIsEstimate
+import de.openbahn.model.toleranceMinutesForStop
 import de.openbahn.navigator.R
 import de.openbahn.navigator.ui.util.NavigateToStopIconButton
 import de.openbahn.navigator.ui.util.formatJourneyClock
@@ -86,8 +88,10 @@ internal fun LegTimelineBlock(
     routeAlightScheduled: String? = null,
     modifier: Modifier = Modifier,
 ) {
-    val tolerance = prediction?.punctualityToleranceMinutes
-        ?: JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES
+    val defaultOnTime = OnTimeToleranceSettings()
+    fun toleranceAt(intermediateIndex: Int?, isArrival: Boolean): Int =
+        prediction?.toleranceMinutesForStop(intermediateIndex, isArrival)
+            ?: defaultOnTime.forStop(intermediateIndex, isArrival)
     val minTransfer = prediction?.minTransferMinutesUsed
 
     if (routeStops != null && routeStops.size >= 2) {
@@ -123,7 +127,7 @@ internal fun LegTimelineBlock(
                     timelinessProbability = null,
                     timelinessIsEstimate = false,
                     predictionsRequested = false,
-                    toleranceMinutes = tolerance,
+                    toleranceMinutes = defaultOnTime.viaStopMinutes,
                     minTransferMinutesUsed = minTransfer,
                     navigateTestTag = "leg_${legIndex}_route_stop_$stopIndex",
                     muted = !onTrip,
@@ -155,7 +159,7 @@ internal fun LegTimelineBlock(
             },
             timelinessIsEstimate = prediction?.stopTimelinessIsEstimate(legIndex, isArrival = false) == true,
             predictionsRequested = predictionsRequested,
-            toleranceMinutes = tolerance,
+            toleranceMinutes = toleranceAt(intermediateIndex = null, isArrival = false),
             minTransferMinutesUsed = minTransfer,
             navigateTestTag = "navigate_leg_${legIndex}_departure",
             belowStation = {
@@ -202,7 +206,7 @@ internal fun LegTimelineBlock(
                                 isArrival = true,
                             ) == true,
                             predictionsRequested = predictionsRequested,
-                            toleranceMinutes = tolerance,
+                            toleranceMinutes = toleranceAt(intermediateIndex = viaIndex, isArrival = true),
                             minTransferMinutesUsed = minTransfer,
                             navigateTestTag = "leg_${legIndex}_via_stop",
                             muted = false,
@@ -230,7 +234,7 @@ internal fun LegTimelineBlock(
             },
             timelinessIsEstimate = prediction?.stopTimelinessIsEstimate(legIndex, isArrival = true) == true,
             predictionsRequested = predictionsRequested,
-            toleranceMinutes = tolerance,
+            toleranceMinutes = toleranceAt(intermediateIndex = null, isArrival = true),
             minTransferMinutesUsed = minTransfer,
             navigateTestTag = "navigate_leg_${legIndex}_arrival",
             modifier = Modifier.testTag("leg_${legIndex}_arrival"),

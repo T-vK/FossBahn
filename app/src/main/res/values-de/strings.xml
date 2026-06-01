@@ -152,7 +152,11 @@
     <string name="prediction_summary_punctuality_estimate">Pünktlich (≤%1$d Min., geschätzt): %2$d%%</string>
     <string name="prediction_summary_punctuality_estimate_exact">Pünktlich (minutengenau, geschätzt): %d%%</string>
     <string name="settings_punctuality">Pünktlichkeitsdefinition</string>
-    <string name="settings_punctuality_hint">Welche Verspätung am Ziel noch als pünktlich gilt (für Ankunftswahrscheinlichkeit in Suchergebnissen).</string>
+    <string name="settings_punctuality_hint">Welche Verspätung an Abfahrt, Zwischenhalten und Ankunft noch als pünktlich gilt. Beeinflusst geschätzte Stop-Prozente ohne Bahn-Vorhersage; Anschluss-% ist getrennt.</string>
+    <string name="settings_on_time_departure">Abfahrt</string>
+    <string name="settings_on_time_via">Zwischenhalte</string>
+    <string name="settings_on_time_arrival">Ankunft</string>
+    <string name="settings_on_time_transfer_note">Anschluss-Wahrscheinlichkeiten nutzen Ihre Mindestumsteigezeit aus der Suche und erscheinen bei Umstiegen. Die Werte unten gelten für Pünktlichkeit an Abfahrt, Zwischenhalten und Ankunft.</string>
     <string name="settings_punctuality_exact">Minutengenau</string>
     <string name="settings_punctuality_minutes">≤%d Min.</string>
     <string name="settings_punctuality_minutes_default">≤%d Min. (Standard)</string>

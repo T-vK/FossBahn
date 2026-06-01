@@ -46,7 +46,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val appLanguage by viewModel.appLanguage.collectAsState()
-    val punctualityTolerance by viewModel.punctualityToleranceMinutes.collectAsState()
+    val onTimeTolerance by viewModel.onTimeTolerance.collectAsState()
     val deutschlandTicketOnly by viewModel.deutschlandTicketConnectionsOnly.collectAsState()
     val delayNotificationIncrement by viewModel.delayNotificationIncrementMinutes.collectAsState()
     val nearDepartureCheckSeconds by viewModel.nearDepartureCheckIntervalSeconds.collectAsState()
@@ -63,12 +63,8 @@ fun SettingsScreen(
                 activity?.recreate()
             }
         },
-        punctualityTolerance = punctualityTolerance,
-        onPunctualityToleranceSelect = { minutes ->
-            if (minutes != punctualityTolerance) {
-                viewModel.setPunctualityToleranceMinutes(minutes)
-            }
-        },
+        onTimeTolerance = onTimeTolerance,
+        onOnTimeToleranceChange = viewModel::setOnTimeTolerance,
         deutschlandTicketOnly = deutschlandTicketOnly,
         onDeutschlandTicketOnlyChange = viewModel::setDeutschlandTicketConnectionsOnly,
         delayNotificationIncrement = delayNotificationIncrement,

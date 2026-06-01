@@ -73,7 +73,9 @@ class SearchViewModelTest {
         every { locationHistory.observeRecent() } returns flowOf(emptyList())
         every { locationHistory.observeFavoriteLocations() } returns flowOf(emptyList())
         every { userPreferences.appLanguage } returns flowOf(AppLanguage.ENGLISH)
-        every { userPreferences.punctualityToleranceMinutes } returns flowOf(10)
+        every { userPreferences.onTimeTolerance } returns flowOf(
+            de.openbahn.model.OnTimeToleranceSettings.uniform(10),
+        )
         every { userPreferences.deutschlandTicketConnectionsOnly } returns flowOf(false)
         coEvery { locationHistory.recentMatching(any()) } returns emptyList()
         coEvery { locationHistory.rankedForAutocomplete(any()) } returns emptyList()

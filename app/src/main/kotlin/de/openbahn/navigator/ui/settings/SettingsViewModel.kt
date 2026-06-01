@@ -3,10 +3,12 @@ package de.openbahn.navigator.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.openbahn.navigator.data.UserPreferencesRepository
+import de.openbahn.model.OnTimeToleranceSettings
 import de.openbahn.navigator.locale.AppLanguage
 import de.openbahn.navigator.locale.AppLocaleManager
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -17,11 +19,19 @@ class SettingsViewModel(
     val appLanguage: StateFlow<AppLanguage> = userPreferences.appLanguage
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppLanguage.SYSTEM)
 
-    val punctualityToleranceMinutes: StateFlow<Int> = userPreferences.punctualityToleranceMinutes
+    val onTimeTolerance: StateFlow<OnTimeToleranceSettings> = userPreferences.onTimeTolerance
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000),
-            de.openbahn.api.JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES,
+            OnTimeToleranceSettings(),
+        )
+
+    val punctualityToleranceMinutes: StateFlow<Int> = onTimeTolerance
+        .map { it.arrivalMinutes }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            OnTimeToleranceSettings.DEFAULT_MINUTES,
         )
 
     val deutschlandTicketConnectionsOnly: StateFlow<Boolean> =
@@ -52,6 +62,12 @@ class SettingsViewModel(
             userPreferences.setAppLanguage(language)
             AppLocaleManager.apply(language)
             onApplied()
+        }
+    }
+
+    fun setOnTimeTolerance(settings: OnTimeToleranceSettings) {
+        viewModelScope.launch {
+            userPreferences.setOnTimeTolerance(settings)
         }
     }
 

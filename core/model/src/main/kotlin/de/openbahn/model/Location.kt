@@ -117,5 +117,12 @@ data class RatedJourney(
     val punctualityIsEstimate: Boolean = false,
     /** Minimum transfer buffer used when scoring connections (from search filter). */
     val minTransferMinutesUsed: Int? = null,
+    /** @deprecated Use [onTimeTolerance]; kept for older payloads. */
     val punctualityToleranceMinutes: Int? = null,
-)
+    val onTimeTolerance: OnTimeToleranceSettings? = null,
+) {
+    fun effectiveOnTimeTolerance(): OnTimeToleranceSettings =
+        onTimeTolerance
+            ?: punctualityToleranceMinutes?.let { OnTimeToleranceSettings.uniform(it) }
+            ?: OnTimeToleranceSettings()
+}

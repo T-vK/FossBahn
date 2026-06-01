@@ -21,8 +21,8 @@ internal data class SettingsItem(
 internal fun buildSettingsCategories(
     appLanguage: AppLanguage,
     onAppLanguageSelect: (AppLanguage) -> Unit,
-    punctualityTolerance: Int,
-    onPunctualityToleranceSelect: (Int) -> Unit,
+    onTimeTolerance: de.openbahn.model.OnTimeToleranceSettings,
+    onOnTimeToleranceChange: (de.openbahn.model.OnTimeToleranceSettings) -> Unit,
     deutschlandTicketOnly: Boolean,
     onDeutschlandTicketOnlyChange: (Boolean) -> Unit,
     delayNotificationIncrement: Int,
@@ -76,10 +76,15 @@ internal fun buildSettingsCategories(
                 SettingsItem(
                     titleRes = de.openbahn.navigator.R.string.settings_punctuality,
                     descriptionRes = de.openbahn.navigator.R.string.settings_punctuality_hint,
+                    keywordsRes = listOf(
+                        de.openbahn.navigator.R.string.settings_on_time_departure,
+                        de.openbahn.navigator.R.string.settings_on_time_arrival,
+                        de.openbahn.navigator.R.string.settings_on_time_via,
+                    ),
                 ) {
-                    PunctualityToleranceSection(
-                        selectedMinutes = punctualityTolerance,
-                        onSelect = onPunctualityToleranceSelect,
+                    OnTimeDefinitionsSection(
+                        settings = onTimeTolerance,
+                        onChange = onOnTimeToleranceChange,
                     )
                 },
             ),

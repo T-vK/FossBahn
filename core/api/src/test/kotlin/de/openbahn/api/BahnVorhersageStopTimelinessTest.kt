@@ -20,9 +20,10 @@ class BahnVorhersageStopTimelinessTest {
             destination = StopEvent("B", scheduledTime = "2026-05-30T11:00:00", delayMinutes = 18),
             lineName = "RE 5",
         )
-        val iceArrival = BahnVorhersageHeuristic.buildStopTimeliness(onTimeIce, toleranceMinutes = 10)
+        val tolerance = de.openbahn.model.OnTimeToleranceSettings.uniform(10)
+        val iceArrival = BahnVorhersageHeuristic.buildStopTimeliness(onTimeIce, tolerance)
             .single { it.isArrival }
-        val reArrival = BahnVorhersageHeuristic.buildStopTimeliness(delayedRe, toleranceMinutes = 10)
+        val reArrival = BahnVorhersageHeuristic.buildStopTimeliness(delayedRe, tolerance)
             .single { it.isArrival }
         assertTrue(iceArrival.probability > reArrival.probability)
         assertNotEquals(0.8, iceArrival.probability, 0.001)
@@ -49,7 +50,11 @@ class BahnVorhersageStopTimelinessTest {
             departure = "2026-05-30T10:00:00",
             arrival = "2026-05-30T14:00:00",
         )
-        val stops = BahnVorhersageHeuristic.buildStopTimeliness(journey, toleranceMinutes = 10, minTransferMinutes = 10)
+        val stops = BahnVorhersageHeuristic.buildStopTimeliness(
+            journey,
+            de.openbahn.model.OnTimeToleranceSettings.uniform(10),
+            minTransferMinutes = 10,
+        )
         val firstDep = stops.first { it.legIndex == 0 && !it.isArrival }
         val secondDep = stops.first { it.legIndex == 1 && !it.isArrival }
         assertTrue(secondDep.probability < firstDep.probability)

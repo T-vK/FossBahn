@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import de.openbahn.api.JourneyRatingOptions
+import de.openbahn.model.OnTimeToleranceSettings
 import de.openbahn.navigator.tracking.DelayNotificationPolicy
 import androidx.datastore.preferences.preferencesDataStore
 import de.openbahn.navigator.locale.AppLanguage
@@ -33,10 +34,12 @@ class UserPreferencesRepository(private val context: Context) {
         AppLanguage.fromStorage(prefs[KEY_APP_LANGUAGE])
     }
 
-    val punctualityToleranceMinutes: Flow<Int> = dataStore.data.map { prefs ->
-        prefs[KEY_PUNCTUALITY_TOLERANCE]?.coerceIn(0, 30)
-            ?: JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES
+    val onTimeTolerance: Flow<OnTimeToleranceSettings> = dataStore.data.map { prefs ->
+        readOnTimeTolerance(prefs)
     }
+
+    /** Final-arrival tolerance only (legacy). */
+    val punctualityToleranceMinutes: Flow<Int> = onTimeTolerance.map { it.arrivalMinutes }
 
     /** Extra delay (minutes) on a tracked journey before sending another alert. */
     val delayNotificationIncrementMinutes: Flow<Int> = dataStore.data.map { prefs ->
@@ -75,10 +78,17 @@ class UserPreferencesRepository(private val context: Context) {
         dataStore.edit { it[KEY_APP_LANGUAGE] = language.storageValue }
     }
 
-    suspend fun setPunctualityToleranceMinutes(minutes: Int) {
-        dataStore.edit {
-            it[KEY_PUNCTUALITY_TOLERANCE] = minutes.coerceIn(0, 30)
+    suspend fun setOnTimeTolerance(settings: OnTimeToleranceSettings) {
+        dataStore.edit { prefs ->
+            prefs[KEY_ON_TIME_DEPARTURE] = settings.departureMinutes.coerceIn(0, 30)
+            prefs[KEY_ON_TIME_VIA] = settings.viaStopMinutes.coerceIn(0, 30)
+            prefs[KEY_ON_TIME_ARRIVAL] = settings.arrivalMinutes.coerceIn(0, 30)
+            prefs.remove(KEY_PUNCTUALITY_TOLERANCE)
         }
+    }
+
+    suspend fun setPunctualityToleranceMinutes(minutes: Int) {
+        setOnTimeTolerance(OnTimeToleranceSettings.uniform(minutes.coerceIn(0, 30)))
     }
 
     suspend fun setDelayNotificationIncrementMinutes(minutes: Int) {
@@ -142,6 +152,25 @@ class UserPreferencesRepository(private val context: Context) {
         private val KEY_DTICKET_CONNECTIONS_ONLY = booleanPreferencesKey("dticket_filter_default")
         private val KEY_APP_LANGUAGE = stringPreferencesKey("app_language")
         private val KEY_PUNCTUALITY_TOLERANCE = intPreferencesKey("punctuality_tolerance_minutes")
+        private val KEY_ON_TIME_DEPARTURE = intPreferencesKey("on_time_departure_minutes")
+        private val KEY_ON_TIME_VIA = intPreferencesKey("on_time_via_minutes")
+        private val KEY_ON_TIME_ARRIVAL = intPreferencesKey("on_time_arrival_minutes")
+
+        private fun readOnTimeTolerance(prefs: Preferences): OnTimeToleranceSettings {
+            if (prefs[KEY_ON_TIME_DEPARTURE] != null ||
+                prefs[KEY_ON_TIME_VIA] != null ||
+                prefs[KEY_ON_TIME_ARRIVAL] != null
+            ) {
+                return OnTimeToleranceSettings(
+                    departureMinutes = prefs[KEY_ON_TIME_DEPARTURE] ?: OnTimeToleranceSettings.DEFAULT_MINUTES,
+                    viaStopMinutes = prefs[KEY_ON_TIME_VIA] ?: OnTimeToleranceSettings.DEFAULT_MINUTES,
+                    arrivalMinutes = prefs[KEY_ON_TIME_ARRIVAL] ?: OnTimeToleranceSettings.DEFAULT_MINUTES,
+                )
+            }
+            val legacy = prefs[KEY_PUNCTUALITY_TOLERANCE]
+                ?: JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES
+            return OnTimeToleranceSettings.uniform(legacy)
+        }
         private val KEY_DELAY_NOTIFICATION_INCREMENT = intPreferencesKey("delay_notification_increment_minutes")
         private val KEY_NEAR_DEPARTURE_CHECK_SECONDS = intPreferencesKey("near_departure_check_seconds")
         private val KEY_BATTERY_OPTIMIZATION_DISMISSED =

@@ -112,7 +112,7 @@ internal object BahnVorhersageFptfMapper {
     ): RatedJourney {
         val heuristicStops = BahnVorhersageHeuristic.buildStopTimeliness(
             journey,
-            options.punctualityToleranceMinutes,
+            options.onTimeTolerance,
             options.minTransferMinutes,
         ).toMutableList()
         val transfers = mutableListOf<TransferPrediction>()
@@ -161,7 +161,8 @@ internal object BahnVorhersageFptfMapper {
             punctualityProbability = punctuality,
             punctualityIsEstimate = false,
             minTransferMinutesUsed = options.minTransferMinutes,
-            punctualityToleranceMinutes = options.punctualityToleranceMinutes,
+            onTimeTolerance = options.onTimeTolerance,
+            punctualityToleranceMinutes = options.onTimeTolerance.arrivalMinutes,
         )
     }
 
