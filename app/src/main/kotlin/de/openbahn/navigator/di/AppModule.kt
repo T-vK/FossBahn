@@ -29,7 +29,10 @@ import de.openbahn.navigator.tracking.TrackedJourneyRefreshUseCase
 import de.openbahn.navigator.ui.board.StationBoardViewModel
 import de.openbahn.navigator.ui.favorites.FavoritesViewModel
 import de.openbahn.navigator.ui.search.SearchViewModel
+import de.openbahn.navigator.ui.about.ChangelogViewModel
 import de.openbahn.navigator.ui.settings.SettingsViewModel
+import de.openbahn.navigator.update.AppUpdateMonitor
+import de.openbahn.navigator.update.GitHubReleaseClient
 import de.openbahn.navigator.ui.tickets.TicketsViewModel
 import de.openbahn.navigator.ui.tracking.TrackingViewModel
 import org.koin.android.ext.koin.androidContext
@@ -53,6 +56,8 @@ val appModule = module {
     single { get<OpenBahnDatabase>().favoriteLocationDao() }
     single { get<OpenBahnDatabase>().favoriteRouteDao() }
     single { UserPreferencesRepository(androidContext()) }
+    single { GitHubReleaseClient() }
+    single { AppUpdateMonitor(androidContext(), get()) }
     single { PendingSearchRepository() }
     single { LocationHistoryRepository(get(), get()) }
     single { FavoriteRouteRepository(get()) }
@@ -78,4 +83,5 @@ val appModule = module {
     viewModel { TicketsViewModel(get()) }
     viewModel { TrackingViewModel(get(), get(), get(), get(), get(), get(), androidContext()) }
     viewModel { SettingsViewModel(get()) }
+    viewModel { ChangelogViewModel(get()) }
 }

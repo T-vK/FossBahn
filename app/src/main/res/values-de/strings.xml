@@ -213,4 +213,23 @@
     <string name="passenger_rights_sim_dticket_120">D-Ticket 120 Min.</string>
     <string name="passenger_rights_sim_eu_60">Fernverkehr 60 Min.</string>
     <string name="passenger_rights_sim_taxi">Letzte Verbindung / Taxi</string>
+    <string name="menu_open">Menü öffnen</string>
+    <string name="menu_about">Über die App</string>
+    <string name="menu_changelog">Änderungsprotokoll</string>
+    <string name="menu_debug_logs">Debug-Protokoll</string>
+    <string name="about_version">Version %1$s (%2$d)</string>
+    <string name="about_description">Open-Source-Verbindungssuche für die Deutsche Bahn mit Verspätungsvorhersagen, Live-Updates und Ticketmappe.</string>
+    <string name="about_github">Projekt auf GitHub</string>
+    <string name="about_fdroid_repo">F-Droid-Repository</string>
+    <string name="changelog_error">Änderungsprotokoll konnte nicht geladen werden: %1$s</string>
+    <string name="changelog_empty">Keine Releases gefunden.</string>
+    <string name="changelog_no_notes">Keine Release-Notizen.</string>
+    <string name="debug_logs_copy">Kopieren</string>
+    <string name="debug_logs_clear">Leeren</string>
+    <string name="debug_logs_empty">Noch keine Einträge. Nutze die App (Suche, Live-Updates, Updates), um Diagnosedaten zu sammeln.</string>
+    <string name="debug_logs_copied">Protokoll in die Zwischenablage kopiert</string>
+    <string name="debug_logs_empty_copy">Nichts zum Kopieren</string>
+    <string name="settings_auto_update_title">Entwicklung: Auto-Update</string>
+    <string name="settings_auto_update_hint">Prüft alle 5 Sekunden GitHub auf eine neuere Debug-APK, lädt sie herunter und öffnet den Installer. Erfordert Erlaubnis für unbekannte Apps. Standard: aus.</string>
+    <string name="settings_auto_update_switch">Auto-Update aktivieren</string>
 </resources>

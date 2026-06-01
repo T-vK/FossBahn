@@ -62,6 +62,11 @@ class UserPreferencesRepository(private val context: Context) {
         it[KEY_PASSENGER_RIGHTS_SIMULATION]
     }
 
+    /** Development: poll GitHub releases and auto-install newer APKs. Off by default. */
+    val autoUpdateEnabled: Flow<Boolean> = dataStore.data.map {
+        it[KEY_AUTO_UPDATE_ENABLED] ?: false
+    }
+
     suspend fun currentAppLanguage(): AppLanguage = appLanguage.first()
 
     suspend fun setAppLanguage(language: AppLanguage) {
@@ -115,6 +120,10 @@ class UserPreferencesRepository(private val context: Context) {
         dataStore.edit { it[KEY_DTICKET_CONNECTIONS_ONLY] = enabled }
     }
 
+    suspend fun setAutoUpdateEnabled(enabled: Boolean) {
+        dataStore.edit { it[KEY_AUTO_UPDATE_ENABLED] = enabled }
+    }
+
     suspend fun completeOnboarding(deutschlandTicketOnlyDefault: Boolean) {
         dataStore.edit {
             it[KEY_ONBOARDING_DONE] = true
@@ -135,6 +144,7 @@ class UserPreferencesRepository(private val context: Context) {
             booleanPreferencesKey("passenger_rights_notifications")
         private val KEY_PASSENGER_RIGHTS_SIMULATION =
             stringPreferencesKey("passenger_rights_simulation_json")
+        private val KEY_AUTO_UPDATE_ENABLED = booleanPreferencesKey("auto_update_enabled")
 
         const val DEFAULT_NEAR_DEPARTURE_CHECK_SECONDS = 5
 

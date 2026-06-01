@@ -2,4 +2,5 @@
 <paths>
     <files-path name="tickets" path="." />
     <cache-path name="cache" path="." />
+    <cache-path name="apk_updates" path="updates/" />
 </paths>

@@ -44,6 +44,9 @@ class SettingsViewModel(
                 UserPreferencesRepository.DEFAULT_NEAR_DEPARTURE_CHECK_SECONDS,
             )
 
+    val autoUpdateEnabled: StateFlow<Boolean> = userPreferences.autoUpdateEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     fun setAppLanguage(language: AppLanguage, onApplied: () -> Unit = {}) {
         viewModelScope.launch {
             userPreferences.setAppLanguage(language)
@@ -73,6 +76,12 @@ class SettingsViewModel(
     fun setNearDepartureCheckIntervalSeconds(seconds: Int) {
         viewModelScope.launch {
             userPreferences.setNearDepartureCheckIntervalSeconds(seconds)
+        }
+    }
+
+    fun setAutoUpdateEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            userPreferences.setAutoUpdateEnabled(enabled)
         }
     }
 }

@@ -38,6 +38,7 @@ fun SettingsScreen(
     val deutschlandTicketOnly by viewModel.deutschlandTicketConnectionsOnly.collectAsState()
     val delayNotificationIncrement by viewModel.delayNotificationIncrementMinutes.collectAsState()
     val nearDepartureCheckSeconds by viewModel.nearDepartureCheckIntervalSeconds.collectAsState()
+    val autoUpdateEnabled by viewModel.autoUpdateEnabled.collectAsState()
     val activity = LocalContext.current as? AppCompatActivity
 
     Scaffold(
@@ -96,6 +97,10 @@ fun SettingsScreen(
                     if (seconds == nearDepartureCheckSeconds) return@NearDepartureCheckIntervalSection
                     viewModel.setNearDepartureCheckIntervalSeconds(seconds)
                 },
+            )
+            AutoUpdateSection(
+                enabled = autoUpdateEnabled,
+                onEnabledChange = viewModel::setAutoUpdateEnabled,
             )
             PassengerRightsSettingsSection(onOpenClaims = onOpenClaims)
             if (BuildConfig.DEBUG) {
