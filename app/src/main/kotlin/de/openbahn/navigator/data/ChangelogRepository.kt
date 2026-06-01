@@ -98,8 +98,15 @@ class ChangelogRepository(
                     byVersion[key] = note
                 }
             }
-            return byVersion.values.sortedByDescending { parseVersionParts(it.versionName) }
+            return byVersion.values.sortedWith(
+                compareByDescending<ReleaseNote> { versionSortKey(it.versionName) },
+            )
         }
+
+        private fun versionSortKey(version: String): Long =
+            parseVersionParts(version).fold(0L) { acc, part ->
+                acc * 1_000_000L + part.coerceIn(0, 999_999)
+            }
 
         private fun parseVersionParts(version: String): List<Int> =
             version.split('.', '-', '_')

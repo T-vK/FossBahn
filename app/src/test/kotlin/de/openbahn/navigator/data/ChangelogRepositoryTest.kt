@@ -33,6 +33,19 @@ class ChangelogRepositoryTest {
             remote = listOf(ReleaseNote("0.10.10", "b")),
             cached = emptyList(),
         )
-        assertTrue(merged.first().versionName == "0.10.10")
+        assertEquals("0.10.10", merged.first().versionName)
+    }
+
+    @Test
+    fun mergeReleases_sortsNewestVersionFirst() {
+        val merged = ChangelogRepository.mergeReleases(
+            embedded = listOf(
+                ReleaseNote("0.9.0", "a"),
+                ReleaseNote("0.10.1", "b"),
+            ),
+            remote = emptyList(),
+            cached = emptyList(),
+        )
+        assertEquals(listOf("0.10.1", "0.9.0"), merged.map { it.versionName })
     }
 }
