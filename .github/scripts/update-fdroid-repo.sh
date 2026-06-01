@@ -57,7 +57,7 @@ fi
 
 mkdir -p "$FDROID/repo" "$FDROID/archive"
 chmod +x "$ROOT/.github/scripts/sync-fdroid-apks-from-releases.sh"
-chmod +x "$ROOT/.github/scripts/sanitize-fdroid-apks.sh"
+chmod +x "$ROOT/.github/scripts/prune-fdroid-broken-apks.sh"
 "$ROOT/.github/scripts/sync-fdroid-apks-from-releases.sh"
 REPO_APKS="$(find "$FDROID/repo" -maxdepth 1 -name '*.apk' 2>/dev/null | wc -l)"
 ARCHIVE_APKS="$(find "$FDROID/archive" -maxdepth 1 -name '*.apk' 2>/dev/null | wc -l)"
@@ -89,7 +89,7 @@ DEST="repo/${APP_ID}_${VERSION_CODE}.apk"
 cp "$APK" "$DEST"
 echo "Published $DEST"
 
-"$ROOT/.github/scripts/sanitize-fdroid-apks.sh"
+"$ROOT/.github/scripts/prune-fdroid-broken-apks.sh"
 
 # Stale index keeps the old repo address after a GitHub rename; F-Droid then 404s APK downloads.
 rm -f repo/index-v1.json repo/index-v2.json \
@@ -118,6 +118,10 @@ for pkg in idx.get('packages', {}).values():
 print(n)
 ")"
 echo "Indexed package versions: $VERSION_COUNT (APKs on disk: $ON_DISK)"
+if [ "$VERSION_COUNT" -lt 1 ]; then
+  echo "ERROR: F-Droid index has no packages — refusing to publish an empty repo" >&2
+  exit 1
+fi
 if [ "$ON_DISK" -ge 2 ] && [ "$VERSION_COUNT" -lt 2 ]; then
   echo "ERROR: $ON_DISK APK(s) on disk but index lists only $VERSION_COUNT version(s)" >&2
   exit 1

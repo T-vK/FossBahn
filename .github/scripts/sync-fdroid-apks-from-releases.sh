@@ -6,6 +6,8 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 FDROID="$ROOT/fdroid"
 APP_ID="de.openbahn.navigator.debug"
 OWNER_REPO="${GITHUB_REPOSITORY:-T-vK/FossBahn}"
+# Skip version codes that break fdroid update (androguard signing parse on legacy builds).
+SKIP_CODES="${FDROID_SKIP_VERSION_CODES:-1701}"
 
 has_version() {
   local code="$1"
@@ -33,6 +35,10 @@ echo "Syncing missing release APKs (have $BEFORE on disk)"
 ADDED=0
 while IFS=$'\t' read -r VERSION_CODE URL NAME TAG; do
   [ -z "$VERSION_CODE" ] && continue
+  if echo " $SKIP_CODES " | grep -q " ${VERSION_CODE} "; then
+    echo "  skip v$VERSION_CODE ($TAG) — excluded (breaks fdroid index)"
+    continue
+  fi
   if has_version "$VERSION_CODE"; then
     continue
   fi

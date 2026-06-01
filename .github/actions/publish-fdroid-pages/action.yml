@@ -62,6 +62,10 @@ runs:
         VERSIONS="$(python3 -c "import json; from pathlib import Path; idx=json.loads(Path('fdroid-pages/fdroid/repo/index-v2.json').read_text()); print(sum(len(p.get('versions', {})) for p in idx.get('packages', {}).values()))")"
         ON_DISK="$(find fdroid/repo fdroid/archive -maxdepth 1 -name '*.apk' 2>/dev/null | wc -l)"
         echo "Indexed versions: $VERSIONS (APKs on disk: $ON_DISK)"
+        if [ "$VERSIONS" -lt 1 ]; then
+          echo "F-Droid index has no packages — refusing to deploy empty repo" >&2
+          exit 1
+        fi
         if [ "$ON_DISK" -ge 2 ] && [ "$VERSIONS" -lt 2 ]; then
           echo "APKs on disk but index lists fewer than 2 versions" >&2
           exit 1
