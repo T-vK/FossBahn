@@ -38,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
@@ -556,25 +557,23 @@ private fun TimelineLegSpine(
     content: @Composable () -> Unit,
 ) {
     val lineColor = MaterialTheme.colorScheme.outline
-    Box(modifier.fillMaxWidth()) {
-        Column { content() }
-        Canvas(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(start = TimelineTimeWidth)
-                .width(TimelineRailWidth)
-                .matchParentSize(),
-        ) {
-            val stroke = 2.dp.toPx()
-            val x = size.width / 2f
-            drawLine(
-                color = lineColor,
-                start = Offset(x, 0f),
-                end = Offset(x, size.height),
-                strokeWidth = stroke,
-                cap = StrokeCap.Round,
-            )
-        }
+    val railCenterX = TimelineTimeWidth + TimelineRailWidth / 2
+    Column(
+        modifier
+            .fillMaxWidth()
+            .drawBehind {
+                val stroke = 2.dp.toPx()
+                val x = railCenterX.toPx()
+                drawLine(
+                    color = lineColor,
+                    start = Offset(x, 0f),
+                    end = Offset(x, size.height),
+                    strokeWidth = stroke,
+                    cap = StrokeCap.Round,
+                )
+            },
+    ) {
+        content()
     }
 }
 
