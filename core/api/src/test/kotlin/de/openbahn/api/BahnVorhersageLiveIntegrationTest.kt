@@ -9,6 +9,7 @@ import de.openbahn.api.LiveApiTestSupport.parseFahrplanResponse
 import de.openbahn.api.LiveApiTestSupport.requireFullBahnId
 import de.openbahn.model.JourneySearchOptions
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Tag
@@ -45,8 +46,11 @@ class BahnVorhersageLiveIntegrationTest {
         val journeys = parseFahrplanResponse(raw)
         assertJourneysNotEmpty(journeys, hamburg, berlin, raw)
 
-        val journey = journeys.first { j -> j.legs.any { !it.isWalking } }
+        val journey = journeys.maxByOrNull { j -> j.legs.count { !it.isWalking } }
+            ?: journeys.first()
         val trips = buildTripRoutesForRating(journey)
+        val railLegs = journey.legs.count { !it.isWalking }
+        assertEquals(railLegs, trips.size, "every rail leg needs trip stopovers")
         assertTrue(trips.isNotEmpty(), "trip stopovers required for rating")
 
         val rated = predictor.rateJourney(journey, tripRoutes = trips)
