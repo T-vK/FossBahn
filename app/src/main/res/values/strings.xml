@@ -159,6 +159,7 @@
     <string name="transfer_at">Transfer at %1$s</string>
     <string name="departure">Departure</string>
     <string name="arrival">Arrival</string>
+    <string name="timeline_direction_to">to %1$s</string>
     <string name="platform_label">Platform %1$s</string>
     <string name="platform_arrival_short">Arr. pl. %1$s</string>
     <string name="platform_departure_short">Dep. pl. %1$s</string>

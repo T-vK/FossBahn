@@ -159,6 +159,7 @@
     <string name="transfer_at">Umstieg in %1$s</string>
     <string name="departure">Abfahrt</string>
     <string name="arrival">Ankunft</string>
+    <string name="timeline_direction_to">nach %1$s</string>
     <string name="platform_label">Gleis %1$s</string>
     <string name="platform_arrival_short">Ank. Gl. %1$s</string>
     <string name="platform_departure_short">Abf. Gl. %1$s</string>
