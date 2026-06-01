@@ -58,6 +58,8 @@ import de.openbahn.model.boardIndexInRoute
 import de.openbahn.model.delayMinutesFromTimes
 import de.openbahn.model.routeStopSegment
 import de.openbahn.model.stationNamesMatch
+import de.openbahn.model.stopProbability
+import de.openbahn.model.stopTimelinessIsEstimate
 import de.openbahn.navigator.R
 import de.openbahn.navigator.ui.util.NavigateToStopIconButton
 import de.openbahn.navigator.ui.util.formatJourneyClock
