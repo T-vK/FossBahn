@@ -640,7 +640,7 @@ private fun TimelinessTimeWithPercent(
     if (showTooltip) {
         TimelinessProbabilityDialog(
             isEstimate = isEstimate,
-            toleranceMinutes = toleranceMinutes,
+            toleranceMinutes = if (isEstimate) toleranceMinutes else 0,
             minTransferMinutesUsed = minTransferMinutesUsed,
             onDismiss = { showTooltip = false },
         )

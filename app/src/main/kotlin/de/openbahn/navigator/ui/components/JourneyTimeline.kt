@@ -97,7 +97,7 @@ internal fun LegTimelineBlock(
         val alightScheduled = routeAlightScheduled.orEmpty()
         val boardIndex = boardIndexInRoute(routeStops, boardAt, boardScheduled)
         val alightIndex = alightIndexInRoute(routeStops, alightAt, alightScheduled, boardIndex)
-        Column(modifier) {
+        TimelineLegSpine(modifier) {
             routeStops.forEachIndexed { stopIndex, stop ->
                 val segment = routeStopSegment(stopIndex, boardIndex, alightIndex)
                 val onTrip = segment == RouteStopSegment.ON_TRIP
@@ -112,8 +112,6 @@ internal fun LegTimelineBlock(
                         isAlight -> stringResource(R.string.trip_route_alight_here)
                         else -> null
                     },
-                    showLineAbove = stopIndex > 0,
-                    showLineBelow = stopIndex < routeStops.lastIndex,
                     nodeStyle = when {
                         stopIndex == 0 -> TimelineNodeStyle.Origin
                         stopIndex == routeStops.lastIndex -> TimelineNodeStyle.Destination
@@ -136,13 +134,11 @@ internal fun LegTimelineBlock(
     var viaExpanded by remember(legIndex, leg.intermediateStops.size) { mutableStateOf(false) }
     val viaCount = leg.intermediateStops.size
 
-    Column(modifier) {
+    TimelineLegSpine(modifier) {
         TimelineStopRow(
             stop = leg.origin,
             stationLabel = leg.origin.name,
             highlightLabel = stringResource(R.string.departure),
-            showLineAbove = false,
-            showLineBelow = viaCount > 0 || true,
             nodeStyle = TimelineNodeStyle.Origin,
             segmentColor = timelineSegmentColor(
                 leg.origin,
@@ -170,8 +166,6 @@ internal fun LegTimelineBlock(
                 viaCount = viaCount,
                 onToggle = { viaExpanded = !viaExpanded },
                 legIndex = legIndex,
-                showLineAbove = true,
-                showLineBelow = true,
             )
             AnimatedVisibility(
                 visible = viaExpanded,
@@ -184,8 +178,6 @@ internal fun LegTimelineBlock(
                             stop = stop,
                             stationLabel = stop.name,
                             highlightLabel = null,
-                            showLineAbove = true,
-                            showLineBelow = true,
                             nodeStyle = TimelineNodeStyle.Via,
                             segmentColor = timelineSegmentColor(
                                 stop,
@@ -216,8 +208,6 @@ internal fun LegTimelineBlock(
             stop = leg.destination,
             stationLabel = leg.destination.name,
             highlightLabel = stringResource(R.string.arrival),
-            showLineAbove = true,
-            showLineBelow = false,
             nodeStyle = TimelineNodeStyle.Destination,
             segmentColor = timelineSegmentColor(
                 leg.destination,
@@ -418,8 +408,6 @@ private fun TimelineStopRow(
     stop: StopEvent,
     stationLabel: String,
     highlightLabel: String?,
-    showLineAbove: Boolean,
-    showLineBelow: Boolean,
     nodeStyle: TimelineNodeStyle,
     segmentColor: Color,
     timelinessProbability: Double?,
@@ -444,9 +432,8 @@ private fun TimelineStopRow(
     Row(
         modifier
             .fillMaxWidth()
-            .height(IntrinsicSize.Min)
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.Top,
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         TimelineTimeColumn(
             scheduled = stop.scheduledTime,
@@ -457,12 +444,12 @@ private fun TimelineStopRow(
             toleranceMinutes = toleranceMinutes,
             minTransferMinutesUsed = minTransferMinutesUsed,
         )
-        TimelineRailColumn(
-            showLineAbove = showLineAbove,
-            showLineBelow = showLineBelow,
-            lineColor = segmentColor,
-            nodeStyle = nodeStyle,
-        )
+        Box(
+            Modifier.width(TimelineRailWidth),
+            contentAlignment = Alignment.Center,
+        ) {
+            TimelineDot(nodeStyle = nodeStyle, color = segmentColor)
+        }
         Column(
             Modifier
                 .weight(1f)
@@ -518,25 +505,25 @@ private fun TimelineViaSection(
     viaCount: Int,
     onToggle: () -> Unit,
     legIndex: Int,
-    showLineAbove: Boolean,
-    showLineBelow: Boolean,
 ) {
     Row(
         Modifier
             .fillMaxWidth()
-            .height(IntrinsicSize.Min)
             .clickable(onClick = onToggle)
             .padding(vertical = 4.dp)
             .testTag("leg_${legIndex}_intermediate_toggle"),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.width(TimelineTimeWidth))
-        TimelineRailColumn(
-            showLineAbove = showLineAbove,
-            showLineBelow = showLineBelow,
-            lineColor = MaterialTheme.colorScheme.outline,
-            nodeStyle = TimelineNodeStyle.ViaCollapsed,
-        )
+        Box(
+            Modifier.width(TimelineRailWidth),
+            contentAlignment = Alignment.Center,
+        ) {
+            TimelineDot(
+                nodeStyle = TimelineNodeStyle.ViaCollapsed,
+                color = MaterialTheme.colorScheme.outline,
+            )
+        }
         Row(
             Modifier
                 .weight(1f)
@@ -564,43 +551,29 @@ private fun TimelineViaSection(
 }
 
 @Composable
-private fun TimelineRailColumn(
-    showLineAbove: Boolean,
-    showLineBelow: Boolean,
-    lineColor: Color,
-    nodeStyle: TimelineNodeStyle,
+private fun TimelineLegSpine(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
 ) {
-    Box(
-        Modifier
-            .width(TimelineRailWidth)
-            .fillMaxHeight(),
-        contentAlignment = Alignment.TopCenter,
-    ) {
-        Column(
-            Modifier.fillMaxHeight(),
-            horizontalAlignment = Alignment.CenterHorizontally,
+    val lineColor = MaterialTheme.colorScheme.outline
+    Box(modifier.fillMaxWidth()) {
+        Column { content() }
+        Canvas(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = TimelineTimeWidth)
+                .width(TimelineRailWidth)
+                .matchParentSize(),
         ) {
-            if (showLineAbove) {
-                Box(
-                    Modifier
-                        .width(2.dp)
-                        .weight(1f)
-                        .background(lineColor),
-                )
-            } else {
-                Box(Modifier.weight(1f))
-            }
-            TimelineDot(nodeStyle = nodeStyle, color = lineColor)
-            if (showLineBelow) {
-                Box(
-                    Modifier
-                        .width(2.dp)
-                        .weight(1f)
-                        .background(lineColor),
-                )
-            } else {
-                Box(Modifier.weight(1f))
-            }
+            val stroke = 2.dp.toPx()
+            val x = size.width / 2f
+            drawLine(
+                color = lineColor,
+                start = Offset(x, 0f),
+                end = Offset(x, size.height),
+                strokeWidth = stroke,
+                cap = StrokeCap.Round,
+            )
         }
     }
 }
@@ -755,7 +728,7 @@ private fun TimelineTimeWithPercent(
     if (showTooltip) {
         TimelinessProbabilityDialog(
             isEstimate = isEstimate,
-            toleranceMinutes = toleranceMinutes,
+            toleranceMinutes = if (isEstimate) toleranceMinutes else 0,
             minTransferMinutesUsed = minTransferMinutesUsed,
             onDismiss = { showTooltip = false },
         )
