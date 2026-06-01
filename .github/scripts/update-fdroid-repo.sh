@@ -32,8 +32,7 @@ echo "== F-Droid repo update (${APP_ID}) =="
 echo "Publish URL: $REPO_URL"
 
 python3 -m pip install --quiet --upgrade pip
-# fdroidserver pulls an androguard that breaks v2/v3 signing on our CI APKs (NoOverwriteDict.append).
-python3 -m pip install --quiet fdroidserver Pillow 'androguard>=4.1.2'
+python3 -m pip install --quiet fdroidserver Pillow
 
 python3 "$ROOT/.github/scripts/generate-fdroid-icons.py"
 
@@ -61,7 +60,7 @@ chmod +x "$ROOT/.github/scripts/sync-fdroid-apks-from-releases.sh"
 chmod +x "$ROOT/.github/scripts/prune-fdroid-broken-apks.sh"
 chmod +x "$ROOT/.github/scripts/trim-fdroid-repo-apks.sh"
 "$ROOT/.github/scripts/sync-fdroid-apks-from-releases.sh"
-FDROID_MIN_VERSION_CODE=1700 FDROID_MAX_APKS=30 "$ROOT/.github/scripts/trim-fdroid-repo-apks.sh"
+FDROID_MIN_VERSION_CODE=1900 FDROID_MAX_APKS=10 "$ROOT/.github/scripts/trim-fdroid-repo-apks.sh"
 REPO_APKS="$(find "$FDROID/repo" -maxdepth 1 -name '*.apk' 2>/dev/null | wc -l)"
 ARCHIVE_APKS="$(find "$FDROID/archive" -maxdepth 1 -name '*.apk' 2>/dev/null | wc -l)"
 echo "APKs before publish: repo=$REPO_APKS archive=$ARCHIVE_APKS"
