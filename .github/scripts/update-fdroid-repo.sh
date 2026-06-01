@@ -56,14 +56,12 @@ else
 fi
 
 mkdir -p "$FDROID/repo" "$FDROID/archive"
-chmod +x "$ROOT/.github/scripts/sync-fdroid-apks-from-releases.sh"
-chmod +x "$ROOT/.github/scripts/prune-fdroid-broken-apks.sh"
-chmod +x "$ROOT/.github/scripts/trim-fdroid-repo-apks.sh"
-"$ROOT/.github/scripts/sync-fdroid-apks-from-releases.sh"
-FDROID_MIN_VERSION_CODE=1900 FDROID_MAX_APKS=10 "$ROOT/.github/scripts/trim-fdroid-repo-apks.sh"
-REPO_APKS="$(find "$FDROID/repo" -maxdepth 1 -name '*.apk' 2>/dev/null | wc -l)"
-ARCHIVE_APKS="$(find "$FDROID/archive" -maxdepth 1 -name '*.apk' 2>/dev/null | wc -l)"
-echo "APKs before publish: repo=$REPO_APKS archive=$ARCHIVE_APKS"
+# Cached APKs from failed runs can break fdroid update; rebuild from scratch each publish.
+find "$FDROID/repo" "$FDROID/archive" -maxdepth 1 -name '*.apk' -delete 2>/dev/null || true
+rm -rf "$FDROID/.quarantine" 2>/dev/null || true
+REPO_APKS=0
+ARCHIVE_APKS=0
+echo "APKs before publish: repo=$REPO_APKS archive=$ARCHIVE_APKS (cleared for clean index)"
 
 if [ -n "$APK_ARG" ]; then
   APK="$(cd "$(dirname "$APK_ARG")" && pwd)/$(basename "$APK_ARG")"
@@ -91,6 +89,10 @@ DEST="repo/${APP_ID}_${VERSION_CODE}.apk"
 cp "$APK" "$DEST"
 echo "Published $DEST"
 
+chmod +x "$ROOT/.github/scripts/sync-fdroid-apks-from-releases.sh"
+chmod +x "$ROOT/.github/scripts/prune-fdroid-broken-apks.sh"
+# Add a few previous GitHub Release APKs for downgrade (fresh downloads, not cache).
+FDROID_MIN_VERSION_CODE=2400 FDROID_MAX_SYNC_RELEASES=5 "$ROOT/.github/scripts/sync-fdroid-apks-from-releases.sh"
 "$ROOT/.github/scripts/prune-fdroid-broken-apks.sh"
 
 # Stale index keeps the old repo address after a GitHub rename; F-Droid then 404s APK downloads.
