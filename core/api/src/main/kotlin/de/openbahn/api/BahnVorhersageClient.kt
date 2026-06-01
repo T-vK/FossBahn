@@ -5,7 +5,6 @@ import de.openbahn.model.RatedJourney
 import de.openbahn.model.StopEvent
 import de.openbahn.model.StopTimelinessPrediction
 import de.openbahn.model.TransferPrediction
-import de.openbahn.model.tripRouteStops
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.post
@@ -52,11 +51,9 @@ class BahnVorhersageClient(
             return journeys.map { heuristicRating(it, options) }
         }
         if (usesMobileV2Api()) {
-            rateFromMobileV2(journeys, options, tripRoutes)?.let { rated ->
-                BahnVorhersageDebug.logRatedSummary(rated)
-                return rated
-            }
-            BahnVorhersageDebug.logHeuristicFallback("mobile v2 returned no ML ratings", journeys.size)
+            val rated = rateFromMobileV2(journeys, options, tripRoutes)
+            BahnVorhersageDebug.logRatedSummary(rated)
+            return rated
         } else {
             return journeys.map { journey ->
                 rateFromPredictorApi(journey, options)?.enrichWithHeuristics(journey, options)
@@ -80,8 +77,25 @@ class BahnVorhersageClient(
         journeys: List<Journey>,
         options: JourneyRatingOptions,
         tripRoutes: Map<String, List<StopEvent>>,
+    ): List<RatedJourney> =
+        journeys.map { journey ->
+            val trips = buildTripPayload(listOf(journey), tripRoutes)
+            rateFromMobileV2Batch(listOf(journey), options, trips)?.firstOrNull()
+                ?: heuristicRating(journey, options).also {
+                    BahnVorhersageDebug.logHeuristicFallback(
+                        "mobile v2 failed for ${journey.id}",
+                        1,
+                    )
+                }
+        }
+
+    /** One journey per request — the public API returns HTTP 500 on large multi-journey payloads. */
+    private suspend fun rateFromMobileV2Batch(
+        journeys: List<Journey>,
+        options: JourneyRatingOptions,
+        trips: Map<String, List<StopEvent>>,
     ): List<RatedJourney>? {
-        val trips = buildTripPayload(journeys, tripRoutes)
+        if (journeys.isEmpty()) return emptyList()
         return try {
             val body = BahnVorhersageFptfMapper.buildRateRequest(journeys, trips)
             val requestPayload = jsonEncoder.encodeToString(JsonElement.serializer(), body)
@@ -123,10 +137,8 @@ class BahnVorhersageClient(
                     syntheticTripId(journey.id, legIndex)
                 }
                 if (tripId in result) return@forEachIndexed
-                val route = tripRoutes[leg.tripId?.trim().orEmpty()]
-                    ?.takeIf { it.size >= 2 }
-                    ?: leg.tripRouteStops().takeIf { it.size >= 2 }
-                    ?: listOf(leg.origin, leg.destination)
+                val fetched = tripRoutes[leg.tripId?.trim().orEmpty()].orEmpty()
+                val route = routeStopsForRating(leg, fetched)
                 if (route.size >= 2) {
                     result[tripId] = route
                 }
