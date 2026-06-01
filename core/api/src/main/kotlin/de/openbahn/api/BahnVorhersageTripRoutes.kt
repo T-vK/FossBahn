@@ -22,15 +22,18 @@ suspend fun loadTripRoutesForJourneys(
                 legsByTripId.putIfAbsent(id, leg)
             }
     }
-    legsByTripId.map { (tripId, leg) ->
-        async {
-            tripId to runCatching { fetchFullLegRoute(leg) }
-                .getOrElse { emptyList() }
-                .takeIf { it.size >= 2 }
-                ?: leg.tripRouteStops().takeIf { it.size >= 2 }
-                ?: listOf(leg.origin, leg.destination)
+    legsByTripId.entries
+        .map { (tripId, leg) ->
+            async {
+                val stops = runCatching { fetchFullLegRoute(leg) }
+                    .getOrElse { emptyList() }
+                    .takeIf { it.size >= 2 }
+                    ?: leg.tripRouteStops().takeIf { it.size >= 2 }
+                    ?: listOf(leg.origin, leg.destination)
+                tripId to stops
+            }
         }
-    }.awaitAll()
+        .awaitAll()
         .filter { (_, stops) -> stops.size >= 2 }
         .toMap()
 }

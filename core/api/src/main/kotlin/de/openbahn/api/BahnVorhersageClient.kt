@@ -2,7 +2,6 @@ package de.openbahn.api
 
 import de.openbahn.api.debug.OpenBahnDebugLog
 import de.openbahn.model.Journey
-import de.openbahn.model.JourneyRatingOptions
 import de.openbahn.model.RatedJourney
 import de.openbahn.model.StopEvent
 import de.openbahn.model.StopTimelinessPrediction
