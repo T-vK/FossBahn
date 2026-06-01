@@ -15,5 +15,11 @@ data class JourneyRatingOptions(
 
     companion object {
         const val DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES = 10
+
+        /**
+         * bahnvorhersage.de stop probabilities count only the bucket at delay 0
+         * (not the user's personal punctuality window).
+         */
+        const val BAHNVORHERSAGE_DISPLAY_TOLERANCE_MINUTES = 0
     }
 }

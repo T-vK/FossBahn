@@ -155,7 +155,7 @@ internal object BahnVorhersageFptfMapper {
         val probability = PredictionScoring.probabilityDelayAtMost(
             distribution,
             offset,
-            options.punctualityToleranceMinutes,
+            JourneyRatingOptions.BAHNVORHERSAGE_DISPLAY_TOLERANCE_MINUTES,
         )
         val idx = stops.indexOfFirst {
             it.legIndex == legIndex && it.intermediateIndex == null && it.isArrival == isArrival

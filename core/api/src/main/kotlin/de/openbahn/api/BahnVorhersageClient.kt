@@ -221,7 +221,7 @@ class BahnVorhersageClient(
         return PredictionScoring.probabilityDelayAtMost(
             arrivalDistribution,
             offset,
-            options.punctualityToleranceMinutes,
+            JourneyRatingOptions.BAHNVORHERSAGE_DISPLAY_TOLERANCE_MINUTES,
         )
     }
 
@@ -250,7 +250,7 @@ class BahnVorhersageClient(
             val arrivalProb = PredictionScoring.probabilityDelayAtMost(
                 distribution,
                 offset,
-                options.punctualityToleranceMinutes,
+                JourneyRatingOptions.BAHNVORHERSAGE_DISPLAY_TOLERANCE_MINUTES,
             )
             replaceStopProbability(base, prediction.legIndex, intermediateIndex = null, isArrival = true, arrivalProb, isEstimate = false)
 
@@ -283,7 +283,7 @@ class BahnVorhersageClient(
             val finalProb = PredictionScoring.probabilityDelayAtMost(
                 finalDistribution,
                 offset,
-                options.punctualityToleranceMinutes,
+                JourneyRatingOptions.BAHNVORHERSAGE_DISPLAY_TOLERANCE_MINUTES,
             )
             replaceStopProbability(base, lastRail, intermediateIndex = null, isArrival = true, finalProb, isEstimate = false)
         }
