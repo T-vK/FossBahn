@@ -90,17 +90,34 @@ class ChangelogRepository(
             remote: List<ReleaseNote>,
             cached: List<ReleaseNote>,
         ): List<ReleaseNote> {
-            val byVersion = linkedMapOf<String, ReleaseNote>()
-            (cached + embedded + remote).forEach { note ->
-                val key = note.versionName
-                val existing = byVersion[key]
-                if (existing == null || note.body.length > existing.body.length) {
-                    byVersion[key] = note
+            val byVersion = linkedMapOf<String, Pair<ReleaseNote, Int>>()
+            listOf(
+                cached to 0,
+                embedded to 1,
+                remote to 2,
+            ).forEach { (notes, priority) ->
+                notes.forEach { note ->
+                    val key = note.versionName
+                    val existing = byVersion[key]
+                    if (existing == null || isPreferredRelease(note, priority, existing.first, existing.second)) {
+                        byVersion[key] = note to priority
+                    }
                 }
             }
-            return byVersion.values.sortedWith(
+            return byVersion.values.map { it.first }.sortedWith(
                 compareByDescending<ReleaseNote> { versionSortKey(it.versionName) },
             )
+        }
+
+        private fun isPreferredRelease(
+            candidate: ReleaseNote,
+            candidatePriority: Int,
+            incumbent: ReleaseNote,
+            incumbentPriority: Int,
+        ): Boolean = when {
+            candidate.body.length > incumbent.body.length -> true
+            candidate.body.length < incumbent.body.length -> false
+            else -> candidatePriority > incumbentPriority
         }
 
         private fun versionSortKey(version: String): Long =

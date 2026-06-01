@@ -49,6 +49,11 @@ class FakeJourneySearchRepository : JourneySearchRepository {
 
     override suspend fun fetchFullLegRoute(leg: Leg): List<StopEvent> = leg.tripRouteStops()
 
+    override suspend fun rateJourney(
+        journey: Journey,
+        ratingOptions: JourneyRatingOptions,
+    ): RatedJourney = rateJourneys(listOf(journey), ratingOptions).first()
+
     override suspend fun rateJourneys(
         journeys: List<Journey>,
         ratingOptions: JourneyRatingOptions,

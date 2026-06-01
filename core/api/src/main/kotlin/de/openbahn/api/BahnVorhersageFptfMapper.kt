@@ -226,12 +226,7 @@ internal object BahnVorhersageFptfMapper {
             put("departurePlatform", leg.origin.platform.orEmpty())
             put("arrivalPlatform", leg.destination.platform.orEmpty())
             put("cancelled", leg.origin.cancelled || leg.destination.cancelled)
-            put(
-                "tripId",
-                leg.tripId?.trim().orEmpty().ifEmpty {
-                    BahnVorhersageClient.syntheticTripId(journeyId, legIndex)
-                },
-            )
+            put("tripId", BahnVorhersageClient.syntheticTripId(journeyId, legIndex))
             putObject("line", lineJson(leg))
         }
     }

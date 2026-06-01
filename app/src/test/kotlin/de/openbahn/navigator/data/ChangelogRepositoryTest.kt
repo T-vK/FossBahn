@@ -11,19 +11,19 @@ class ChangelogRepositoryTest {
         val merged = ChangelogRepository.mergeReleases(
             embedded = listOf(
                 ReleaseNote("0.26.0", "embedded"),
-                ReleaseNote("0.25.0", "old"),
+                ReleaseNote("0.25.0", "from-embedded"),
             ),
             remote = listOf(
                 ReleaseNote("0.26.0", "remote longer body"),
                 ReleaseNote("0.27.0", "newest"),
             ),
             cached = listOf(
-                ReleaseNote("0.25.0", "cached should lose to embedded same length"),
+                ReleaseNote("0.25.0", "from-cached"),
             ),
         )
         assertEquals(listOf("0.27.0", "0.26.0", "0.25.0"), merged.map { it.versionName })
         assertEquals("remote longer body", merged.first { it.versionName == "0.26.0" }.body)
-        assertEquals("embedded", merged.first { it.versionName == "0.25.0" }.body)
+        assertEquals("from-embedded", merged.first { it.versionName == "0.25.0" }.body)
     }
 
     @Test

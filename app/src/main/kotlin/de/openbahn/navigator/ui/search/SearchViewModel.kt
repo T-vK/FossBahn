@@ -65,6 +65,8 @@ data class SearchUiState(
     val isLoading: Boolean = false,
     val isLoadingEarlier: Boolean = false,
     val isLoadingLater: Boolean = false,
+    /** True while Bahn-Vorhersage ratings are still loading after connections are shown. */
+    val predictionsLoading: Boolean = false,
     val error: String? = null,
     val info: String? = null,
     val showPredictions: Boolean = true,
@@ -94,6 +96,8 @@ class SearchViewModel(
     private val _state = MutableStateFlow(SearchUiState())
     val state: StateFlow<SearchUiState> = _state.asStateFlow()
     private var suggestJob: Job? = null
+    private var predictionsJob: Job? = null
+    private var searchGeneration: Long = 0L
 
     init {
         viewModelScope.launch {
@@ -540,11 +544,14 @@ class SearchViewModel(
             "search() fromQuery=\"${_state.value.fromQuery}\" toQuery=\"${_state.value.toQuery}\" " +
                 "departureTime=${_state.value.departureTime} arrivalSearch=${_state.value.options.arrivalSearch}",
         )
+        predictionsJob?.cancel()
+        searchGeneration++
         _state.update {
             it.copy(
                 isLoading = true,
                 isLoadingEarlier = false,
                 isLoadingLater = false,
+                predictionsLoading = false,
                 error = null,
                 info = null,
                 hasSearched = true,
@@ -601,28 +608,13 @@ class SearchViewModel(
             val existing = if (replaceResults) emptyList() else _state.value.journeys
             val existingIds = existing.map { it.id }.toSet()
             val mergedJourneys = mergeJourneys(existing, page.journeys, prepend)
-            val rated = if (_state.value.showPredictions) {
-                val newOnes = page.journeys.filter { it.id !in existingIds }
-                val newRated = if (newOnes.isNotEmpty()) {
-                    runCatching { searchUseCase.rateJourneys(newOnes, currentRatingOptions()) }
-                        .onFailure { e ->
-                            OpenBahnDebugLog.w(
-                                "Search",
-                                "predictions failed for ${newOnes.size} journey(s): ${e.message}",
-                                e,
-                            )
-                        }
-                        .getOrElse { emptyList() }
-                } else {
-                    emptyList()
-                }
-                mergeRated(
-                    existing = if (replaceResults) emptyList() else _state.value.ratedJourneys,
-                    incoming = newRated,
-                    prepend = prepend,
-                )
-            } else {
+            val newJourneys = page.journeys.filter { it.id !in existingIds }
+            val keptRated = if (replaceResults) {
                 emptyList()
+            } else {
+                _state.value.ratedJourneys.filter { rated ->
+                    mergedJourneys.any { it.id == rated.journey.id }
+                }
             }
             logSearchOutcome(mergedJourneys.size, mergedJourneys.isEmpty() && replaceResults)
             val scrollToken = if (replaceResults && mergedJourneys.isNotEmpty()) {
@@ -630,10 +622,11 @@ class SearchViewModel(
             } else {
                 _state.value.scrollToResultsToken
             }
+            val generation = searchGeneration
             _state.update {
                 it.copy(
                     journeys = mergedJourneys,
-                    ratedJourneys = rated,
+                    ratedJourneys = keptRated,
                     pagingEarlier = when {
                         replaceResults -> page.pagingEarlier
                         prepend -> page.pagingEarlier
@@ -647,6 +640,7 @@ class SearchViewModel(
                     isLoading = false,
                     isLoadingEarlier = false,
                     isLoadingLater = false,
+                    predictionsLoading = _state.value.showPredictions && newJourneys.isNotEmpty(),
                     info = if (mergedJourneys.isEmpty() && replaceResults) {
                         noConnectionsInfoKey(options)
                     } else {
@@ -654,6 +648,9 @@ class SearchViewModel(
                     },
                     scrollToResultsToken = scrollToken,
                 )
+            }
+            if (_state.value.showPredictions && newJourneys.isNotEmpty()) {
+                startPredictionsJob(newJourneys, prepend, generation)
             }
         } catch (e: DbApiBlockedException) {
             _state.update {
@@ -704,6 +701,48 @@ class SearchViewModel(
     ): List<RatedJourney> {
         val combined = if (prepend) incoming + existing else existing + incoming
         return combined.distinctBy { it.journey.id }
+    }
+
+    private fun startPredictionsJob(
+        journeys: List<Journey>,
+        prepend: Boolean,
+        generation: Long,
+    ) {
+        predictionsJob?.cancel()
+        predictionsJob = viewModelScope.launch {
+            rateJourneysProgressively(journeys, prepend, generation)
+        }
+    }
+
+    private suspend fun rateJourneysProgressively(
+        journeys: List<Journey>,
+        prepend: Boolean,
+        generation: Long,
+    ) {
+        val options = currentRatingOptions()
+        for (journey in journeys) {
+            if (generation != searchGeneration) return
+            val rated = runCatching { searchUseCase.rateJourney(journey, options) }
+                .onFailure { e ->
+                    OpenBahnDebugLog.w(
+                        "Search",
+                        "prediction failed for ${journey.id}: ${e.message}",
+                        e,
+                    )
+                }
+                .getOrNull() ?: continue
+            if (generation != searchGeneration) return
+            _state.update { state ->
+                state.copy(
+                    ratedJourneys = mergeRated(state.ratedJourneys, listOf(rated), prepend),
+                )
+            }
+        }
+        if (generation == searchGeneration) {
+            _state.update { it.copy(predictionsLoading = false) }
+            val count = _state.value.ratedJourneys.size
+            OpenBahnDebugLog.d("Search", "predictions finished: $count rated journey(s)")
+        }
     }
 
     private fun logSearchOutcome(journeyCount: Int, showNoConnections: Boolean) {

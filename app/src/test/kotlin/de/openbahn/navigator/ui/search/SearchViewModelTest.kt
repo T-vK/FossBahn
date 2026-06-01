@@ -23,6 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -30,6 +31,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -91,6 +93,9 @@ class SearchViewModelTest {
             pagingEarlier = "earlier",
             pagingLater = "later",
         )
+        coEvery { searchRepository.rateJourney(any(), any()) } answers {
+            RatedJourney(journey = firstArg())
+        }
         coEvery { searchRepository.rateJourneys(any(), any()) } answers {
             firstArg<List<Journey>>().map { RatedJourney(journey = it) }
         }
@@ -121,11 +126,39 @@ class SearchViewModelTest {
         advanceUntilIdle()
 
         val state = viewModel.state.value
-        assertTrue(state.journeys.isNotEmpty() || state.ratedJourneys.isNotEmpty())
+        assertTrue(state.journeys.isNotEmpty())
         assertNull(state.error)
+        assertFalse(state.isLoading)
+        assertEquals("test-journey-1", state.journeys.first().id)
         assertEquals("test-journey-1", state.ratedJourneys.first().journey.id)
+        assertFalse(state.predictionsLoading)
         assertNotNull(state.pagingEarlier)
         assertNotNull(state.pagingLater)
+    }
+
+    @Test
+    fun search_showsConnectionsBeforePredictionsFinish() = runTest(dispatcher) {
+        val ratingGate = CompletableDeferred<Unit>()
+        coEvery { searchRepository.rateJourney(any(), any()) } coAnswers {
+            ratingGate.await()
+            RatedJourney(journey = firstArg())
+        }
+        val viewModel = createViewModel()
+        viewModel.selectFrom(berlin)
+        viewModel.selectTo(munich)
+        viewModel.search()
+        advanceUntilIdle()
+
+        val afterSearch = viewModel.state.value
+        assertEquals(listOf("test-journey-1"), afterSearch.journeys.map { it.id })
+        assertTrue(afterSearch.ratedJourneys.isEmpty())
+        assertFalse(afterSearch.isLoading)
+        assertTrue(afterSearch.predictionsLoading)
+
+        ratingGate.complete(Unit)
+        advanceUntilIdle()
+        assertEquals("test-journey-1", viewModel.state.value.ratedJourneys.first().journey.id)
+        assertFalse(viewModel.state.value.predictionsLoading)
     }
 
     @Test

@@ -26,16 +26,17 @@ class BahnVorhersageFptfMapperTest {
             departure = "2026-05-30T10:00:00",
             arrival = "2026-05-30T12:00:00",
         )
+        val syntheticTripId = BahnVorhersageClient.syntheticTripId("j1", 0)
         val body = BahnVorhersageFptfMapper.buildRateRequest(
             journeys = listOf(journey),
             tripRoutes = mapOf(
-                "trip-ice-701" to listOf(
+                syntheticTripId to listOf(
                     journey.legs.first().origin,
                     journey.legs.first().destination,
                 ),
             ),
         )
-        assertTrue(body.toString().contains("trip-ice-701"))
+        assertTrue(body.toString().contains(syntheticTripId))
         assertTrue(body.toString().contains("journeys"))
     }
 

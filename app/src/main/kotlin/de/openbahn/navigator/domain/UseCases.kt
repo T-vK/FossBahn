@@ -2,9 +2,9 @@ package de.openbahn.navigator.domain
 
 import de.openbahn.api.BahnVorhersageClient
 import de.openbahn.api.DbVendoClient
+import de.openbahn.api.loadTripRoutesForJourneys
 import de.openbahn.api.debug.OpenBahnDebugLog
 import de.openbahn.api.JourneyRatingOptions
-import de.openbahn.api.loadTripRoutesForJourneys
 import de.openbahn.model.Journey
 import de.openbahn.model.JourneySearchOptions
 import de.openbahn.model.JourneySearchResult
@@ -29,6 +29,10 @@ interface JourneySearchRepository {
         whenTime: LocalDateTime = LocalDateTime.now(),
         pagingReference: String? = null,
     ): JourneySearchResult
+    suspend fun rateJourney(
+        journey: Journey,
+        ratingOptions: JourneyRatingOptions = JourneyRatingOptions(),
+    ): RatedJourney
     suspend fun rateJourneys(
         journeys: List<Journey>,
         ratingOptions: JourneyRatingOptions = JourneyRatingOptions(),
@@ -62,17 +66,24 @@ class JourneySearchUseCase(
         return result.copy(journeys = withDelays)
     }
 
+    override suspend fun rateJourney(
+        journey: Journey,
+        ratingOptions: JourneyRatingOptions,
+    ): RatedJourney {
+        OpenBahnDebugLog.d("Search", "rateJourney: ${journey.id}")
+        return runCatching { predictionClient.rateJourney(journey, ratingOptions, emptyMap()) }
+            .onFailure { e ->
+                OpenBahnDebugLog.w("BahnVorhersage", "rateJourney threw: ${e.message}", e)
+            }
+            .getOrElse { RatedJourney(journey = journey) }
+    }
+
     override suspend fun rateJourneys(
         journeys: List<Journey>,
         ratingOptions: JourneyRatingOptions,
     ): List<RatedJourney> {
         OpenBahnDebugLog.d("Search", "rateJourneys: ${journeys.size} connection(s)")
-        val tripRoutes = loadTripRoutesForJourneys(journeys) { leg -> fetchFullLegRoute(leg) }
-        return runCatching { predictionClient.rateJourneys(journeys, ratingOptions, tripRoutes) }
-            .onFailure { e ->
-                OpenBahnDebugLog.w("BahnVorhersage", "rateJourneys threw: ${e.message}", e)
-            }
-            .getOrElse { emptyList() }
+        return journeys.map { rateJourney(it, ratingOptions) }
     }
 
     override suspend fun fetchTripRoute(journeyId: String): List<StopEvent> =

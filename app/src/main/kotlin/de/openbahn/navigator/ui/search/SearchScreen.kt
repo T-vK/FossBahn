@@ -406,22 +406,21 @@ fun SearchScreen(
                     }
                 }
             }
-            val rated = state.ratedJourneys
+            val ratedById = state.ratedJourneys.associateBy { it.journey.id }
             val predictionsRequested = state.showPredictions && state.hasSearched
             val minTransferMinutes = state.options.minTransferMinutes
-            if (rated.isNotEmpty()) {
-                items(rated, key = { it.journey.id }) { ratedJourney ->
+            items(state.journeys, key = { it.id }) { journey ->
+                val rated = ratedById[journey.id]
+                if (rated != null) {
                     JourneyResultItem(
-                        ratedJourney = ratedJourney,
+                        ratedJourney = rated,
                         predictionsRequested = predictionsRequested,
                         minTransferMinutes = minTransferMinutes,
                         onOpenDetail = onOpenJourneyDetail,
-                        onTrack = { viewModel.trackJourney(ratedJourney.journey) },
+                        onTrack = { viewModel.trackJourney(rated.journey) },
                         dismissKeyboard = dismissKeyboard,
                     )
-                }
-            } else {
-                items(state.journeys, key = { it.id }) { journey ->
+                } else {
                     JourneyCard(
                         journey = journey,
                         predictionsRequested = predictionsRequested,
