@@ -23,8 +23,9 @@ runs:
           fdroid/repo
           fdroid/archive
           fdroid-pages/fdroid/archive
-        key: fdroid-repo-state-${{ github.repository }}
+        key: fdroid-repo-state-v2-${{ github.repository }}
         restore-keys: |
+          fdroid-repo-state-v2-${{ github.repository }}-
           fdroid-repo-state-${{ github.repository }}-
 
     - name: Configure F-Droid repository signing

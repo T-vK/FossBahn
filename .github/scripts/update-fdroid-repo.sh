@@ -56,8 +56,9 @@ else
 fi
 
 mkdir -p "$FDROID/repo" "$FDROID/archive"
-chmod +x "$ROOT/.github/scripts/bootstrap-fdroid-apks-from-releases.sh"
-"$ROOT/.github/scripts/bootstrap-fdroid-apks-from-releases.sh"
+chmod +x "$ROOT/.github/scripts/sync-fdroid-apks-from-releases.sh"
+chmod +x "$ROOT/.github/scripts/sanitize-fdroid-apks.sh"
+"$ROOT/.github/scripts/sync-fdroid-apks-from-releases.sh"
 REPO_APKS="$(find "$FDROID/repo" -maxdepth 1 -name '*.apk' 2>/dev/null | wc -l)"
 ARCHIVE_APKS="$(find "$FDROID/archive" -maxdepth 1 -name '*.apk' 2>/dev/null | wc -l)"
 echo "APKs before publish: repo=$REPO_APKS archive=$ARCHIVE_APKS"
@@ -87,6 +88,8 @@ VERSION_CODE="$(grep '^versionCode=' "$ROOT/version.properties" | cut -d= -f2)"
 DEST="repo/${APP_ID}_${VERSION_CODE}.apk"
 cp "$APK" "$DEST"
 echo "Published $DEST"
+
+"$ROOT/.github/scripts/sanitize-fdroid-apks.sh"
 
 # Stale index keeps the old repo address after a GitHub rename; F-Droid then 404s APK downloads.
 rm -f repo/index-v1.json repo/index-v2.json \
