@@ -55,6 +55,7 @@ import de.openbahn.api.JourneyRatingOptions
 import de.openbahn.model.RatedJourney
 import de.openbahn.model.StopEvent
 import de.openbahn.model.OnTimeToleranceSettings
+import de.openbahn.model.hasMlTimelinessOnLeg
 import de.openbahn.model.stopProbability
 import de.openbahn.model.stopTimelinessIsEstimate
 import de.openbahn.model.toleranceMinutesForStop
@@ -451,6 +452,10 @@ private fun JourneyTimeRangeHeader(
                 timelinessIsEstimate = prediction?.stopTimelinessIsEstimate(firstLegIndex, isArrival = false) == true,
                 toleranceMinutes = depTolerance,
                 minTransferMinutesUsed = prediction?.minTransferMinutesUsed,
+                prediction = prediction,
+                legIndex = firstLegIndex,
+                intermediateIndex = null,
+                isArrival = false,
             )
             Text("–", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             StopTimeText(
@@ -467,6 +472,10 @@ private fun JourneyTimeRangeHeader(
                 timelinessIsEstimate = prediction?.stopTimelinessIsEstimate(lastLegIndex, isArrival = true) == true,
                 toleranceMinutes = arrTolerance,
                 minTransferMinutesUsed = prediction?.minTransferMinutesUsed,
+                prediction = prediction,
+                legIndex = lastLegIndex,
+                intermediateIndex = null,
+                isArrival = true,
             )
         }
     }
@@ -574,6 +583,10 @@ private fun StopTimeText(
     timelinessIsEstimate: Boolean = false,
     toleranceMinutes: Int = JourneyRatingOptions.DEFAULT_PUNCTUALITY_TOLERANCE_MINUTES,
     minTransferMinutesUsed: Int? = null,
+    prediction: RatedJourney? = null,
+    legIndex: Int = 0,
+    intermediateIndex: Int? = null,
+    isArrival: Boolean = false,
 ) {
     val effectiveDelay = delayMinutes.takeIf { it > 0 }
         ?: delayMinutesFromTimes(scheduled, prognosed)
@@ -602,6 +615,10 @@ private fun StopTimeText(
                 isEstimate = timelinessIsEstimate,
                 toleranceMinutes = toleranceMinutes,
                 minTransferMinutesUsed = minTransferMinutesUsed,
+                prediction = prediction,
+                legIndex = legIndex,
+                intermediateIndex = intermediateIndex,
+                isArrival = isArrival,
             )
         } else {
             Text(
@@ -632,6 +649,10 @@ private fun TimelinessTimeWithPercent(
     isEstimate: Boolean,
     toleranceMinutes: Int,
     minTransferMinutesUsed: Int?,
+    prediction: RatedJourney?,
+    legIndex: Int,
+    intermediateIndex: Int?,
+    isArrival: Boolean,
 ) {
     var showTooltip by remember { mutableStateOf(false) }
     val timeColor = if (delayed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
@@ -659,6 +680,10 @@ private fun TimelinessTimeWithPercent(
     }
     if (showTooltip) {
         TimelinessProbabilityDialog(
+            prediction = prediction,
+            legIndex = legIndex,
+            intermediateIndex = intermediateIndex,
+            isArrival = isArrival,
             isEstimate = isEstimate,
             toleranceMinutes = toleranceMinutes,
             minTransferMinutesUsed = minTransferMinutesUsed,
@@ -767,12 +792,41 @@ internal fun TransferProbabilityChip(
 
 @Composable
 internal fun TimelinessProbabilityDialog(
+    prediction: RatedJourney?,
+    legIndex: Int,
+    intermediateIndex: Int?,
+    @Suppress("UNUSED_PARAMETER") isArrival: Boolean,
     isEstimate: Boolean,
     toleranceMinutes: Int,
     minTransferMinutesUsed: Int?,
     onDismiss: () -> Unit,
 ) {
+    TimelinessProbabilityDialog(
+        isEstimate = isEstimate,
+        toleranceMinutes = toleranceMinutes,
+        minTransferMinutesUsed = minTransferMinutesUsed,
+        isIntermediateVia = intermediateIndex != null,
+        hasMlOnSameLeg = prediction?.hasMlTimelinessOnLeg(legIndex) == true,
+        onDismiss = onDismiss,
+    )
+}
+
+@Composable
+internal fun TimelinessProbabilityDialog(
+    isEstimate: Boolean,
+    toleranceMinutes: Int,
+    minTransferMinutesUsed: Int?,
+    isIntermediateVia: Boolean = false,
+    hasMlOnSameLeg: Boolean = false,
+    onDismiss: () -> Unit,
+) {
     val body = when {
+        isIntermediateVia && !isEstimate && toleranceMinutes == 0 ->
+            stringResource(R.string.prediction_tooltip_body_ml_via_exact)
+        isIntermediateVia && !isEstimate ->
+            stringResource(R.string.prediction_tooltip_body_ml_via, toleranceMinutes)
+        isIntermediateVia && isEstimate && hasMlOnSameLeg ->
+            stringResource(R.string.prediction_tooltip_body_via_with_ml_leg)
         isEstimate && toleranceMinutes == 0 ->
             stringResource(R.string.prediction_tooltip_body_estimate_exact)
         isEstimate ->

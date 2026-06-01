@@ -27,6 +27,10 @@ fun RatedJourney.stopProbability(
     }
     ?.probability
 
+/** True when Bahn-Vorhersage scored at least one endpoint on this rail leg. */
+fun RatedJourney.hasMlTimelinessOnLeg(legIndex: Int): Boolean =
+    stopTimeliness.any { it.legIndex == legIndex && !it.isEstimate }
+
 fun RatedJourney.toleranceMinutesForStop(
     intermediateIndex: Int? = null,
     isArrival: Boolean,

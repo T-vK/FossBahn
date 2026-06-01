@@ -40,7 +40,7 @@ class BahnVorhersageTripPayloadTest {
     }
 
     @Test
-    fun buildTripRoutesForRating_usesOnlyLegEndpoints_notIntermediateHalte() {
+    fun buildTripRoutesForRating_includesIntermediateStopsInPassengerSegment() {
         val journey = Journey(
             id = "j-mid",
             legs = listOf(
@@ -59,8 +59,9 @@ class BahnVorhersageTripPayloadTest {
         )
         val trips = buildTripRoutesForRating(journey)
         assertEquals(1, trips.size)
-        assertEquals(2, trips.values.first().size)
+        assertEquals(3, trips.values.first().size)
         assertEquals("Hamburg Hbf", trips.values.first().first().name)
+        assertEquals("Hannover Hbf", trips.values.first()[1].name)
         assertEquals("Berlin Hbf", trips.values.first().last().name)
     }
 

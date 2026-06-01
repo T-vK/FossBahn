@@ -13,6 +13,18 @@ import de.openbahn.model.StopEvent
 fun ratingTripId(journeyId: String, legIndex: Int, @Suppress("UNUSED_PARAMETER") leg: Leg): String =
     BahnVorhersageClient.syntheticTripId(journeyId, legIndex)
 
+/** Max stopovers per trip in mobile v2 (full vehicle runs with 30+ stops cause HTTP 500). */
+internal const val MAX_TRIP_STOPOVERS_FOR_RATING = 16
+
+fun passengerSegmentStopsForRating(leg: Leg): List<StopEvent> {
+    val segment = if (leg.intermediateStops.isEmpty()) {
+        listOf(leg.origin, leg.destination)
+    } else {
+        listOf(leg.origin) + leg.intermediateStops + listOf(leg.destination)
+    }
+    return ensureLegEndpoints(segment, leg).take(MAX_TRIP_STOPOVERS_FOR_RATING)
+}
+
 fun buildTripRoutesForRating(
     journey: Journey,
     fetchedByDbTripId: Map<String, List<StopEvent>> = emptyMap(),
@@ -21,9 +33,12 @@ fun buildTripRoutesForRating(
     journey.legs.forEachIndexed { legIndex, leg ->
         if (leg.isWalking) return@forEachIndexed
         val tripId = ratingTripId(journey.id, legIndex, leg)
-        // Mobile v2 only needs exact leg endpoints in `trips`; intermediate stopovers can break
-        // bahnvorhersage `streckennetz.route_length` and yield HTTP 500 (see BahnVorhersageMobileV2ProbeTest).
-        val route = ensureLegEndpoints(listOf(leg.origin, leg.destination), leg)
+        val fetched = leg.tripId?.let { fetchedByDbTripId[it] }
+        val route = when {
+            fetched != null && fetched.size >= 2 ->
+                routeStopsForRating(leg, fetched).take(MAX_TRIP_STOPOVERS_FOR_RATING)
+            else -> passengerSegmentStopsForRating(leg)
+        }
         result[tripId] = route
     }
     return result

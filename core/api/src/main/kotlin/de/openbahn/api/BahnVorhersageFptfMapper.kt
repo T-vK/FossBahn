@@ -6,6 +6,8 @@ import de.openbahn.model.RatedJourney
 import de.openbahn.model.StopEvent
 import de.openbahn.model.StopTimelinessPrediction
 import de.openbahn.model.TransferPrediction
+import de.openbahn.model.stationNamesMatch
+import java.time.Duration
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -55,7 +57,7 @@ internal object BahnVorhersageFptfMapper {
         return buildJsonObject {
             putJsonArray("journeys") {
                 journeys.forEach { journey ->
-                    add(journeyJson(journey, expandedByJourney.getValue(journey)))
+                    add(journeyJson(journey, expandedByJourney.getValue(journey), tripRoutes))
                 }
             }
             put("trips", tripsJson)
@@ -128,6 +130,7 @@ internal object BahnVorhersageFptfMapper {
                     applyDelayPrediction(
                         heuristicStops,
                         legIndex,
+                        intermediateIndex = null,
                         isArrival = false,
                         ratedLeg["departureDelayPrediction"]?.jsonObject,
                         options,
@@ -135,8 +138,23 @@ internal object BahnVorhersageFptfMapper {
                     applyDelayPrediction(
                         heuristicStops,
                         legIndex,
+                        intermediateIndex = null,
                         isArrival = true,
                         ratedLeg["arrivalDelayPrediction"]?.jsonObject,
+                        options,
+                    )
+                    applyStopoverDelayPredictions(
+                        heuristicStops,
+                        legIndex,
+                        ratingLeg.leg,
+                        ratedLeg,
+                        options,
+                    )
+                    applyViaMlFromLegEndpoints(
+                        heuristicStops,
+                        legIndex,
+                        ratingLeg.leg,
+                        ratedLeg,
                         options,
                     )
                 }
@@ -154,7 +172,7 @@ internal object BahnVorhersageFptfMapper {
             predictions = transfers,
             stopTimeliness = stopTimeliness,
             punctualityProbability = punctuality,
-            punctualityIsEstimate = false,
+            punctualityIsEstimate = stopTimeliness.any { it.isEstimate },
             minTransferMinutesUsed = options.minTransferMinutes,
             onTimeTolerance = options.onTimeTolerance,
             punctualityToleranceMinutes = options.onTimeTolerance.arrivalMinutes,
@@ -179,37 +197,123 @@ internal object BahnVorhersageFptfMapper {
     private fun applyDelayPrediction(
         stops: MutableList<StopTimelinessPrediction>,
         legIndex: Int,
+        intermediateIndex: Int?,
         isArrival: Boolean,
         prediction: JsonObject?,
         options: JourneyRatingOptions,
     ) {
         if (prediction == null) return
-        val distribution = prediction["predictions"]?.jsonArray?.mapNotNull {
-            it.jsonPrimitive.content.toDoubleOrNull()
-        } ?: return
-        if (distribution.isEmpty()) return
+        val distribution = parseDelayDistribution(prediction) ?: return
         val offset = prediction["offset"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0
-        val tolerance = options.onTimeTolerance.forStop(intermediateIndex = null, isArrival = isArrival)
+        val tolerance = options.onTimeTolerance.forStop(intermediateIndex, isArrival)
         val probability = PredictionScoring.probabilityOnTime(distribution, offset, tolerance)
-        val idx = stops.indexOfFirst {
-            it.legIndex == legIndex && it.intermediateIndex == null && it.isArrival == isArrival
-        }
-        if (idx >= 0) {
-            stops[idx] = stops[idx].copy(probability = probability, isEstimate = false)
+        replaceStopTimeliness(stops, legIndex, intermediateIndex, isArrival, probability, isEstimate = false)
+    }
+
+    private fun applyStopoverDelayPredictions(
+        stops: MutableList<StopTimelinessPrediction>,
+        legIndex: Int,
+        leg: Leg,
+        ratedLeg: JsonObject,
+        options: JourneyRatingOptions,
+    ) {
+        val stopovers = ratedLeg["stopovers"]?.jsonArray ?: return
+        leg.intermediateStops.forEachIndexed { viaIndex, via ->
+            val ratedStopover = stopovers.mapNotNull { it.jsonObject }.firstOrNull { stopover ->
+                val name = stopover["stop"]?.jsonObject?.get("name")?.jsonPrimitive?.content
+                name != null && stationNamesMatch(name, via.name)
+            } ?: return@forEachIndexed
+            val prediction = ratedStopover["arrivalDelayPrediction"]?.jsonObject
+                ?: ratedStopover["departureDelayPrediction"]?.jsonObject
+            applyDelayPrediction(stops, legIndex, viaIndex, isArrival = true, prediction, options)
         }
     }
 
-    private fun journeyJson(journey: Journey, expandedLegs: List<RatingLeg>): JsonObject = buildJsonObject {
+    /** When the API only rates leg endpoints, derive via scores from those PMFs (not a fresh heuristic). */
+    private fun applyViaMlFromLegEndpoints(
+        stops: MutableList<StopTimelinessPrediction>,
+        legIndex: Int,
+        leg: Leg,
+        ratedLeg: JsonObject,
+        options: JourneyRatingOptions,
+    ) {
+        if (leg.intermediateStops.isEmpty()) return
+        val depPrediction = ratedLeg["departureDelayPrediction"]?.jsonObject ?: return
+        val arrPrediction = ratedLeg["arrivalDelayPrediction"]?.jsonObject ?: return
+        val depDist = parseDelayDistribution(depPrediction) ?: return
+        val arrDist = parseDelayDistribution(arrPrediction) ?: return
+        val depOffset = depPrediction["offset"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0
+        val arrOffset = arrPrediction["offset"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0
+        val depInstant = parseIsoLocal(leg.origin.scheduledTime) ?: return
+        val arrInstant = parseIsoLocal(leg.destination.scheduledTime) ?: return
+        val legMinutes = Duration.between(depInstant, arrInstant).toMinutes().coerceAtLeast(1)
+        leg.intermediateStops.forEachIndexed { viaIndex, via ->
+            val existing = stops.indexOfFirst {
+                it.legIndex == legIndex && it.intermediateIndex == viaIndex && it.isArrival
+            }
+            if (existing < 0 || !stops[existing].isEstimate) return@forEachIndexed
+            val viaInstant = parseIsoLocal(via.scheduledTime) ?: return@forEachIndexed
+            val viaMinutes = Duration.between(depInstant, viaInstant).toMinutes().coerceAtLeast(0)
+            val fraction = (viaMinutes.toDouble() / legMinutes.toDouble()).coerceIn(0.0, 1.0)
+            val tolerance = options.onTimeTolerance.forStop(viaIndex, isArrival = true)
+            val pDep = PredictionScoring.probabilityOnTime(depDist, depOffset, tolerance)
+            val pArr = PredictionScoring.probabilityOnTime(arrDist, arrOffset, tolerance)
+            val probability = pDep * (1.0 - fraction) + pArr * fraction
+            replaceStopTimeliness(stops, legIndex, viaIndex, isArrival = true, probability, isEstimate = false)
+        }
+    }
+
+    private fun replaceStopTimeliness(
+        stops: MutableList<StopTimelinessPrediction>,
+        legIndex: Int,
+        intermediateIndex: Int?,
+        isArrival: Boolean,
+        probability: Double,
+        isEstimate: Boolean,
+    ) {
+        val idx = stops.indexOfFirst {
+            it.legIndex == legIndex &&
+                it.intermediateIndex == intermediateIndex &&
+                it.isArrival == isArrival
+        }
+        if (idx >= 0) {
+            stops[idx] = stops[idx].copy(
+                probability = probability.coerceIn(0.0, 1.0),
+                isEstimate = isEstimate,
+            )
+        }
+    }
+
+    private fun parseDelayDistribution(prediction: JsonObject): List<Double>? =
+        prediction["predictions"]?.jsonArray?.mapNotNull {
+            it.jsonPrimitive.content.toDoubleOrNull()
+        }?.takeIf { it.isNotEmpty() }
+
+    private fun parseIsoLocal(raw: String): java.time.Instant? = try {
+        java.time.LocalDateTime.parse(raw.take(19), localDateTime).atZone(berlin).toInstant()
+    } catch (_: Exception) {
+        null
+    }
+
+    private fun journeyJson(
+        journey: Journey,
+        expandedLegs: List<RatingLeg>,
+        tripRoutes: Map<String, List<StopEvent>>,
+    ): JsonObject = buildJsonObject {
         put("type", "journey")
         journey.refreshToken?.let { put("refreshToken", it) }
         putJsonArray("legs") {
             expandedLegs.forEach { ratingLeg ->
-                add(legJson(ratingLeg, journey.id))
+                add(legJson(ratingLeg, journey.id, tripRoutes))
             }
         }
     }
 
-    private fun legJson(ratingLeg: RatingLeg, journeyId: String): JsonObject {
+    private fun legJson(
+        ratingLeg: RatingLeg,
+        journeyId: String,
+        tripRoutes: Map<String, List<StopEvent>>,
+    ): JsonObject {
         val leg = ratingLeg.leg
         if (leg.isWalking) {
             // bahnvorhersage.api.fptf.leg_or_transfer only treats `walking: true` as a transfer.
@@ -224,6 +328,7 @@ internal object BahnVorhersageFptfMapper {
             }
         }
         val tripId = ratingTripId(journeyId, ratingLeg.sourceLegIndex, leg)
+        val segmentStops = tripRoutes[tripId] ?: passengerSegmentStopsForRating(leg)
         return buildJsonObject {
             put("type", "leg")
             putObject("origin", stopJson(leg.origin))
@@ -237,6 +342,13 @@ internal object BahnVorhersageFptfMapper {
             put("cancelled", leg.origin.cancelled || leg.destination.cancelled)
             put("tripId", tripId)
             putObject("line", lineJson(leg))
+            if (segmentStops.size >= 2) {
+                putJsonArray("stopovers") {
+                    segmentStops.forEach { stop ->
+                        add(stopoverJson(stop, segmentStops))
+                    }
+                }
+            }
         }
     }
 

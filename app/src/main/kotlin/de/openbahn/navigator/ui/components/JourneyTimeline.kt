@@ -129,6 +129,10 @@ internal fun LegTimelineBlock(
                     predictionsRequested = false,
                     toleranceMinutes = defaultOnTime.viaStopMinutes,
                     minTransferMinutesUsed = minTransfer,
+                    prediction = prediction,
+                    legIndex = legIndex,
+                    intermediateIndex = null,
+                    isArrival = stopIndex > 0,
                     navigateTestTag = "leg_${legIndex}_route_stop_$stopIndex",
                     muted = !onTrip,
                 )
@@ -161,6 +165,10 @@ internal fun LegTimelineBlock(
             predictionsRequested = predictionsRequested,
             toleranceMinutes = toleranceAt(intermediateIndex = null, isArrival = false),
             minTransferMinutesUsed = minTransfer,
+            prediction = prediction,
+            legIndex = legIndex,
+            intermediateIndex = null,
+            isArrival = false,
             navigateTestTag = "navigate_leg_${legIndex}_departure",
             belowStation = {
                 LegTimelineTrainChip(leg = leg)
@@ -208,6 +216,10 @@ internal fun LegTimelineBlock(
                             predictionsRequested = predictionsRequested,
                             toleranceMinutes = toleranceAt(intermediateIndex = viaIndex, isArrival = true),
                             minTransferMinutesUsed = minTransfer,
+                            prediction = prediction,
+                            legIndex = legIndex,
+                            intermediateIndex = viaIndex,
+                            isArrival = true,
                             navigateTestTag = "leg_${legIndex}_via_stop",
                             muted = false,
                         )
@@ -236,6 +248,10 @@ internal fun LegTimelineBlock(
             predictionsRequested = predictionsRequested,
             toleranceMinutes = toleranceAt(intermediateIndex = null, isArrival = true),
             minTransferMinutesUsed = minTransfer,
+            prediction = prediction,
+            legIndex = legIndex,
+            intermediateIndex = null,
+            isArrival = true,
             navigateTestTag = "navigate_leg_${legIndex}_arrival",
             modifier = Modifier.testTag("leg_${legIndex}_arrival"),
         )
@@ -425,6 +441,10 @@ private fun TimelineStopRow(
     predictionsRequested: Boolean,
     toleranceMinutes: Int,
     minTransferMinutesUsed: Int?,
+    prediction: RatedJourney?,
+    legIndex: Int,
+    intermediateIndex: Int?,
+    isArrival: Boolean,
     navigateTestTag: String,
     muted: Boolean = false,
     belowStation: @Composable (() -> Unit)? = null,
@@ -454,6 +474,10 @@ private fun TimelineStopRow(
             timelinessIsEstimate = timelinessIsEstimate,
             toleranceMinutes = toleranceMinutes,
             minTransferMinutesUsed = minTransferMinutesUsed,
+            prediction = prediction,
+            legIndex = legIndex,
+            intermediateIndex = intermediateIndex,
+            isArrival = isArrival,
         )
         TimelineRailColumn(
             showLineAbove = spineLineAbove,
@@ -677,6 +701,10 @@ private fun TimelineTimeColumn(
     timelinessIsEstimate: Boolean,
     toleranceMinutes: Int,
     minTransferMinutesUsed: Int?,
+    prediction: RatedJourney?,
+    legIndex: Int,
+    intermediateIndex: Int?,
+    isArrival: Boolean,
 ) {
     val effectiveDelay = delayMinutes.takeIf { it > 0 }
         ?: delayMinutesFromTimes(scheduled, prognosed)
@@ -709,6 +737,10 @@ private fun TimelineTimeColumn(
                 isEstimate = timelinessIsEstimate,
                 toleranceMinutes = toleranceMinutes,
                 minTransferMinutesUsed = minTransferMinutesUsed,
+                prediction = prediction,
+                legIndex = legIndex,
+                intermediateIndex = intermediateIndex,
+                isArrival = isArrival,
             )
         } else {
             Text(
@@ -737,6 +769,10 @@ private fun TimelineTimeWithPercent(
     isEstimate: Boolean,
     toleranceMinutes: Int,
     minTransferMinutesUsed: Int?,
+    prediction: RatedJourney?,
+    legIndex: Int,
+    intermediateIndex: Int?,
+    isArrival: Boolean,
 ) {
     var showTooltip by remember { mutableStateOf(false) }
     val timeColor = if (delayed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
@@ -762,6 +798,10 @@ private fun TimelineTimeWithPercent(
     }
     if (showTooltip) {
         TimelinessProbabilityDialog(
+            prediction = prediction,
+            legIndex = legIndex,
+            intermediateIndex = intermediateIndex,
+            isArrival = isArrival,
             isEstimate = isEstimate,
             toleranceMinutes = toleranceMinutes,
             minTransferMinutesUsed = minTransferMinutesUsed,
