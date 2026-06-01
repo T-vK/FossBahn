@@ -39,6 +39,7 @@ internal object BahnVorhersageFptfMapper {
         journeys: List<Journey>,
         tripRoutes: Map<String, List<StopEvent>>,
     ): JsonObject {
+        val expandedByJourney = journeys.associateWith { expandLegsForRating(it.legs) }
         val tripsJson = buildJsonObject {
             tripRoutes.forEach { (tripId, stops) ->
                 putJsonObject(tripId) {
@@ -54,7 +55,7 @@ internal object BahnVorhersageFptfMapper {
         return buildJsonObject {
             putJsonArray("journeys") {
                 journeys.forEach { journey ->
-                    add(journeyJson(journey))
+                    add(journeyJson(journey, expandedByJourney.getValue(journey)))
                 }
             }
             put("trips", tripsJson)
@@ -96,6 +97,7 @@ internal object BahnVorhersageFptfMapper {
                 }
             toRatedJourney(
                 journey = journeys[index],
+                expandedLegs = expandLegsForRating(journeys[index].legs),
                 ratedJson = obj,
                 options = options,
             )
@@ -104,6 +106,7 @@ internal object BahnVorhersageFptfMapper {
 
     private fun toRatedJourney(
         journey: Journey,
+        expandedLegs: List<RatingLeg>,
         ratedJson: JsonObject,
         options: JourneyRatingOptions,
     ): RatedJourney {
@@ -114,29 +117,29 @@ internal object BahnVorhersageFptfMapper {
         ).toMutableList()
         val transfers = mutableListOf<TransferPrediction>()
         val ratedLegs: List<JsonElement> = ratedJson["legs"]?.jsonArray?.toList() ?: emptyList()
-        var ratedIndex = 0
-        journey.legs.forEachIndexed { legIndex, journeyLeg ->
-            if (journeyLeg.isWalking) {
-                val transferJson = ratedLegs.getOrNull(ratedIndex)?.jsonObject ?: return@forEachIndexed
-                ratedIndex++
-                parseTransferScore(transferJson, legIndex - 1)?.let { transfers.add(it) }
-            } else {
-                val railJson = ratedLegs.getOrNull(ratedIndex)?.jsonObject ?: return@forEachIndexed
-                ratedIndex++
-                applyDelayPrediction(
-                    heuristicStops,
-                    legIndex,
-                    isArrival = false,
-                    railJson["departureDelayPrediction"]?.jsonObject,
-                    options,
-                )
-                applyDelayPrediction(
-                    heuristicStops,
-                    legIndex,
-                    isArrival = true,
-                    railJson["arrivalDelayPrediction"]?.jsonObject,
-                    options,
-                )
+        expandedLegs.forEachIndexed { expandedIndex, ratingLeg ->
+            val ratedLeg = ratedLegs.getOrNull(expandedIndex)?.jsonObject ?: return@forEachIndexed
+            when {
+                ratingLeg.leg.isWalking -> {
+                    parseTransferScore(ratedLeg, ratingLeg.sourceLegIndex)?.let { transfers.add(it) }
+                }
+                else -> {
+                    val legIndex = ratingLeg.sourceLegIndex
+                    applyDelayPrediction(
+                        heuristicStops,
+                        legIndex,
+                        isArrival = false,
+                        ratedLeg["departureDelayPrediction"]?.jsonObject,
+                        options,
+                    )
+                    applyDelayPrediction(
+                        heuristicStops,
+                        legIndex,
+                        isArrival = true,
+                        ratedLeg["arrivalDelayPrediction"]?.jsonObject,
+                        options,
+                    )
+                }
             }
         }
 
@@ -199,29 +202,31 @@ internal object BahnVorhersageFptfMapper {
         }
     }
 
-    private fun journeyJson(journey: Journey): JsonObject = buildJsonObject {
+    private fun journeyJson(journey: Journey, expandedLegs: List<RatingLeg>): JsonObject = buildJsonObject {
         put("type", "journey")
         journey.refreshToken?.let { put("refreshToken", it) }
         putJsonArray("legs") {
-            journey.legs.forEachIndexed { legIndex, leg ->
-                add(legJson(leg, journey.id, legIndex))
+            expandedLegs.forEach { ratingLeg ->
+                add(legJson(ratingLeg, journey.id))
             }
         }
     }
 
-    private fun legJson(leg: Leg, journeyId: String, legIndex: Int): JsonObject {
+    private fun legJson(ratingLeg: RatingLeg, journeyId: String): JsonObject {
+        val leg = ratingLeg.leg
         if (leg.isWalking) {
             // bahnvorhersage.api.fptf.leg_or_transfer only treats `walking: true` as a transfer.
+            // Transfer duration = departure - arrival (arrival at origin, then depart toward next leg).
             return buildJsonObject {
                 put("walking", true)
                 putObject("origin", stopJson(leg.origin))
                 putObject("destination", stopJson(leg.destination))
-                put("departure", timeJson(leg.origin))
-                put("arrival", timeJson(leg.destination))
+                put("arrival", timeJson(leg.origin))
+                put("departure", timeJson(leg.destination))
                 leg.distanceMeters?.let { put("distance", it) }
             }
         }
-        val tripId = ratingTripId(journeyId, legIndex, leg)
+        val tripId = ratingTripId(journeyId, ratingLeg.sourceLegIndex, leg)
         return buildJsonObject {
             put("type", "leg")
             putObject("origin", stopJson(leg.origin))
@@ -290,7 +295,7 @@ internal object BahnVorhersageFptfMapper {
         val (lat, lon) = BahnVorhersageStationData.coordsForStop(stop)
             ?: BahnVorhersageStationData.defaultCoordsForName(stop.name)
             ?: (0.0 to 0.0)
-        val stopId = stop.id?.takeIf { it.isNotBlank() } ?: "eva:${stop.name}"
+        val stopId = BahnVorhersageStationData.evaIdForStop(stop)
         return buildJsonObject {
             put("id", stopId)
             put("name", stop.name)
