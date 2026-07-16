@@ -49,6 +49,7 @@ fun TrackingScreen(
     viewModel: TrackingViewModel = koinViewModel(),
 ) {
     val tracked by viewModel.tracked.collectAsState()
+    val predictions by viewModel.predictions.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val showBatteryBanner by viewModel.showBatteryOptimizationBanner.collectAsState()
     val highlightId by viewModel.highlightTrackedJourneyId.collectAsState()
@@ -128,12 +129,18 @@ fun TrackingScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(tracked, key = { it.entity.id }) { item ->
+                        val prediction = predictions[item.journey.id]
                         Column(Modifier.fillMaxWidth()) {
                             JourneyCard(
                                 journey = item.journey,
+                                prediction = prediction,
                                 predictionsRequested = true,
                                 onOpenFullscreen = {
-                                    JourneyNavigation.set(item.journey, predictionsRequested = true)
+                                    JourneyNavigation.set(
+                                        item.journey,
+                                        prediction = prediction,
+                                        predictionsRequested = true,
+                                    )
                                     onOpenJourneyDetail()
                                 },
                             )

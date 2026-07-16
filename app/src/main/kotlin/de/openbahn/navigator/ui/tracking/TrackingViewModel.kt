@@ -3,7 +3,9 @@ package de.openbahn.navigator.ui.tracking
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import de.openbahn.api.JourneyRatingOptions
 import de.openbahn.model.Location
+import de.openbahn.model.RatedJourney
 import de.openbahn.navigator.data.AlternativesSearchRequest
 import de.openbahn.navigator.data.PendingSearchRepository
 import de.openbahn.navigator.data.TrackedJourneyRepository
@@ -15,12 +17,15 @@ import de.openbahn.navigator.tracking.JourneyTrackingCoordinator
 import de.openbahn.navigator.tracking.TrackedJourneyRefreshUseCase
 import de.openbahn.navigator.ui.util.parseJourneyDateTime
 import java.time.LocalDateTime
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class TrackingViewModel(
@@ -38,6 +43,13 @@ class TrackingViewModel(
     private val _highlightTrackedJourneyId = MutableStateFlow<String?>(null)
     val highlightTrackedJourneyId: StateFlow<String?> = _highlightTrackedJourneyId.asStateFlow()
 
+    private val _predictions = MutableStateFlow<Map<String, RatedJourney>>(emptyMap())
+
+    /** Bahn-Vorhersage ratings for the tracked journeys, keyed by journey id. */
+    val predictions: StateFlow<Map<String, RatedJourney>> = _predictions.asStateFlow()
+
+    private var predictionsJob: Job? = null
+
     init {
         viewModelScope.launch {
             trackingCoordinator.restoreOnLaunch()
@@ -47,6 +59,27 @@ class TrackingViewModel(
 
     val tracked = repository.observeActive()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList<TrackedJourneyWithJourney>())
+
+    init {
+        viewModelScope.launch {
+            tracked.collect { list -> refreshPredictions(list) }
+        }
+    }
+
+    private fun refreshPredictions(list: List<TrackedJourneyWithJourney>) {
+        predictionsJob?.cancel()
+        val activeIds = list.map { it.journey.id }.toSet()
+        _predictions.update { current -> current.filterKeys { it in activeIds } }
+        if (list.isEmpty()) return
+        predictionsJob = viewModelScope.launch {
+            val options = JourneyRatingOptions(onTimeTolerance = userPreferences.onTimeTolerance.first())
+            list.forEach { item ->
+                val rated = runCatching { searchRepository.rateJourney(item.journey, options) }.getOrNull()
+                    ?: return@forEach
+                _predictions.update { it + (item.journey.id to rated) }
+            }
+        }
+    }
 
     val showBatteryOptimizationBanner = combine(
         tracked,
