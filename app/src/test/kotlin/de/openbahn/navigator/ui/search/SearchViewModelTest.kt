@@ -205,7 +205,7 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun arrivalSearch_ordersBestMatchAndPrecedingFirst() = runTest(dispatcher) {
+    fun arrivalSearch_trimsToBestMatchWithQualifyingBuffer() = runTest(dispatcher) {
         fun journey(id: String, arrival: String) = Journey(
             id = id,
             legs = listOf(
@@ -219,17 +219,15 @@ class SearchViewModelTest {
             departure = "2026-05-30T07:00:00",
             arrival = arrival,
         )
-        // Initial arrival page (chronological, as returned by the API).
-        val first = journey("first", "2026-05-30T09:59:00")
+        val best = journey("best", "2026-05-30T09:59:00")
         val later = journey("later", "2026-05-30T10:30:00")
-        // Earlier page fetched automatically once after the initial arrival search.
         val tooEarly = journey("tooEarly", "2026-05-30T09:40:00")
         val preceding = journey("preceding", "2026-05-30T09:53:00")
 
         coEvery {
             searchRepository.searchJourneys(any(), any(), any(), any(), any())
         } returns JourneySearchResult(
-            journeys = listOf(first, later),
+            journeys = listOf(best, later),
             pagingEarlier = "earlier-page-token",
             pagingLater = "later-page-token",
         )
@@ -238,7 +236,12 @@ class SearchViewModelTest {
         } returns JourneySearchResult(
             journeys = listOf(tooEarly, preceding),
             pagingEarlier = "even-earlier-token",
-            pagingLater = "earlier-later-token",
+        )
+        coEvery {
+            searchRepository.searchJourneys(any(), any(), any(), any(), eq("later-page-token"))
+        } returns JourneySearchResult(
+            journeys = emptyList(),
+            pagingLater = "even-later-token",
         )
 
         val viewModel = createViewModel()
@@ -249,19 +252,61 @@ class SearchViewModelTest {
         advanceUntilIdle()
 
         val state = viewModel.state.value
-        // API order is preserved; only the single qualifying earlier connection (09:53, within
-        // 10 min of the 10:00 target and before the first result) is prepended. The too-early 09:40
-        // connection is not prepended.
         assertEquals(
-            listOf("preceding", "first", "later"),
+            listOf("preceding", "best", "later"),
             state.journeys.map { it.id },
         )
-        // "Load earlier" continues from the earlier page's own paging token.
         assertEquals("even-earlier-token", state.pagingEarlier)
+        assertEquals("even-later-token", state.pagingLater)
     }
 
     @Test
-    fun arrivalSearch_withoutQualifyingEarlierResult_prependsNothing() = runTest(dispatcher) {
+    fun arrivalSearch_fetchesLaterPageToSurfaceBestMatch() = runTest(dispatcher) {
+        fun journey(id: String, arrival: String) = Journey(
+            id = id,
+            legs = listOf(
+                Leg(
+                    origin = StopEvent("Berlin Hbf", scheduledTime = "2026-05-30T07:00:00"),
+                    destination = StopEvent("München Hbf", scheduledTime = arrival),
+                ),
+            ),
+            durationMinutes = 60,
+            transfers = 0,
+            departure = "2026-05-30T07:00:00",
+            arrival = arrival,
+        )
+        val initialEarly = journey("initialEarly", "2026-05-30T17:30:00")
+        val laterBest = journey("laterBest", "2026-05-30T18:00:00")
+        val laterAfter = journey("laterAfter", "2026-05-30T18:15:00")
+
+        coEvery {
+            searchRepository.searchJourneys(any(), any(), any(), any(), any())
+        } returns JourneySearchResult(
+            journeys = listOf(initialEarly),
+            pagingLater = "later-page-token",
+        )
+        coEvery {
+            searchRepository.searchJourneys(any(), any(), any(), any(), eq("later-page-token"))
+        } returns JourneySearchResult(
+            journeys = listOf(laterBest, laterAfter),
+            pagingLater = "even-later-token",
+        )
+
+        val viewModel = createViewModel()
+        viewModel.selectFrom(berlin)
+        viewModel.selectTo(munich)
+        viewModel.setWhen(LocalDateTime.of(2026, 5, 30, 18, 0), arrivalSearch = true)
+        viewModel.search()
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf("laterBest", "laterAfter"),
+            viewModel.state.value.journeys.map { it.id },
+        )
+    }
+
+    @Test
+    fun arrivalSearch_withoutQualifyingBuffer_startsAtBestMatch() = runTest(dispatcher) {
         fun journey(id: String, arrival: String) = Journey(
             id = id,
             legs = listOf(
@@ -292,6 +337,9 @@ class SearchViewModelTest {
             journeys = listOf(tooEarly),
             pagingEarlier = "even-earlier-token",
         )
+        coEvery {
+            searchRepository.searchJourneys(any(), any(), any(), any(), eq("later-page-token"))
+        } returns JourneySearchResult(journeys = emptyList())
 
         val viewModel = createViewModel()
         viewModel.selectFrom(berlin)

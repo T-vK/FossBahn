@@ -610,27 +610,41 @@ class SearchViewModel(
             )
             val existing = if (replaceResults) emptyList() else _state.value.journeys
             val existingIds = existing.map { it.id }.toSet()
-            // Never reorder the API results. For the initial arrival ("arrive by") search we may
-            // automatically fetch one earlier page and prepend a single connection that arrives just
-            // before the first result while still being within the allowed window of the target.
+            // Never reorder API results. For the initial arrival ("arrive by") search we fetch the
+            // adjacent earlier and later pages, merge them chronologically, then hide leading results
+            // until the best match is first or a qualifying buffer connection is first with the best
+            // match second.
             var incoming = page.journeys
-            var didFetchEarlier = false
-            var earlierPagingEarlier: String? = null
+            var fetchedEarlierPagingEarlier: String? = null
+            var fetchedLaterPagingLater: String? = null
             val isInitialArrivalSearch = options.arrivalSearch && replaceResults && pagingReference == null
-            if (isInitialArrivalSearch && page.pagingEarlier != null && page.journeys.isNotEmpty()) {
-                val earlierPage = searchUseCase.searchJourneys(
-                    from, to, options, whenTime, page.pagingEarlier,
-                )
-                didFetchEarlier = true
-                earlierPagingEarlier = earlierPage.pagingEarlier
-                val candidate = selectArrivalPrependCandidate(
-                    earlierJourneys = earlierPage.journeys,
-                    firstJourney = page.journeys.first(),
-                    targetArrival = whenTime,
-                )
-                if (candidate != null) {
-                    incoming = (listOf(candidate) + page.journeys).distinctBy { it.id }
+            if (isInitialArrivalSearch && page.journeys.isNotEmpty()) {
+                val earlierJourneys = if (page.pagingEarlier != null) {
+                    val earlierPage = searchUseCase.searchJourneys(
+                        from, to, options, whenTime, page.pagingEarlier,
+                    )
+                    fetchedEarlierPagingEarlier = earlierPage.pagingEarlier
+                    earlierPage.journeys
+                } else {
+                    emptyList()
                 }
+                val laterJourneys = if (page.pagingLater != null) {
+                    val laterPage = searchUseCase.searchJourneys(
+                        from, to, options, whenTime, page.pagingLater,
+                    )
+                    fetchedLaterPagingLater = laterPage.pagingLater
+                    laterPage.journeys
+                } else {
+                    emptyList()
+                }
+                incoming = trimArrivalResultsForDisplay(
+                    mergeArrivalSearchPages(
+                        initial = page.journeys,
+                        earlier = earlierJourneys,
+                        later = laterJourneys,
+                    ),
+                    whenTime,
+                )
             }
             val mergedJourneys = mergeJourneys(existing, incoming, prepend)
             val newJourneys = incoming.filter { it.id !in existingIds }
@@ -653,12 +667,12 @@ class SearchViewModel(
                     journeys = mergedJourneys,
                     ratedJourneys = keptRated,
                     pagingEarlier = when {
-                        replaceResults -> if (didFetchEarlier) earlierPagingEarlier else page.pagingEarlier
+                        replaceResults -> fetchedEarlierPagingEarlier ?: page.pagingEarlier
                         prepend -> page.pagingEarlier
                         else -> it.pagingEarlier
                     },
                     pagingLater = when {
-                        replaceResults -> page.pagingLater
+                        replaceResults -> fetchedLaterPagingLater ?: page.pagingLater
                         !prepend && pagingReference != null -> page.pagingLater
                         else -> it.pagingLater
                     },

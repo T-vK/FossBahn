@@ -4,7 +4,6 @@ import de.openbahn.model.Journey
 import de.openbahn.model.Leg
 import de.openbahn.model.StopEvent
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import java.time.LocalDateTime
 
@@ -33,101 +32,100 @@ class ArrivalResultOrderingTest {
         arrival = arrivalScheduled,
     )
 
-    private val target = LocalDateTime.of(2026, 5, 30, 10, 0)
+    private val target = LocalDateTime.of(2026, 5, 30, 18, 0)
 
     @Test
-    fun selectsLatestQualifyingCandidateBeforeFirstResult() {
-        val first = journey("first", "2026-05-30T10:00:00")
-        val p1 = journey("p1", "2026-05-30T09:51:00")
-        val p2 = journey("p2", "2026-05-30T09:58:00")
-        val candidate = selectArrivalPrependCandidate(listOf(p1, p2), first, target)
-        // Both arrive before the first result and within 10 min of the target; the latest wins.
-        assertEquals("p2", candidate?.id)
+    fun mergeArrivalSearchPages_keepsChronologicalOrderAcrossPages() {
+        val earlier = journey("earlier", "2026-05-30T17:30:00")
+        val initial = journey("initial", "2026-05-30T18:00:00")
+        val later = journey("later", "2026-05-30T18:15:00")
+        val merged = mergeArrivalSearchPages(
+            initial = listOf(initial),
+            earlier = listOf(earlier),
+            later = listOf(later),
+        )
+        assertEquals(listOf("earlier", "initial", "later"), merged.map { it.id })
     }
 
     @Test
-    fun ignoresCandidatesOutsideTheWindow() {
-        val first = journey("first", "2026-05-30T10:00:00")
-        val early = journey("early", "2026-05-30T09:45:00")
-        val candidate = selectArrivalPrependCandidate(listOf(early), first, target)
-        // 09:45 is 15 min before the target -> outside the 10-minute window.
-        assertNull(candidate)
+    fun trim_hidesEarlyResultsAndStartsAtBestMatch() {
+        val early1 = journey("early1", "2026-05-30T16:00:00")
+        val early2 = journey("early2", "2026-05-30T17:00:00")
+        val best = journey("best", "2026-05-30T18:00:00")
+        val after = journey("after", "2026-05-30T18:15:00")
+        val trimmed = trimArrivalResultsForDisplay(listOf(early1, early2, best, after), target)
+        assertEquals(listOf("best", "after"), trimmed.map { it.id })
     }
 
     @Test
-    fun candidateExactlyAtWindowEdgeQualifies() {
-        val first = journey("first", "2026-05-30T10:00:00")
-        val edge = journey("edge", "2026-05-30T09:50:00")
-        val candidate = selectArrivalPrependCandidate(listOf(edge), first, target)
-        // 09:50 is exactly 10 min before the target -> still inside the window.
-        assertEquals("edge", candidate?.id)
+    fun trim_keepsQualifyingBufferBeforeBestMatch() {
+        val early = journey("early", "2026-05-30T16:00:00")
+        val buffer = journey("buffer", "2026-05-30T17:58:00")
+        val best = journey("best", "2026-05-30T18:00:00")
+        val after = journey("after", "2026-05-30T18:15:00")
+        val trimmed = trimArrivalResultsForDisplay(listOf(early, buffer, best, after), target)
+        assertEquals(listOf("buffer", "best", "after"), trimmed.map { it.id })
     }
 
     @Test
-    fun ignoresCandidatesArrivingAtOrAfterFirstResult() {
-        val first = journey("first", "2026-05-30T09:55:00")
-        val same = journey("same", "2026-05-30T09:55:00")
-        val later = journey("later", "2026-05-30T09:58:00")
-        val candidate = selectArrivalPrependCandidate(listOf(same, later), first, target)
-        // Neither arrives strictly before the first result.
-        assertNull(candidate)
+    fun trim_ignoresBufferOutsideTenMinuteWindow() {
+        val early = journey("early", "2026-05-30T17:30:00")
+        val best = journey("best", "2026-05-30T18:00:00")
+        val trimmed = trimArrivalResultsForDisplay(listOf(early, best), target)
+        assertEquals(listOf("best"), trimmed.map { it.id })
     }
 
     @Test
-    fun prognosedArrivalTakesPrecedenceOverScheduled() {
-        val first = journey("first", "2026-05-30T10:00:00")
-        // Scheduled 09:40 but prognosed 09:58 -> treated as 09:58, which qualifies.
-        val delayed = journey("delayed", "2026-05-30T09:40:00", arrivalPrognosed = "2026-05-30T09:58:00")
-        val candidate = selectArrivalPrependCandidate(listOf(delayed), first, target)
-        assertEquals("delayed", candidate?.id)
+    fun trim_usesLaterPageToFindBestMatchWhenInitialResultsAreTooEarly() {
+        val initialEarly = journey("initialEarly", "2026-05-30T17:30:00")
+        val laterBest = journey("laterBest", "2026-05-30T18:00:00")
+        val laterAfter = journey("laterAfter", "2026-05-30T18:15:00")
+        val merged = mergeArrivalSearchPages(
+            initial = listOf(initialEarly),
+            later = listOf(laterBest, laterAfter),
+        )
+        val trimmed = trimArrivalResultsForDisplay(merged, target)
+        assertEquals(listOf("laterBest", "laterAfter"), trimmed.map { it.id })
     }
 
     @Test
-    fun returnsNullForEmptyEarlierPage() {
-        val first = journey("first", "2026-05-30T10:00:00")
-        assertNull(selectArrivalPrependCandidate(emptyList(), first, target))
+    fun trim_usesTwoHourWindowWhenBestMatchIsMoreThanTenMinutesLate() {
+        val buffer = journey("buffer", "2026-05-30T16:30:00")
+        val best = journey("best", "2026-05-30T18:15:00")
+        val after = journey("after", "2026-05-30T18:30:00")
+        val trimmed = trimArrivalResultsForDisplay(listOf(buffer, best, after), target)
+        assertEquals(listOf("buffer", "best", "after"), trimmed.map { it.id })
     }
 
     @Test
-    fun ignoresCandidateWithSameIdAsFirstResult() {
-        val first = journey("first", "2026-05-30T10:00:00")
-        val duplicate = journey("first", "2026-05-30T09:58:00")
-        assertNull(selectArrivalPrependCandidate(listOf(duplicate), first, target))
+    fun trim_twoHourWindowStillRejectsBuffersBeforeWindowEdge() {
+        val tooEarly = journey("tooEarly", "2026-05-30T15:59:00")
+        val best = journey("best", "2026-05-30T18:15:00")
+        val trimmed = trimArrivalResultsForDisplay(listOf(tooEarly, best), target)
+        assertEquals(listOf("best"), trimmed.map { it.id })
     }
 
     @Test
-    fun usesTwoHourWindowWhenFirstResultIsMoreThanTenMinutesLate() {
-        val first = journey("first", "2026-05-30T10:15:00")
-        val withinTwoHours = journey("within", "2026-05-30T08:30:00")
-        val candidate = selectArrivalPrependCandidate(listOf(withinTwoHours), first, target)
-        // First result is 15 min after target -> 2 h window; 08:30 is within that and before 10:15.
-        assertEquals("within", candidate?.id)
+    fun trim_fallsBackToEarliestWhenAllResultsAreLate() {
+        val late1 = journey("late1", "2026-05-30T18:05:00")
+        val late2 = journey("late2", "2026-05-30T18:20:00")
+        val trimmed = trimArrivalResultsForDisplay(listOf(late2, late1), target)
+        assertEquals(listOf("late1", "late2"), trimmed.map { it.id })
     }
 
     @Test
-    fun twoHourWindowStillRejectsCandidatesBeforeWindowEdge() {
-        val first = journey("first", "2026-05-30T10:15:00")
-        val tooEarly = journey("tooEarly", "2026-05-30T07:59:00")
-        val candidate = selectArrivalPrependCandidate(listOf(tooEarly), first, target)
-        // 07:59 is more than 2 h before the 10:00 target.
-        assertNull(candidate)
+    fun trim_prognosedArrivalTakesPrecedenceOverScheduled() {
+        val best = journey("best", "2026-05-30T18:00:00")
+        val delayed = journey("delayed", "2026-05-30T17:40:00", arrivalPrognosed = "2026-05-30T17:58:00")
+        val trimmed = trimArrivalResultsForDisplay(listOf(delayed, best), target)
+        assertEquals(listOf("delayed", "best"), trimmed.map { it.id })
     }
 
     @Test
-    fun keepsTenMinuteWindowWhenFirstResultIsOnlySlightlyLate() {
-        val first = journey("first", "2026-05-30T10:05:00")
-        val withinTen = journey("within", "2026-05-30T09:58:00")
-        val outsideTen = journey("outside", "2026-05-30T09:45:00")
-        val candidate = selectArrivalPrependCandidate(listOf(outsideTen, withinTen), first, target)
-        // First result is only 5 min late -> still the 10-minute window.
-        assertEquals("within", candidate?.id)
-    }
-
-    @Test
-    fun arrivalPrependWindowMinutes_switchesAtTenMinuteLateThreshold() {
+    fun arrivalBufferWindowMinutes_switchesAtTenMinuteLateThreshold() {
         val target = LocalDateTime.of(2026, 5, 30, 10, 0)
-        assertEquals(10L, arrivalPrependWindowMinutes(target, target))
-        assertEquals(10L, arrivalPrependWindowMinutes(target.plusMinutes(10), target))
-        assertEquals(120L, arrivalPrependWindowMinutes(target.plusMinutes(11), target))
+        assertEquals(10L, arrivalBufferWindowMinutes(target, target))
+        assertEquals(10L, arrivalBufferWindowMinutes(target.plusMinutes(10), target))
+        assertEquals(120L, arrivalBufferWindowMinutes(target.plusMinutes(11), target))
     }
 }
