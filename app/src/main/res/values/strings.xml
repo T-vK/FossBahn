@@ -110,7 +110,7 @@
     <string name="tracking_title">Live Updates</string>
     <string name="tracking_description">While you track journeys, OpenBahn checks for delays in the background. Checks are more frequent as departure approaches (about every few seconds within 20 minutes if configured in Settings). You get a notification when a delay appears, and again each time the delay grows by your chosen amount. A small ongoing notification means monitoring is active.</string>
     <string name="tracking_info">How Live Updates work</string>
-    <string name="tracking_other_connections">Other connections</string>
+    <string name="tracking_alternative_connections">Alternative connections</string>
     <string name="tracking_battery_banner_title">Allow background monitoring</string>
     <string name="tracking_battery_banner_body">Battery saver may block delay alerts when the app is closed. Allow unrestricted battery use for OpenBahn so Live Updates keep working.</string>
     <string name="tracking_battery_allow_unrestricted">Allow unrestricted battery</string>

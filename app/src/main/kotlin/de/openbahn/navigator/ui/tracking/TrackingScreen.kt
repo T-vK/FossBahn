@@ -6,7 +6,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -143,6 +142,10 @@ fun TrackingScreen(
                                     )
                                     onOpenJourneyDetail()
                                 },
+                                onShowAlternatives = {
+                                    viewModel.openAlternatives(item.entity.id, onShowAlternatives)
+                                },
+                                onStopTracking = { viewModel.stopTracking(item.entity.id) },
                             )
                             if (item.entity.refreshToken.isNullOrBlank()) {
                                 Text(
@@ -150,18 +153,6 @@ fun TrackingScreen(
                                     style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
                                     color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                TextButton(
-                                    onClick = {
-                                        viewModel.openAlternatives(item.entity.id, onShowAlternatives)
-                                    },
-                                ) {
-                                    Text(stringResource(R.string.tracking_other_connections))
-                                }
-                                TextButton(onClick = { viewModel.stopTracking(item.entity.id) }) {
-                                    Text(stringResource(R.string.stop_tracking))
-                                }
                             }
                         }
                     }

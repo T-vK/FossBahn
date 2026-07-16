@@ -10,15 +10,21 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.ripple
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ConfirmationNumber
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.AltRoute
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -93,6 +99,7 @@ fun ErrorBanner(message: String, modifier: Modifier = Modifier) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun JourneyCard(
     journey: Journey,
@@ -101,6 +108,8 @@ fun JourneyCard(
     expanded: Boolean = false,
     onOpenFullscreen: (() -> Unit)? = null,
     onTrack: (() -> Unit)? = null,
+    onShowAlternatives: (() -> Unit)? = null,
+    onStopTracking: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     var detailsExpanded by remember(journey.id) { mutableStateOf(expanded) }
@@ -278,6 +287,42 @@ fun JourneyCard(
                                 predictionsRequested = predictionsRequested,
                                 minTransferMinutesUsed = prediction?.minTransferMinutesUsed,
                             )
+                        }
+                    }
+                }
+            }
+
+            if (onShowAlternatives != null || onStopTracking != null) {
+                FlowRow(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (onShowAlternatives != null) {
+                        TextButton(
+                            onClick = onShowAlternatives,
+                            modifier = Modifier.testTag("tracking_show_alternatives"),
+                        ) {
+                            Icon(
+                                Icons.Outlined.AltRoute,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.tracking_alternative_connections))
+                        }
+                    }
+                    if (onStopTracking != null) {
+                        TextButton(
+                            onClick = onStopTracking,
+                            modifier = Modifier.testTag("tracking_stop"),
+                        ) {
+                            Icon(
+                                Icons.Outlined.Close,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.stop_tracking))
                         }
                     }
                 }
