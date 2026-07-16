@@ -11,12 +11,17 @@ object JourneySearchTime {
     fun nowBerlin(): LocalDateTime = LocalDateTime.now(BERLIN).truncatedTo(ChronoUnit.SECONDS)
 
     /**
-     * bahn.de often returns `{}` or no connections for times in the past (even by seconds).
-     * Use Berlin wall time, drop sub-second precision, and bump to soonest future minute.
+     * Normalizes the wall-clock time sent to bahn.de (drops sub-second precision).
+     *
+     * For departure searches, bahn.de often returns `{}` for times in the past (even by
+     * seconds), so a past departure is bumped to the soonest future minute. Arrival searches
+     * must keep the requested time verbatim: bumping it to "now" would turn an "arrive by T"
+     * query into "arrive by now", returning connections that all arrive far too early.
      */
-    fun forApiRequest(requested: LocalDateTime): LocalDateTime {
-        val now = nowBerlin()
+    fun forApiRequest(requested: LocalDateTime, arrivalSearch: Boolean = false): LocalDateTime {
         val normalized = requested.withNano(0)
+        if (arrivalSearch) return normalized
+        val now = nowBerlin()
         return if (!normalized.isAfter(now)) {
             now.plusMinutes(1)
         } else {

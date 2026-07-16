@@ -602,7 +602,9 @@ class SearchViewModel(
     ) {
         try {
             val options = searchOptionsWithVia()
-            val whenTime = JourneySearchTime.forApiRequest(_state.value.departureTime)
+            // Pass the user's selected time verbatim; DbVendoClient normalizes it (arrival-aware)
+            // so a chosen departure/arrival time is never silently replaced with the current time.
+            val whenTime = _state.value.departureTime
             val page = searchUseCase.searchJourneys(
                 from, to, options, whenTime, pagingReference,
             )

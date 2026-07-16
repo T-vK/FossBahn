@@ -128,10 +128,20 @@ class DbVendoClient(
         whenTime: LocalDateTime = LocalDateTime.now(),
         pagingReference: String? = null,
     ): JourneySearchResult {
-        val apiWhen = JourneySearchTime.forApiRequest(whenTime)
+        val normalizedWhen = whenTime.withNano(0)
+        val apiWhen = JourneySearchTime.forApiRequest(whenTime, options.arrivalSearch)
         var raw = postFahrplan(from, to, options, apiWhen, pagingReference)
         var result = parseJourneyResponse(raw)
-        if (pagingReference == null && result.journeys.isEmpty() && FahrplanDiagnostics.isEmptySuccessBody(raw)) {
+        // The empty-response retry only exists to recover a departure time we had to nudge out
+        // of the past. It must never override a time the user explicitly chose (a future
+        // departure or any arrival time): re-querying at "now + 3 min" made every empty result
+        // look like a search for the current time instead of the selected one.
+        val nudgedPastDeparture = !options.arrivalSearch && apiWhen != normalizedWhen
+        if (pagingReference == null &&
+            nudgedPastDeparture &&
+            result.journeys.isEmpty() &&
+            FahrplanDiagnostics.isEmptySuccessBody(raw)
+        ) {
             val retryWhen = JourneySearchTime.nowBerlin().plusMinutes(3)
             OpenBahnDebugLog.w(
                 "DbVendo",
