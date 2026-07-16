@@ -37,6 +37,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.time.LocalDateTime
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SearchViewModelTest {
@@ -201,6 +202,72 @@ class SearchViewModelTest {
         val suggestions = viewModel.state.value.toSuggestions
         assertTrue(suggestions.any { it.stableKey() == munich.stableKey() })
         assertTrue(suggestions.none { it.stableKey() == berlin.stableKey() })
+    }
+
+    @Test
+    fun arrivalSearch_ordersBestMatchAndPrecedingFirst() = runTest(dispatcher) {
+        fun journey(id: String, arrival: String) = Journey(
+            id = id,
+            legs = listOf(
+                Leg(
+                    origin = StopEvent("Berlin Hbf", scheduledTime = "2026-05-30T07:00:00"),
+                    destination = StopEvent("München Hbf", scheduledTime = arrival),
+                ),
+            ),
+            durationMinutes = 60,
+            transfers = 0,
+            departure = "2026-05-30T07:00:00",
+            arrival = arrival,
+        )
+        val preceding = journey("preceding", "2026-05-30T09:53:00")
+        val best = journey("best", "2026-05-30T09:59:00")
+        val later = journey("later", "2026-05-30T10:30:00")
+        coEvery {
+            searchRepository.searchJourneys(any(), any(), any(), any(), any())
+        } returns JourneySearchResult(journeys = listOf(later, best, preceding))
+
+        val viewModel = createViewModel()
+        viewModel.selectFrom(berlin)
+        viewModel.selectTo(munich)
+        viewModel.setWhen(LocalDateTime.of(2026, 5, 30, 10, 0), arrivalSearch = true)
+        viewModel.search()
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf("preceding", "best", "later"),
+            viewModel.state.value.journeys.map { it.id },
+        )
+    }
+
+    @Test
+    fun departureSearch_keepsApiOrder() = runTest(dispatcher) {
+        fun journey(id: String, arrival: String) = Journey(
+            id = id,
+            legs = listOf(
+                Leg(
+                    origin = StopEvent("Berlin Hbf", scheduledTime = "2026-05-30T07:00:00"),
+                    destination = StopEvent("München Hbf", scheduledTime = arrival),
+                ),
+            ),
+            durationMinutes = 60,
+            transfers = 0,
+            departure = "2026-05-30T07:00:00",
+            arrival = arrival,
+        )
+        val first = journey("first", "2026-05-30T10:30:00")
+        val second = journey("second", "2026-05-30T09:59:00")
+        coEvery {
+            searchRepository.searchJourneys(any(), any(), any(), any(), any())
+        } returns JourneySearchResult(journeys = listOf(first, second))
+
+        val viewModel = createViewModel()
+        viewModel.selectFrom(berlin)
+        viewModel.selectTo(munich)
+        viewModel.setWhen(LocalDateTime.of(2026, 5, 30, 7, 0), arrivalSearch = false)
+        viewModel.search()
+        advanceUntilIdle()
+
+        assertEquals(listOf("first", "second"), viewModel.state.value.journeys.map { it.id })
     }
 
     @Test
