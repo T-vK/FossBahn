@@ -21,6 +21,7 @@
     <string name="show_remarks">Show %d notices</string>
     <string name="hide_remarks">Hide notices</string>
     <string name="journey_detail_title">Connection</string>
+    <string name="journey_open_detail">Open</string>
     <string name="back">Back</string>
     <string name="refresh">Refresh</string>
     <string name="clear_recent_locations">Clear recent stations</string>

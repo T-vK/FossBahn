@@ -287,7 +287,7 @@ fun JourneyCard(
                             onClick = onOpenFullscreen,
                             modifier = Modifier.testTag("journey_open_detail"),
                         ) {
-                            Text(stringResource(R.string.journey_detail_title))
+                            Text(stringResource(R.string.journey_open_detail))
                         }
                     }
                     if (onTrack != null) {
