@@ -118,6 +118,8 @@
     <string name="tracking_foreground_title">Monitoring tracked journeys</string>
     <string name="tracking_foreground_starting">Checking for delays…</string>
     <string name="tracking_foreground_body">%1$d tracked connection(s) · delay checks active</string>
+    <string name="tracking_foreground_count_title">%1$d tracked connections</string>
+    <string name="tracking_foreground_platform">Pt. %1$s</string>
     <string name="settings_near_departure_check">Refresh interval (departure &lt; 20 min)</string>
     <string name="settings_near_departure_check_hint">How often tracked journeys are refreshed when departure is less than 20 minutes away. Farther departures use longer intervals automatically.</string>
     <string name="settings_near_departure_check_seconds">%d s</string>

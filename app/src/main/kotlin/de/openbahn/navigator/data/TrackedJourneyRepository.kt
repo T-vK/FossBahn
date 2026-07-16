@@ -71,6 +71,13 @@ class TrackedJourneyRepository(
             }
         }
 
+    suspend fun getActiveWithJourneyForWorker(): List<TrackedJourneyWithJourney> =
+        getActiveForWorker().mapNotNull { entity ->
+            val journey = runCatching { Json.decodeFromString<Journey>(entity.journeyJson) }.getOrNull()
+                ?: return@mapNotNull null
+            TrackedJourneyWithJourney(entity = entity, journey = journey)
+        }
+
     suspend fun findActiveWithJourney(id: String): TrackedJourneyWithJourney? {
         val entity = dao.getActiveById(id) ?: return null
         val journey = runCatching { Json.decodeFromString<Journey>(entity.journeyJson) }.getOrNull()

@@ -12,6 +12,7 @@ import de.openbahn.navigator.MainActivity
 import de.openbahn.navigator.OpenBahnApplication
 import de.openbahn.navigator.R
 import de.openbahn.navigator.data.TrackedJourneyRepository
+import de.openbahn.navigator.data.TrackedJourneyWithJourney
 import de.openbahn.navigator.data.UserPreferencesRepository
 import de.openbahn.navigator.ui.util.parseJourneyDateTime
 import kotlinx.coroutines.CoroutineScope
@@ -33,8 +34,11 @@ class JourneyTrackingForegroundService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    private val notificationStrings by lazy { AndroidTrackingNotificationStrings(this) }
+    private val notificationFormatter by lazy { TrackingNotificationFormatter(notificationStrings) }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(NOTIFICATION_ID, buildForegroundNotification(trackedCount = null))
+        startForeground(NOTIFICATION_ID, buildForegroundNotification(content = null))
         trackingLoopJob?.cancel()
         trackingLoopJob = serviceScope.launch {
             runTrackingLoop()
@@ -54,15 +58,19 @@ class JourneyTrackingForegroundService : Service() {
         val delayCheck = getKoin().get<TrackedJourneyDelayCheckUseCase>()
         val userPreferences = getKoin().get<UserPreferencesRepository>()
         while (serviceScope.isActive) {
-            val active = repository.getActiveForWorker()
+            val active = repository.getActiveWithJourneyForWorker()
             if (active.isEmpty()) break
-            updateForegroundNotification(active.size)
+            updateForegroundNotification(active)
             try {
                 delayCheck.run()
             } catch (e: Exception) {
                 OpenBahnDebugLog.w(TAG, "tracking cycle failed: ${e.message}")
             }
-            val departures = active.mapNotNull { parseJourneyDateTime(it.departureIso) }
+            // Reload after the delay check so the notification reflects freshly refreshed times.
+            val refreshed = repository.getActiveWithJourneyForWorker()
+            if (refreshed.isEmpty()) break
+            updateForegroundNotification(refreshed)
+            val departures = refreshed.mapNotNull { parseJourneyDateTime(it.entity.departureIso) }
             val nearInterval = userPreferences.nearDepartureCheckIntervalSeconds.first()
             val waitMs = TrackingRefreshPolicy.delayUntilNextCheckMillis(
                 departureTimes = departures,
@@ -72,19 +80,15 @@ class JourneyTrackingForegroundService : Service() {
         }
     }
 
-    private fun updateForegroundNotification(trackedCount: Int) {
+    private fun updateForegroundNotification(tracked: List<TrackedJourneyWithJourney>) {
         val manager = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
-        manager.notify(NOTIFICATION_ID, buildForegroundNotification(trackedCount))
+        manager.notify(NOTIFICATION_ID, buildForegroundNotification(notificationFormatter.format(tracked)))
     }
 
-    private fun buildForegroundNotification(trackedCount: Int?): Notification {
-        val count = trackedCount ?: 0
-        val title = getString(R.string.tracking_foreground_title)
-        val text = if (count > 0) {
-            getString(R.string.tracking_foreground_body, count)
-        } else {
-            getString(R.string.tracking_foreground_starting)
-        }
+    private fun buildForegroundNotification(content: TrackingNotificationContent?): Notification {
+        val title = content?.title ?: getString(R.string.tracking_foreground_title)
+        val collapsedText = content?.lines?.firstOrNull()
+            ?: getString(R.string.tracking_foreground_starting)
         val openApp = PendingIntent.getActivity(
             this,
             0,
@@ -93,15 +97,41 @@ class JourneyTrackingForegroundService : Service() {
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        return NotificationCompat.Builder(this, OpenBahnApplication.CHANNEL_JOURNEY_TRACKING)
+        val builder = NotificationCompat.Builder(this, OpenBahnApplication.CHANNEL_JOURNEY_TRACKING)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
-            .setContentText(text)
+            .setContentText(collapsedText)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setContentIntent(openApp)
-            .build()
+        if (content != null) {
+            if (content.lines.size > 1) {
+                val inbox = NotificationCompat.InboxStyle().setBigContentTitle(title)
+                content.lines.forEach { inbox.addLine(it) }
+                builder.setStyle(inbox)
+            } else {
+                builder.setStyle(NotificationCompat.BigTextStyle().bigText(content.text))
+            }
+        }
+        return builder.build()
+    }
+
+    private class AndroidTrackingNotificationStrings(
+        private val context: Context,
+    ) : TrackingNotificationStrings {
+        override fun platformSegment(platform: String): String =
+            context.getString(R.string.tracking_foreground_platform, platform)
+
+        override fun transfers(count: Int): String =
+            if (count == 0) {
+                context.getString(R.string.share_direct)
+            } else {
+                context.getString(R.string.transfers_count, count)
+            }
+
+        override fun multiTitle(count: Int): String =
+            context.getString(R.string.tracking_foreground_count_title, count)
     }
 
     companion object {

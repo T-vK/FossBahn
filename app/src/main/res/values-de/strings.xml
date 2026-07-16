@@ -118,6 +118,8 @@
     <string name="tracking_foreground_title">Verfolgte Verbindungen überwachen</string>
     <string name="tracking_foreground_starting">Verspätungen werden geprüft…</string>
     <string name="tracking_foreground_body">%1$d verfolgte Verbindung(en) · Verspätungsprüfung aktiv</string>
+    <string name="tracking_foreground_count_title">%1$d verfolgte Verbindungen</string>
+    <string name="tracking_foreground_platform">Gl. %1$s</string>
     <string name="settings_near_departure_check">Aktualisierungsintervall (Abfahrt &lt; 20 Min.)</string>
     <string name="settings_near_departure_check_hint">Wie oft verfolgte Verbindungen aktualisiert werden, wenn die Abfahrt in weniger als 20 Minuten ist. Bei späterer Abfahrt verlängert sich das Intervall automatisch.</string>
     <string name="settings_near_departure_check_seconds">%d s</string>
