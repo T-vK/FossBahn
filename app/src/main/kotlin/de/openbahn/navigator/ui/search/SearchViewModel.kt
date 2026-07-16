@@ -610,15 +610,30 @@ class SearchViewModel(
             )
             val existing = if (replaceResults) emptyList() else _state.value.journeys
             val existingIds = existing.map { it.id }.toSet()
-            val combinedJourneys = mergeJourneys(existing, page.journeys, prepend)
-            // For arrival ("arrive by") searches, surface the connection whose arrival is closest to
-            // the requested time first. Departure searches keep the API order untouched.
-            val mergedJourneys = if (options.arrivalSearch) {
-                orderJourneysByArrival(combinedJourneys, whenTime)
-            } else {
-                combinedJourneys
+            // Never reorder the API results. For the initial arrival ("arrive by") search we may
+            // automatically fetch one earlier page and prepend a single connection that arrives just
+            // before the first result while still being within the allowed window of the target.
+            var incoming = page.journeys
+            var didFetchEarlier = false
+            var earlierPagingEarlier: String? = null
+            val isInitialArrivalSearch = options.arrivalSearch && replaceResults && pagingReference == null
+            if (isInitialArrivalSearch && page.pagingEarlier != null && page.journeys.isNotEmpty()) {
+                val earlierPage = searchUseCase.searchJourneys(
+                    from, to, options, whenTime, page.pagingEarlier,
+                )
+                didFetchEarlier = true
+                earlierPagingEarlier = earlierPage.pagingEarlier
+                val candidate = selectArrivalPrependCandidate(
+                    earlierJourneys = earlierPage.journeys,
+                    firstJourney = page.journeys.first(),
+                    targetArrival = whenTime,
+                )
+                if (candidate != null) {
+                    incoming = (listOf(candidate) + page.journeys).distinctBy { it.id }
+                }
             }
-            val newJourneys = page.journeys.filter { it.id !in existingIds }
+            val mergedJourneys = mergeJourneys(existing, incoming, prepend)
+            val newJourneys = incoming.filter { it.id !in existingIds }
             val keptRated = if (replaceResults) {
                 emptyList()
             } else {
@@ -638,7 +653,7 @@ class SearchViewModel(
                     journeys = mergedJourneys,
                     ratedJourneys = keptRated,
                     pagingEarlier = when {
-                        replaceResults -> page.pagingEarlier
+                        replaceResults -> if (didFetchEarlier) earlierPagingEarlier else page.pagingEarlier
                         prepend -> page.pagingEarlier
                         else -> it.pagingEarlier
                     },
