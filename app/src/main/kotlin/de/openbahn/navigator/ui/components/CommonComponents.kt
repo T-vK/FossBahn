@@ -65,6 +65,7 @@ import de.openbahn.model.withDelaysFrom
 import de.openbahn.navigator.R
 import de.openbahn.navigator.domain.JourneySearchRepository
 import org.koin.compose.koinInject
+import de.openbahn.navigator.ui.util.CopyJourneyIconButton
 import de.openbahn.navigator.ui.util.NavigateToStopIconButton
 import de.openbahn.navigator.ui.util.ShareJourneyIconButton
 import de.openbahn.navigator.ui.util.formatDurationMinutes
@@ -128,6 +129,11 @@ fun JourneyCard(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    CopyJourneyIconButton(
+                        journey = journey,
+                        prediction = prediction,
+                        predictionsRequested = predictionsRequested,
+                    )
                     ShareJourneyIconButton(
                         journey = journey,
                         prediction = prediction,

@@ -126,6 +126,8 @@
     <string name="track_journey">Verbindung verfolgen</string>
     <string name="share_journey">Verbindung teilen</string>
     <string name="share_journey_chooser">Verbindung teilen über</string>
+    <string name="copy_journey">Verbindungsdetails kopieren</string>
+    <string name="journey_copied">Verbindungsdetails kopiert</string>
     <string name="share_route">%1$s → %2$s</string>
     <string name="share_times">%1$s – %2$s (%3$s)</string>
     <string name="share_direct">Direktverbindung</string>

@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
+import de.openbahn.navigator.ui.util.CopyJourneyIconButton
 import de.openbahn.navigator.ui.util.ShareJourneyIconButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -137,6 +138,11 @@ fun JourneyDetailScreen(
                     }
                 },
                 actions = {
+                    CopyJourneyIconButton(
+                        journey = journey,
+                        prediction = prediction,
+                        predictionsRequested = payload.predictionsRequested,
+                    )
                     ShareJourneyIconButton(
                         journey = journey,
                         prediction = prediction,

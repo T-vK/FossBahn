@@ -1,9 +1,14 @@
 package de.openbahn.navigator.ui.util
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.os.Build
+import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -150,20 +155,37 @@ private fun predictionSummaryLine(
     }
 }
 
-fun shareJourney(
+/**
+ * Shares a link to the bahn.de page for the connection, reconstructed from the API ctxRecon token.
+ */
+fun shareJourney(context: Context, journey: Journey) {
+    val uri = journeyBookingUri(journey) ?: return
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, uri.toString())
+    }
+    context.startActivity(
+        Intent.createChooser(intent, context.getString(R.string.share_journey_chooser)),
+    )
+}
+
+/**
+ * Copies the formatted, human-readable journey summary to the clipboard.
+ */
+fun copyJourneyDetails(
     context: Context,
     journey: Journey,
     prediction: RatedJourney? = null,
     predictionsRequested: Boolean = false,
 ) {
     val text = formatJourneyShareText(context, journey, prediction, predictionsRequested)
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_TEXT, text)
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    val label = context.getString(R.string.copy_journey)
+    clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
+    // Android 13+ shows its own copy confirmation UI; avoid a duplicate toast there.
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+        Toast.makeText(context, R.string.journey_copied, Toast.LENGTH_SHORT).show()
     }
-    context.startActivity(
-        Intent.createChooser(intent, context.getString(R.string.share_journey_chooser)),
-    )
 }
 
 @Composable
@@ -174,13 +196,34 @@ fun ShareJourneyIconButton(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val hasLink = journey.refreshToken?.isNotBlank() == true
     IconButton(
-        onClick = { shareJourney(context, journey, prediction, predictionsRequested) },
+        onClick = { shareJourney(context, journey) },
+        enabled = hasLink,
         modifier = modifier.testTag("journey_share"),
     ) {
         Icon(
             Icons.Default.Share,
             contentDescription = stringResource(R.string.share_journey),
+        )
+    }
+}
+
+@Composable
+fun CopyJourneyIconButton(
+    journey: Journey,
+    prediction: RatedJourney? = null,
+    predictionsRequested: Boolean = false,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    IconButton(
+        onClick = { copyJourneyDetails(context, journey, prediction, predictionsRequested) },
+        modifier = modifier.testTag("journey_copy"),
+    ) {
+        Icon(
+            Icons.Default.ContentCopy,
+            contentDescription = stringResource(R.string.copy_journey),
         )
     }
 }
