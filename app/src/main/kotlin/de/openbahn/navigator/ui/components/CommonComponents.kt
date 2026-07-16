@@ -143,6 +143,17 @@ fun JourneyCard(
                 "${journey.legs.firstOrNull()?.origin?.name} → ${journey.legs.lastOrNull()?.destination?.name}",
                 style = MaterialTheme.typography.bodyLarge,
             )
+            val departurePlatform = journey.legs
+                .firstOrNull { !it.isWalking }?.origin?.platform
+                ?: journey.legs.firstOrNull()?.origin?.platform
+            departurePlatform?.let { platform ->
+                Text(
+                    stringResource(R.string.platform_label, platform),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.testTag("journey_departure_platform"),
+                )
+            }
             val walkLegs = journey.legs.count { it.isWalking }
             val transferLine = if (walkLegs > 0) {
                 stringResource(
