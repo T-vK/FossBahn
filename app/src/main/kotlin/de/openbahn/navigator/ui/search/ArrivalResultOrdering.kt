@@ -3,6 +3,11 @@ package de.openbahn.navigator.ui.search
 import de.openbahn.model.Journey
 import de.openbahn.navigator.ui.util.journeyArrivalDateTime
 import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
+
+private const val DEFAULT_PREPEND_WINDOW_MINUTES = 10L
+private const val LATE_FIRST_RESULT_THRESHOLD_MINUTES = 10L
+private const val EXTENDED_PREPEND_WINDOW_MINUTES = 120L
 
 /**
  * Picks the single earlier-page connection that should be prepended to an arrival-time
@@ -14,8 +19,11 @@ import java.time.LocalDateTime
  *
  * A candidate qualifies when it:
  *  1. arrives **before** [firstJourney]'s arrival, and
- *  2. arrives no earlier than [withinMinutes] before [targetArrival] (e.g. 17:58 qualifies for an
- *     18:00 target, 17:45 does not).
+ *  2. arrives no earlier than the allowed window before [targetArrival].
+ *
+ * The window is 10 minutes by default (e.g. 17:58 qualifies for an 18:00 target, 17:45 does not).
+ * If the first result arrives more than 10 minutes after [targetArrival], the window widens to
+ * 2 hours so a useful earlier option can still be surfaced.
  *
  * When several candidates qualify the latest arrival is chosen (closest to the target). If none
  * qualify, `null` is returned and nothing should be prepended.
@@ -27,10 +35,10 @@ fun selectArrivalPrependCandidate(
     earlierJourneys: List<Journey>,
     firstJourney: Journey,
     targetArrival: LocalDateTime,
-    withinMinutes: Long = 10,
 ): Journey? {
     val firstArrival = journeyArrivalDateTime(firstJourney) ?: return null
-    val earliestAllowed = targetArrival.minusMinutes(withinMinutes)
+    val windowMinutes = arrivalPrependWindowMinutes(firstArrival, targetArrival)
+    val earliestAllowed = targetArrival.minusMinutes(windowMinutes)
     return earlierJourneys
         .asSequence()
         .filter { it.id != firstJourney.id }
@@ -38,4 +46,17 @@ fun selectArrivalPrependCandidate(
         .filter { (_, arrival) -> arrival.isBefore(firstArrival) && !arrival.isBefore(earliestAllowed) }
         .maxByOrNull { it.second }
         ?.first
+}
+
+internal fun arrivalPrependWindowMinutes(
+    firstArrival: LocalDateTime,
+    targetArrival: LocalDateTime,
+): Long {
+    if (!firstArrival.isAfter(targetArrival)) return DEFAULT_PREPEND_WINDOW_MINUTES
+    val minutesAfterTarget = ChronoUnit.MINUTES.between(targetArrival, firstArrival)
+    return if (minutesAfterTarget > LATE_FIRST_RESULT_THRESHOLD_MINUTES) {
+        EXTENDED_PREPEND_WINDOW_MINUTES
+    } else {
+        DEFAULT_PREPEND_WINDOW_MINUTES
+    }
 }

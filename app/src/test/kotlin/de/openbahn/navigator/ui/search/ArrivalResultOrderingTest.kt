@@ -94,4 +94,40 @@ class ArrivalResultOrderingTest {
         val duplicate = journey("first", "2026-05-30T09:58:00")
         assertNull(selectArrivalPrependCandidate(listOf(duplicate), first, target))
     }
+
+    @Test
+    fun usesTwoHourWindowWhenFirstResultIsMoreThanTenMinutesLate() {
+        val first = journey("first", "2026-05-30T10:15:00")
+        val withinTwoHours = journey("within", "2026-05-30T08:30:00")
+        val candidate = selectArrivalPrependCandidate(listOf(withinTwoHours), first, target)
+        // First result is 15 min after target -> 2 h window; 08:30 is within that and before 10:15.
+        assertEquals("within", candidate?.id)
+    }
+
+    @Test
+    fun twoHourWindowStillRejectsCandidatesBeforeWindowEdge() {
+        val first = journey("first", "2026-05-30T10:15:00")
+        val tooEarly = journey("tooEarly", "2026-05-30T07:59:00")
+        val candidate = selectArrivalPrependCandidate(listOf(tooEarly), first, target)
+        // 07:59 is more than 2 h before the 10:00 target.
+        assertNull(candidate)
+    }
+
+    @Test
+    fun keepsTenMinuteWindowWhenFirstResultIsOnlySlightlyLate() {
+        val first = journey("first", "2026-05-30T10:05:00")
+        val withinTen = journey("within", "2026-05-30T09:58:00")
+        val outsideTen = journey("outside", "2026-05-30T09:45:00")
+        val candidate = selectArrivalPrependCandidate(listOf(outsideTen, withinTen), first, target)
+        // First result is only 5 min late -> still the 10-minute window.
+        assertEquals("within", candidate?.id)
+    }
+
+    @Test
+    fun arrivalPrependWindowMinutes_switchesAtTenMinuteLateThreshold() {
+        val target = LocalDateTime.of(2026, 5, 30, 10, 0)
+        assertEquals(10L, arrivalPrependWindowMinutes(target, target))
+        assertEquals(10L, arrivalPrependWindowMinutes(target.plusMinutes(10), target))
+        assertEquals(120L, arrivalPrependWindowMinutes(target.plusMinutes(11), target))
+    }
 }
