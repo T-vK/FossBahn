@@ -26,6 +26,8 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.AltRoute
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Launch
+import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -292,7 +294,7 @@ fun JourneyCard(
                 }
             }
 
-            if (onShowAlternatives != null || onStopTracking != null) {
+            if (onShowAlternatives != null || onStopTracking != null || onOpenFullscreen != null || onTrack != null) {
                 FlowRow(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -325,24 +327,28 @@ fun JourneyCard(
                             Text(stringResource(R.string.stop_tracking))
                         }
                     }
-                }
-            }
-
-            if (onOpenFullscreen != null || onTrack != null) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
                     if (onOpenFullscreen != null) {
                         TextButton(
                             onClick = onOpenFullscreen,
                             modifier = Modifier.testTag("journey_open_detail"),
                         ) {
+                            Icon(
+                                Icons.Outlined.Launch,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(Modifier.width(8.dp))
                             Text(stringResource(R.string.journey_open_detail))
                         }
                     }
                     if (onTrack != null) {
                         TextButton(onClick = onTrack) {
+                            Icon(
+                                Icons.Outlined.NotificationsActive,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(Modifier.width(8.dp))
                             Text(stringResource(R.string.track_journey))
                         }
                     }

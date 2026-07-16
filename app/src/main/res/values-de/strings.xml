@@ -110,7 +110,7 @@
     <string name="tracking_title">Live-Updates</string>
     <string name="tracking_description">Solange Sie Verbindungen verfolgen, prüft OpenBahn im Hintergrund auf Verspätungen. Die Prüfung wird häufiger, je näher die Abfahrt rückt (innerhalb von 20 Minuten etwa alle paar Sekunden, einstellbar unter Einstellungen). Sie erhalten eine Meldung bei Verspätung und erneut, wenn die Verspätung um den eingestellten Betrag steigt. Eine kleine Dauerbenachrichtigung zeigt an, dass die Überwachung aktiv ist.</string>
     <string name="tracking_info">So funktionieren Live-Updates</string>
-    <string name="tracking_alternative_connections">Alternative Verbindungen</string>
+    <string name="tracking_alternative_connections">Alternativen</string>
     <string name="tracking_battery_banner_title">Hintergrundüberwachung erlauben</string>
     <string name="tracking_battery_banner_body">Der Energiesparmodus kann Verspätungsmeldungen blockieren, wenn die App geschlossen ist. Erlauben Sie uneingeschränkten Akkuverbrauch für OpenBahn, damit Live-Updates zuverlässig funktionieren.</string>
     <string name="tracking_battery_allow_unrestricted">Uneingeschränkten Akku erlauben</string>
@@ -122,8 +122,8 @@
     <string name="settings_near_departure_check_hint">Wie oft verfolgte Verbindungen aktualisiert werden, wenn die Abfahrt in weniger als 20 Minuten ist. Bei späterer Abfahrt verlängert sich das Intervall automatisch.</string>
     <string name="settings_near_departure_check_seconds">%d s</string>
     <string name="settings_near_departure_check_default">%d s (Standard)</string>
-    <string name="stop_tracking">Verfolgung beenden</string>
-    <string name="track_journey">Verbindung verfolgen</string>
+    <string name="stop_tracking">Entfernen</string>
+    <string name="track_journey">Verfolgen</string>
     <string name="share_journey">Verbindung teilen</string>
     <string name="share_journey_chooser">Verbindung teilen über</string>
     <string name="copy_journey">Verbindungsdetails kopieren</string>
