@@ -63,6 +63,8 @@ data class SearchUiState(
     val ratedJourneys: List<RatedJourney> = emptyList(),
     val pagingEarlier: String? = null,
     val pagingLater: String? = null,
+    /** Arrival-search connections hidden until the user taps "Earlier connections". */
+    val hiddenArrivalJourneys: List<Journey> = emptyList(),
     val isLoading: Boolean = false,
     val isLoadingEarlier: Boolean = false,
     val isLoadingLater: Boolean = false,
@@ -324,6 +326,10 @@ class SearchViewModel(
     }
 
     fun loadEarlierConnections() {
+        if (_state.value.options.arrivalSearch && _state.value.hiddenArrivalJourneys.isNotEmpty()) {
+            viewModelScope.launch { revealHiddenArrivalJourneys() }
+            return
+        }
         val token = _state.value.pagingEarlier ?: return
         viewModelScope.launch { loadMore(pagingReference = token, earlier = true) }
     }
@@ -561,6 +567,7 @@ class SearchViewModel(
                 toSuggestions = emptyList(),
                 journeys = if (replaceResults) emptyList() else it.journeys,
                 ratedJourneys = if (replaceResults) emptyList() else it.ratedJourneys,
+                hiddenArrivalJourneys = if (replaceResults) emptyList() else it.hiddenArrivalJourneys,
                 pagingEarlier = if (replaceResults) null else it.pagingEarlier,
                 pagingLater = if (replaceResults) null else it.pagingLater,
             )
@@ -593,6 +600,29 @@ class SearchViewModel(
         runSearch(from, to, pagingReference = pagingReference, replaceResults = false, prepend = earlier)
     }
 
+    private suspend fun revealHiddenArrivalJourneys() {
+        val hidden = _state.value.hiddenArrivalJourneys
+        if (hidden.isEmpty()) return
+        _state.update {
+            it.copy(
+                isLoadingEarlier = true,
+                error = null,
+            )
+        }
+        val generation = searchGeneration
+        val merged = mergeJourneys(_state.value.journeys, hidden, prepend = true)
+        _state.update {
+            it.copy(
+                journeys = merged,
+                hiddenArrivalJourneys = emptyList(),
+                isLoadingEarlier = false,
+            )
+        }
+        if (_state.value.showPredictions) {
+            startPredictionsJob(hidden, prepend = true, generation)
+        }
+    }
+
     private suspend fun runSearch(
         from: Location,
         to: Location,
@@ -615,6 +645,7 @@ class SearchViewModel(
             // until the best match is first or a qualifying buffer connection is first with the best
             // match second.
             var incoming = page.journeys
+            var hiddenArrivalJourneys = if (replaceResults) emptyList() else _state.value.hiddenArrivalJourneys
             var fetchedEarlierPagingEarlier: String? = null
             var fetchedLaterPagingLater: String? = null
             val isInitialArrivalSearch = options.arrivalSearch && replaceResults && pagingReference == null
@@ -637,7 +668,7 @@ class SearchViewModel(
                 } else {
                     emptyList()
                 }
-                incoming = trimArrivalResultsForDisplay(
+                val trimmed = trimArrivalResultsForDisplay(
                     mergeArrivalSearchPages(
                         initial = page.journeys,
                         earlier = earlierJourneys,
@@ -645,6 +676,8 @@ class SearchViewModel(
                     ),
                     whenTime,
                 )
+                incoming = trimmed.visible
+                hiddenArrivalJourneys = trimmed.hidden
             }
             val mergedJourneys = mergeJourneys(existing, incoming, prepend)
             val newJourneys = incoming.filter { it.id !in existingIds }
@@ -666,6 +699,7 @@ class SearchViewModel(
                 it.copy(
                     journeys = mergedJourneys,
                     ratedJourneys = keptRated,
+                    hiddenArrivalJourneys = hiddenArrivalJourneys,
                     pagingEarlier = when {
                         replaceResults -> fetchedEarlierPagingEarlier ?: page.pagingEarlier
                         prepend -> page.pagingEarlier

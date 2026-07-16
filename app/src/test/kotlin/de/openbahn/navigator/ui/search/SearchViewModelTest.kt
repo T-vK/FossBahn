@@ -16,6 +16,7 @@ import android.app.Application
 import de.openbahn.navigator.domain.JourneySearchRepository
 import de.openbahn.navigator.location.DeviceLocationProvider
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import de.openbahn.navigator.locale.AppLanguage
@@ -352,6 +353,61 @@ class SearchViewModelTest {
             listOf("first", "later"),
             viewModel.state.value.journeys.map { it.id },
         )
+        assertEquals(listOf("tooEarly"), viewModel.state.value.hiddenArrivalJourneys.map { it.id })
+    }
+
+    @Test
+    fun arrivalSearch_loadEarlier_revealsHiddenBeforeFetchingMore() = runTest(dispatcher) {
+        fun journey(id: String, arrival: String) = Journey(
+            id = id,
+            legs = listOf(
+                Leg(
+                    origin = StopEvent("Berlin Hbf", scheduledTime = "2026-05-30T07:00:00"),
+                    destination = StopEvent("München Hbf", scheduledTime = arrival),
+                ),
+            ),
+            durationMinutes = 60,
+            transfers = 0,
+            departure = "2026-05-30T07:00:00",
+            arrival = arrival,
+        )
+        val early1 = journey("early1", "2026-05-30T16:00:00")
+        val early2 = journey("early2", "2026-05-30T17:00:00")
+        val best = journey("best", "2026-05-30T18:00:00")
+        val after = journey("after", "2026-05-30T18:15:00")
+
+        coEvery {
+            searchRepository.searchJourneys(any(), any(), any(), any(), any())
+        } returns JourneySearchResult(
+            journeys = listOf(best, after),
+            pagingEarlier = "earlier-page-token",
+        )
+        coEvery {
+            searchRepository.searchJourneys(any(), any(), any(), any(), eq("earlier-page-token"))
+        } returns JourneySearchResult(
+            journeys = listOf(early1, early2),
+            pagingEarlier = "even-earlier-token",
+        )
+
+        val viewModel = createViewModel()
+        viewModel.selectFrom(berlin)
+        viewModel.selectTo(munich)
+        viewModel.setWhen(LocalDateTime.of(2026, 5, 30, 18, 0), arrivalSearch = true)
+        viewModel.search()
+        advanceUntilIdle()
+
+        assertEquals(listOf("best", "after"), viewModel.state.value.journeys.map { it.id })
+        assertEquals(listOf("early1", "early2"), viewModel.state.value.hiddenArrivalJourneys.map { it.id })
+
+        viewModel.loadEarlierConnections()
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf("early1", "early2", "best", "after"),
+            viewModel.state.value.journeys.map { it.id },
+        )
+        assertTrue(viewModel.state.value.hiddenArrivalJourneys.isEmpty())
+        coVerify(exactly = 2) { searchRepository.searchJourneys(any(), any(), any(), any(), any()) }
     }
 
     @Test

@@ -28,6 +28,15 @@ fun mergeArrivalSearchPages(
 }
 
 /**
+ * Result of trimming arrival-search results: [visible] connections shown in the UI and [hidden]
+ * connections held back until the user taps "Earlier connections".
+ */
+data class ArrivalTrimResult(
+    val visible: List<Journey>,
+    val hidden: List<Journey>,
+)
+
+/**
  * Trims an arrival-search result list so the best match to [targetArrival] is shown first or second,
  * without reordering the remaining connections.
  *
@@ -36,7 +45,8 @@ fun mergeArrivalSearchPages(
  *
  * When a qualifying buffer connection exists — the latest arrival before the best match that is still
  * within the allowed window of [targetArrival] — it is kept as the first visible result and the best
- * match becomes second. Everything chronologically before that buffer is hidden.
+ * match becomes second. Everything chronologically before that buffer is hidden until the user
+ * requests earlier connections.
  *
  * The window is 10 minutes by default. If the best match arrives more than 10 minutes after
  * [targetArrival], the window widens to 2 hours.
@@ -44,8 +54,8 @@ fun mergeArrivalSearchPages(
 fun trimArrivalResultsForDisplay(
     journeys: List<Journey>,
     targetArrival: LocalDateTime,
-): List<Journey> {
-    if (journeys.isEmpty()) return journeys
+): ArrivalTrimResult {
+    if (journeys.isEmpty()) return ArrivalTrimResult(visible = journeys, hidden = emptyList())
 
     val chronological = journeys.sortedWith(
         compareBy<Journey> { journeyArrivalDateTime(it) ?: LocalDateTime.MAX }
@@ -55,7 +65,7 @@ fun trimArrivalResultsForDisplay(
     val timed = chronological.mapIndexedNotNull { index, journey ->
         journeyArrivalDateTime(journey)?.let { arrival -> IndexedJourney(index, journey, arrival) }
     }
-    if (timed.isEmpty()) return chronological
+    if (timed.isEmpty()) return ArrivalTrimResult(visible = chronological, hidden = emptyList())
 
     val best = findArrivalBestMatch(timed, targetArrival)
     val windowMinutes = arrivalBufferWindowMinutes(best.arrival, targetArrival)
@@ -65,7 +75,10 @@ fun trimArrivalResultsForDisplay(
         .maxByOrNull { it.arrival }
 
     val startIndex = preceding?.index ?: best.index
-    return chronological.drop(startIndex)
+    return ArrivalTrimResult(
+        visible = chronological.drop(startIndex),
+        hidden = chronological.take(startIndex),
+    )
 }
 
 internal fun arrivalBufferWindowMinutes(

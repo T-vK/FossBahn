@@ -384,7 +384,7 @@ fun SearchScreen(
                 }
             }
             if (state.hasSearched && state.journeys.isNotEmpty()) {
-                if (state.pagingEarlier != null) {
+                if (state.pagingEarlier != null || state.hiddenArrivalJourneys.isNotEmpty()) {
                     item(key = "load_earlier") {
                         PagingConnectionsButton(
                             label = stringResource(R.string.load_earlier_connections),
@@ -515,7 +515,9 @@ private fun firstResultListIndex(state: SearchUiState): Int? {
     if (state.error != null) index++
     if (state.info != null) index++
     if (state.isLoading) index++
-    if (state.hasSearched && state.journeys.isNotEmpty() && state.pagingEarlier != null) index++
+    if (state.hasSearched && state.journeys.isNotEmpty() &&
+        (state.pagingEarlier != null || state.hiddenArrivalJourneys.isNotEmpty())
+    ) index++
     return index
 }
 

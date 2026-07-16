@@ -54,7 +54,8 @@ class ArrivalResultOrderingTest {
         val best = journey("best", "2026-05-30T18:00:00")
         val after = journey("after", "2026-05-30T18:15:00")
         val trimmed = trimArrivalResultsForDisplay(listOf(early1, early2, best, after), target)
-        assertEquals(listOf("best", "after"), trimmed.map { it.id })
+        assertEquals(listOf("best", "after"), trimmed.visible.map { it.id })
+        assertEquals(listOf("early1", "early2"), trimmed.hidden.map { it.id })
     }
 
     @Test
@@ -64,7 +65,8 @@ class ArrivalResultOrderingTest {
         val best = journey("best", "2026-05-30T18:00:00")
         val after = journey("after", "2026-05-30T18:15:00")
         val trimmed = trimArrivalResultsForDisplay(listOf(early, buffer, best, after), target)
-        assertEquals(listOf("buffer", "best", "after"), trimmed.map { it.id })
+        assertEquals(listOf("buffer", "best", "after"), trimmed.visible.map { it.id })
+        assertEquals(listOf("early"), trimmed.hidden.map { it.id })
     }
 
     @Test
@@ -72,7 +74,8 @@ class ArrivalResultOrderingTest {
         val early = journey("early", "2026-05-30T17:30:00")
         val best = journey("best", "2026-05-30T18:00:00")
         val trimmed = trimArrivalResultsForDisplay(listOf(early, best), target)
-        assertEquals(listOf("best"), trimmed.map { it.id })
+        assertEquals(listOf("best"), trimmed.visible.map { it.id })
+        assertEquals(listOf("early"), trimmed.hidden.map { it.id })
     }
 
     @Test
@@ -85,7 +88,8 @@ class ArrivalResultOrderingTest {
             later = listOf(laterBest, laterAfter),
         )
         val trimmed = trimArrivalResultsForDisplay(merged, target)
-        assertEquals(listOf("laterBest", "laterAfter"), trimmed.map { it.id })
+        assertEquals(listOf("laterBest", "laterAfter"), trimmed.visible.map { it.id })
+        assertEquals(listOf("initialEarly"), trimmed.hidden.map { it.id })
     }
 
     @Test
@@ -94,7 +98,8 @@ class ArrivalResultOrderingTest {
         val best = journey("best", "2026-05-30T18:15:00")
         val after = journey("after", "2026-05-30T18:30:00")
         val trimmed = trimArrivalResultsForDisplay(listOf(buffer, best, after), target)
-        assertEquals(listOf("buffer", "best", "after"), trimmed.map { it.id })
+        assertEquals(listOf("buffer", "best", "after"), trimmed.visible.map { it.id })
+        assertEquals(emptyList<String>(), trimmed.hidden.map { it.id })
     }
 
     @Test
@@ -102,7 +107,8 @@ class ArrivalResultOrderingTest {
         val tooEarly = journey("tooEarly", "2026-05-30T15:59:00")
         val best = journey("best", "2026-05-30T18:15:00")
         val trimmed = trimArrivalResultsForDisplay(listOf(tooEarly, best), target)
-        assertEquals(listOf("best"), trimmed.map { it.id })
+        assertEquals(listOf("best"), trimmed.visible.map { it.id })
+        assertEquals(listOf("tooEarly"), trimmed.hidden.map { it.id })
     }
 
     @Test
@@ -110,7 +116,7 @@ class ArrivalResultOrderingTest {
         val late1 = journey("late1", "2026-05-30T18:05:00")
         val late2 = journey("late2", "2026-05-30T18:20:00")
         val trimmed = trimArrivalResultsForDisplay(listOf(late2, late1), target)
-        assertEquals(listOf("late1", "late2"), trimmed.map { it.id })
+        assertEquals(listOf("late1", "late2"), trimmed.visible.map { it.id })
     }
 
     @Test
@@ -118,7 +124,7 @@ class ArrivalResultOrderingTest {
         val best = journey("best", "2026-05-30T18:00:00")
         val delayed = journey("delayed", "2026-05-30T17:40:00", arrivalPrognosed = "2026-05-30T17:58:00")
         val trimmed = trimArrivalResultsForDisplay(listOf(delayed, best), target)
-        assertEquals(listOf("delayed", "best"), trimmed.map { it.id })
+        assertEquals(listOf("delayed", "best"), trimmed.visible.map { it.id })
     }
 
     @Test
