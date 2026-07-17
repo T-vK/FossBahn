@@ -52,7 +52,8 @@ data class TrackingNotificationContent(
  *
  * Multiple connections:
  *   Title `N tracked connections`
- *   Body  one line per connection: `From -> To | 12:35 (Pt. 1) -> 14:55 (Pt. 13) | RE3`
+ *   Body  two lines per connection: a plain route line `From -> To` followed by the timeline line
+ *         `12:35 (Pt. 1) -> 14:55 (Pt. 13) | RE3`
  *
  * The stop chain lists the first rail leg's departure followed by every rail leg's destination
  * (transfer points and the final arrival). Prognosed times are preferred over scheduled ones.
@@ -85,19 +86,18 @@ class TrackingNotificationFormatter(private val strings: TrackingNotificationStr
     }
 
     private fun multi(tracked: List<TrackedJourneyWithJourney>, now: LocalDateTime): TrackingNotificationContent {
-        val lines = tracked.map { item ->
+        val lines = tracked.flatMap { item ->
             val journey = item.journey
             val stops = stopsOf(journey)
-            val builder = StyledTextBuilder()
-            builder.append(route(item))
-            builder.append(" | ")
-            appendStopChain(builder, stops, closestIndex(stops, now))
-            appendLineLabel(builder, journey.railLegs().firstOrNull(), includeDetail = false)
-            builder.build()
+            val routeLine = StyledNotificationText(route(item))
+            val detailBuilder = StyledTextBuilder()
+            appendStopChain(detailBuilder, stops, closestIndex(stops, now))
+            appendLineLabel(detailBuilder, journey.railLegs().firstOrNull(), includeDetail = false)
+            listOf(routeLine, detailBuilder.build())
         }
         return TrackingNotificationContent(
             title = strings.multiTitle(tracked.size),
-            text = StyledNotificationText(lines.joinToString("\n") { it.text }),
+            text = StyledNotificationText(lines.take(2).joinToString("\n") { it.text }),
             lines = lines,
         )
     }

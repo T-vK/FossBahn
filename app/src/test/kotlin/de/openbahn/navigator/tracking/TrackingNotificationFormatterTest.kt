@@ -171,7 +171,7 @@ class TrackingNotificationFormatterTest {
     }
 
     @Test
-    fun multiple_buildsCountTitleAndOneLinePerConnection() {
+    fun multiple_buildsCountTitleAndTwoLinesPerConnection() {
         val first = tracked(
             from = "Hamburg",
             to = "Berlin",
@@ -213,17 +213,21 @@ class TrackingNotificationFormatterTest {
         assertEquals("2 tracked connections", content.title)
         assertEquals(
             listOf(
-                "Hamburg -> Berlin | 12:35 (Pt. 1) -> 14:55 (Pt. 13) -> 15:30 (Pt. 5) | RE3",
-                "Köln -> München | 09:00 -> 13:30 | ICE 599",
+                "Hamburg -> Berlin",
+                "12:35 (Pt. 1) -> 14:55 (Pt. 13) -> 15:30 (Pt. 5) | RE3",
+                "Köln -> München",
+                "09:00 -> 13:30 | ICE 599",
             ),
             content.lines.map { it.text },
         )
-        // Combined collapsed text carries no styling; each expanded line keeps its own bold ranges.
-        assertEquals(content.lines.joinToString("\n") { it.text }, content.text.text)
+        // Collapsed text previews the first connection's route + timeline; route lines carry no styling.
+        assertEquals("Hamburg -> Berlin\n12:35 (Pt. 1) -> 14:55 (Pt. 13) -> 15:30 (Pt. 5) | RE3", content.text.text)
         assertTrue(content.text.boldRanges.isEmpty())
-        assertEquals(listOf("12:35", "1", "RE3"), boldSubstrings(content.lines[0]))
+        assertTrue(content.lines[0].boldRanges.isEmpty())
+        assertEquals(listOf("12:35", "1", "RE3"), boldSubstrings(content.lines[1]))
+        assertTrue(content.lines[2].boldRanges.isEmpty())
         // In the second connection 13:30 is nearer to 12:36 than 09:00.
-        assertEquals(listOf("13:30", "ICE 599"), boldSubstrings(content.lines[1]))
+        assertEquals(listOf("13:30", "ICE 599"), boldSubstrings(content.lines[3]))
     }
 
     private fun boldSubstrings(styled: StyledNotificationText): List<String> =
