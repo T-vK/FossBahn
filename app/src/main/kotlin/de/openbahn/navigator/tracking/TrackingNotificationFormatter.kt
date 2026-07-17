@@ -35,11 +35,28 @@ data class StyledNotificationText(
     val boldRanges: List<BoldRange> = emptyList(),
 )
 
+/**
+ * Joins several [StyledNotificationText] lines into one newline-separated block, shifting each line's
+ * bold ranges by its offset so they still cover the correct characters. Used to feed the whole body
+ * into a single `BigTextStyle` so long lines wrap instead of being truncated.
+ */
+fun combineStyledLines(lines: List<StyledNotificationText>): StyledNotificationText {
+    val sb = StringBuilder()
+    val ranges = mutableListOf<BoldRange>()
+    lines.forEachIndexed { index, line ->
+        if (index > 0) sb.append('\n')
+        val offset = sb.length
+        sb.append(line.text)
+        line.boldRanges.forEach { ranges += BoldRange(it.start + offset, it.end + offset) }
+    }
+    return StyledNotificationText(sb.toString(), ranges)
+}
+
 /** Title + body text for the tracking foreground notification. */
 data class TrackingNotificationContent(
     val title: String,
     val text: StyledNotificationText,
-    /** One entry per tracked connection, for InboxStyle expansion. */
+    /** Body lines (route + timeline per connection) joined into a single BigTextStyle block. */
     val lines: List<StyledNotificationText>,
 )
 
@@ -47,13 +64,13 @@ data class TrackingNotificationContent(
  * Builds the foreground tracking notification content from the currently tracked journeys.
  *
  * Single connection:
- *   Title `Departure -> Destination`
+ *   Title `Kiel -> Lübeck -> Hamburg` (full station chain, shortened to fit if too long)
  *   Body  `12:35 (Pt. 1) -> 14:55 (Pt. 13) -> 16:02 (Pt. 2) | RE3 (12345)`
  *
  * Multiple connections:
  *   Title `N tracked connections`
- *   Body  two lines per connection: a plain route line `From -> To` followed by the timeline line
- *         `12:35 (Pt. 1) -> 14:55 (Pt. 13) | RE3`
+ *   Body  two lines per connection: a route line with the full station chain followed by the
+ *         timeline line `12:35 (Pt. 1) -> 14:55 (Pt. 13) | RE3`
  *
  * The stop chain lists the first rail leg's departure followed by every rail leg's destination
  * (transfer points and the final arrival). Prognosed times are preferred over scheduled ones.
@@ -79,7 +96,7 @@ class TrackingNotificationFormatter(private val strings: TrackingNotificationStr
         appendLineLabel(builder, journey.railLegs().firstOrNull(), includeDetail = true)
         val body = builder.build()
         return TrackingNotificationContent(
-            title = route(item),
+            title = fitRouteTitle(routeChain(item)),
             text = body,
             lines = listOf(body),
         )
@@ -89,7 +106,7 @@ class TrackingNotificationFormatter(private val strings: TrackingNotificationStr
         val lines = tracked.flatMap { item ->
             val journey = item.journey
             val stops = stopsOf(journey)
-            val routeLine = StyledNotificationText(route(item))
+            val routeLine = StyledNotificationText(routeChain(item).joinToString(" -> "))
             val detailBuilder = StyledTextBuilder()
             appendStopChain(detailBuilder, stops, closestIndex(stops, now))
             appendLineLabel(detailBuilder, journey.railLegs().firstOrNull(), includeDetail = false)
@@ -162,8 +179,13 @@ class TrackingNotificationFormatter(private val strings: TrackingNotificationStr
         if (includeDetail && detail != null) builder.append(" ($detail)")
     }
 
-    private fun route(item: TrackedJourneyWithJourney): String =
-        "${item.entity.fromName} -> ${item.entity.toName}"
+    /**
+     * Full station chain for the connection, falling back to the stored from/to names when the
+     * journey exposes no rail legs.
+     */
+    private fun routeChain(item: TrackedJourneyWithJourney): List<String> =
+        routeStationNames(item.journey)
+            .ifEmpty { listOf(item.entity.fromName, item.entity.toName) }
 
     private data class TrackedStop(
         val clock: String,

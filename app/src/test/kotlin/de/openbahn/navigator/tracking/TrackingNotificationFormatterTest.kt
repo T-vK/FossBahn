@@ -32,6 +32,8 @@ class TrackingNotificationFormatterTest {
             to = "Berlin",
             legs = listOf(
                 leg(
+                    originName = "Hamburg",
+                    destName = "Lübeck",
                     platform = "1",
                     depScheduled = "2026-05-30T12:30:00",
                     depPrognosed = "2026-05-30T12:35:00",
@@ -42,6 +44,8 @@ class TrackingNotificationFormatterTest {
                     lineDetail = "12345",
                 ),
                 leg(
+                    originName = "Lübeck",
+                    destName = "Berlin",
                     platform = "13",
                     depScheduled = "2026-05-30T15:05:00",
                     arrPlatform = "2",
@@ -53,7 +57,8 @@ class TrackingNotificationFormatterTest {
 
         val content = formatter.format(listOf(item), now = at("2026-05-30T12:36:00"))!!
 
-        assertEquals("Hamburg -> Berlin", content.title)
+        // Title lists the transfer station chain, not just from/to.
+        assertEquals("Hamburg -> Lübeck -> Berlin", content.title)
         assertEquals(
             "12:35 (Pt. 1) -> 14:55 (Pt. 13) -> 16:02 (Pt. 2) | RE3 (12345)",
             content.text.text,
@@ -177,6 +182,8 @@ class TrackingNotificationFormatterTest {
             to = "Berlin",
             legs = listOf(
                 leg(
+                    originName = "Hamburg",
+                    destName = "Bremen",
                     platform = "1",
                     depScheduled = "2026-05-30T12:30:00",
                     depPrognosed = "2026-05-30T12:35:00",
@@ -187,6 +194,8 @@ class TrackingNotificationFormatterTest {
                     lineDetail = "82129",
                 ),
                 leg(
+                    originName = "Bremen",
+                    destName = "Berlin",
                     platform = "13",
                     depScheduled = "2026-05-30T15:05:00",
                     arrPlatform = "5",
@@ -200,6 +209,8 @@ class TrackingNotificationFormatterTest {
             to = "München",
             legs = listOf(
                 leg(
+                    originName = "Köln",
+                    destName = "München",
                     platform = null,
                     depScheduled = "2026-05-30T09:00:00",
                     arrScheduled = "2026-05-30T13:30:00",
@@ -213,7 +224,7 @@ class TrackingNotificationFormatterTest {
         assertEquals("2 tracked connections", content.title)
         assertEquals(
             listOf(
-                "Hamburg -> Berlin",
+                "Hamburg -> Bremen -> Berlin",
                 "12:35 (Pt. 1) -> 14:55 (Pt. 13) -> 15:30 (Pt. 5) | RE3",
                 "Köln -> München",
                 "09:00 -> 13:30 | ICE 599",
@@ -221,7 +232,10 @@ class TrackingNotificationFormatterTest {
             content.lines.map { it.text },
         )
         // Collapsed text previews the first connection's route + timeline; route lines carry no styling.
-        assertEquals("Hamburg -> Berlin\n12:35 (Pt. 1) -> 14:55 (Pt. 13) -> 15:30 (Pt. 5) | RE3", content.text.text)
+        assertEquals(
+            "Hamburg -> Bremen -> Berlin\n12:35 (Pt. 1) -> 14:55 (Pt. 13) -> 15:30 (Pt. 5) | RE3",
+            content.text.text,
+        )
         assertTrue(content.text.boldRanges.isEmpty())
         assertTrue(content.lines[0].boldRanges.isEmpty())
         assertEquals(listOf("12:35", "1", "RE3"), boldSubstrings(content.lines[1]))
@@ -230,20 +244,140 @@ class TrackingNotificationFormatterTest {
         assertEquals(listOf("13:30", "ICE 599"), boldSubstrings(content.lines[3]))
     }
 
+    @Test
+    fun single_fallsBackToFromToWhenNoRailLegs() {
+        val item = tracked(
+            from = "Hamburg",
+            to = "Berlin",
+            legs = listOf(
+                leg(
+                    originName = "Hamburg",
+                    destName = "Berlin",
+                    platform = null,
+                    depScheduled = "2026-05-30T18:00:00",
+                    arrScheduled = "2026-05-30T18:20:00",
+                    lineName = null,
+                    isWalking = true,
+                ),
+            ),
+        )
+
+        val content = formatter.format(listOf(item), now = at("2026-05-30T18:01:00"))!!
+
+        assertEquals("Hamburg -> Berlin", content.title)
+    }
+
+    @Test
+    fun routeStationNames_buildsChainAndDedupesConsecutiveTransfers() {
+        val journey = journey(
+            legs = listOf(
+                leg(
+                    originName = "Kiel",
+                    destName = "Lübeck",
+                    platform = "1",
+                    depScheduled = "2026-05-30T12:00:00",
+                    arrScheduled = "2026-05-30T12:40:00",
+                    lineName = "RE",
+                ),
+                // Walking transfer within Lübeck must not add a duplicate station.
+                leg(
+                    originName = "Lübeck",
+                    destName = "Lübeck",
+                    platform = null,
+                    depScheduled = "2026-05-30T12:45:00",
+                    arrScheduled = "2026-05-30T12:50:00",
+                    lineName = null,
+                    isWalking = true,
+                ),
+                leg(
+                    originName = "Lübeck",
+                    destName = "Hamburg",
+                    platform = "3",
+                    depScheduled = "2026-05-30T13:00:00",
+                    arrScheduled = "2026-05-30T13:45:00",
+                    lineName = "RB",
+                ),
+            ),
+        )
+
+        assertEquals(listOf("Kiel", "Lübeck", "Hamburg"), routeStationNames(journey))
+    }
+
+    @Test
+    fun routeStationNames_emptyWhenNoRailLegs() {
+        val journey = journey(
+            legs = listOf(
+                leg(
+                    originName = "Hamburg",
+                    destName = "Berlin",
+                    platform = null,
+                    depScheduled = "2026-05-30T18:00:00",
+                    arrScheduled = "2026-05-30T18:20:00",
+                    lineName = null,
+                    isWalking = true,
+                ),
+            ),
+        )
+
+        assertTrue(routeStationNames(journey).isEmpty())
+    }
+
+    @Test
+    fun fitRouteTitle_leavesShortTitlesUnchanged() {
+        assertEquals("Kiel -> Lübeck -> Hamburg", fitRouteTitle(listOf("Kiel", "Lübeck", "Hamburg")))
+    }
+
+    @Test
+    fun fitRouteTitle_shortensLongestNameUntilItFits() {
+        val names = listOf("Hamburg Airport", "Hamburg Reeperbahn", "Hamburg HBF")
+
+        val fitted = fitRouteTitle(names, maxLength = 50)
+
+        assertTrue(fitted.length <= 50, "expected '$fitted' to fit in 50 chars")
+        assertTrue(fitted.contains("..."), "expected an ellipsis in '$fitted'")
+        // The shortest name is never touched; the longest ones absorb the truncation.
+        assertTrue(fitted.endsWith("Hamburg HBF"), "expected shortest name intact in '$fitted'")
+        assertTrue(fitted.startsWith("Hamburg Air"), "expected leading chars kept in '$fitted'")
+    }
+
+    @Test
+    fun fitRouteTitle_stopsWhenNamesCannotShrinkFurther() {
+        // A single very long name with no separators still shrinks toward one kept char + ellipsis.
+        val fitted = fitRouteTitle(listOf("Ausgburgerstrasse"), maxLength = 5)
+
+        assertTrue(fitted.length <= 5, "expected '$fitted' to fit in 5 chars")
+        assertTrue(fitted.endsWith("..."))
+    }
+
+    @Test
+    fun combineStyledLines_joinsLinesAndOffsetsBoldRanges() {
+        val combined = combineStyledLines(
+            listOf(
+                StyledNotificationText("Kiel", listOf(BoldRange(0, 4))),
+                StyledNotificationText("12:35 RE3", listOf(BoldRange(6, 9))),
+            ),
+        )
+
+        assertEquals("Kiel\n12:35 RE3", combined.text)
+        assertEquals(listOf("Kiel", "RE3"), boldSubstrings(combined))
+    }
+
     private fun boldSubstrings(styled: StyledNotificationText): List<String> =
         styled.boldRanges.map { styled.text.substring(it.start, it.end) }
 
     private fun at(iso: String): LocalDateTime = LocalDateTime.parse(iso)
 
+    private fun journey(legs: List<Leg>, id: String = "journey"): Journey = Journey(
+        id = id,
+        legs = legs,
+        durationMinutes = 180,
+        transfers = (legs.count { !it.isWalking } - 1).coerceAtLeast(0),
+        departure = legs.first().origin.scheduledTime,
+        arrival = legs.last().destination.scheduledTime,
+    )
+
     private fun tracked(from: String, to: String, legs: List<Leg>): TrackedJourneyWithJourney {
-        val journey = Journey(
-            id = "$from-$to",
-            legs = legs,
-            durationMinutes = 180,
-            transfers = (legs.count { !it.isWalking } - 1).coerceAtLeast(0),
-            departure = legs.first().origin.scheduledTime,
-            arrival = legs.last().destination.scheduledTime,
-        )
+        val journey = journey(legs, id = "$from-$to")
         val entity = TrackedJourneyEntity(
             id = journey.id,
             fromName = from,
@@ -261,6 +395,8 @@ class TrackingNotificationFormatterTest {
         depScheduled: String,
         arrScheduled: String,
         lineName: String?,
+        originName: String = "origin",
+        destName: String = "destination",
         depPrognosed: String? = null,
         arrPlatform: String? = null,
         arrPrognosed: String? = null,
@@ -268,13 +404,13 @@ class TrackingNotificationFormatterTest {
         isWalking: Boolean = false,
     ): Leg = Leg(
         origin = StopEvent(
-            name = "origin",
+            name = originName,
             platform = platform,
             scheduledTime = depScheduled,
             prognosedTime = depPrognosed,
         ),
         destination = StopEvent(
-            name = "destination",
+            name = destName,
             platform = arrPlatform,
             scheduledTime = arrScheduled,
             prognosedTime = arrPrognosed,

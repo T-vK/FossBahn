@@ -91,7 +91,7 @@ class JourneyTrackingForegroundService : Service() {
 
     private fun buildForegroundNotification(content: TrackingNotificationContent?): Notification {
         val title = content?.title ?: getString(R.string.tracking_foreground_title)
-        val collapsedText: CharSequence = content?.lines?.firstOrNull()?.toSpannable()
+        val collapsedText: CharSequence = content?.text?.toSpannable()
             ?: getString(R.string.tracking_foreground_starting)
         val openApp = PendingIntent.getActivity(
             this,
@@ -110,13 +110,13 @@ class JourneyTrackingForegroundService : Service() {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setContentIntent(openApp)
         if (content != null) {
-            if (content.lines.size > 1) {
-                val inbox = NotificationCompat.InboxStyle().setBigContentTitle(title)
-                content.lines.forEach { inbox.addLine(it.toSpannable()) }
-                builder.setStyle(inbox)
-            } else {
-                builder.setStyle(NotificationCompat.BigTextStyle().bigText(content.text.toSpannable()))
-            }
+            // Join every line into one BigTextStyle block so long routes/timelines wrap onto
+            // multiple lines instead of being truncated with an ellipsis (as InboxStyle does).
+            builder.setStyle(
+                NotificationCompat.BigTextStyle()
+                    .bigText(combineStyledLines(content.lines).toSpannable())
+                    .setBigContentTitle(title),
+            )
         }
         return builder.build()
     }
