@@ -2,10 +2,14 @@ package de.openbahn.navigator.tracking
 
 import de.openbahn.model.Journey
 import de.openbahn.model.Leg
+import de.openbahn.model.StopEvent
 import de.openbahn.model.railLegs
-import de.openbahn.model.railTransferCount
 import de.openbahn.navigator.data.TrackedJourneyWithJourney
 import de.openbahn.navigator.ui.util.formatJourneyClock
+import de.openbahn.navigator.ui.util.parseJourneyDateTime
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
+import kotlin.math.abs
 
 /**
  * Localized text pieces the foreground notification formatter needs. Kept behind an interface so the
@@ -15,19 +19,28 @@ interface TrackingNotificationStrings {
     /** Platform segment such as `Pt. 14A-D` (localized prefix). */
     fun platformSegment(platform: String): String
 
-    /** Transfer summary, e.g. `2 Transfers`, or the direct-connection wording for 0. */
-    fun transfers(count: Int): String
-
     /** Multi-connection title, e.g. `3 tracked connections`. */
     fun multiTitle(count: Int): String
 }
 
+/** An inclusive-exclusive character range to render in bold within a [StyledNotificationText]. */
+data class BoldRange(val start: Int, val end: Int)
+
+/**
+ * Plain notification text plus the character ranges that should be rendered bold. Kept free of any
+ * Android types so the formatter stays unit testable; the service turns it into a `Spannable`.
+ */
+data class StyledNotificationText(
+    val text: String,
+    val boldRanges: List<BoldRange> = emptyList(),
+)
+
 /** Title + body text for the tracking foreground notification. */
 data class TrackingNotificationContent(
     val title: String,
-    val text: String,
+    val text: StyledNotificationText,
     /** One entry per tracked connection, for InboxStyle expansion. */
-    val lines: List<String>,
+    val lines: List<StyledNotificationText>,
 )
 
 /**
@@ -35,37 +48,35 @@ data class TrackingNotificationContent(
  *
  * Single connection:
  *   Title `Departure -> Destination`
- *   Body  `Pt. {platform}: {departure} -> {arrival} | {line} [| {transfers}]`
+ *   Body  `12:35 (Pt. 1) -> 14:55 (Pt. 13) -> 16:02 (Pt. 2) | RE3 (12345)`
  *
  * Multiple connections:
  *   Title `N tracked connections`
- *   Body  one line per connection: `From -> To | Pt. {platform}: {departure} -> {arrival} | {line}`
+ *   Body  one line per connection: `From -> To | 12:35 (Pt. 1) -> 14:55 (Pt. 13) | RE3`
+ *
+ * The stop chain lists the first rail leg's departure followed by every rail leg's destination
+ * (transfer points and the final arrival). Prognosed times are preferred over scheduled ones.
+ *
+ * Bold styling marks the clock time and platform number of the stop closest to [now] and the first
+ * rail leg's line name (never its parenthesised detail).
  */
 class TrackingNotificationFormatter(private val strings: TrackingNotificationStrings) {
 
-    fun format(tracked: List<TrackedJourneyWithJourney>): TrackingNotificationContent? {
+    fun format(
+        tracked: List<TrackedJourneyWithJourney>,
+        now: LocalDateTime = LocalDateTime.now(),
+    ): TrackingNotificationContent? {
         if (tracked.isEmpty()) return null
-        return if (tracked.size == 1) single(tracked.first()) else multi(tracked)
+        return if (tracked.size == 1) single(tracked.first(), now) else multi(tracked, now)
     }
 
-    private fun single(item: TrackedJourneyWithJourney): TrackingNotificationContent {
+    private fun single(item: TrackedJourneyWithJourney, now: LocalDateTime): TrackingNotificationContent {
         val journey = item.journey
-        val leg = journey.railLegs().firstOrNull()
-        val body = buildString {
-            appendPlatform(leg)
-            append(departureClock(journey))
-            append(" -> ")
-            append(arrivalClock(journey))
-            legLabel(leg, includeDetail = true)?.let {
-                append(" | ")
-                append(it)
-            }
-            val transferCount = journey.railTransferCount()
-            if (transferCount > 0) {
-                append(" | ")
-                append(strings.transfers(transferCount))
-            }
-        }
+        val stops = stopsOf(journey)
+        val builder = StyledTextBuilder()
+        appendStopChain(builder, stops, closestIndex(stops, now))
+        appendLineLabel(builder, journey.railLegs().firstOrNull(), includeDetail = true)
+        val body = builder.build()
         return TrackingNotificationContent(
             title = route(item),
             text = body,
@@ -73,54 +84,103 @@ class TrackingNotificationFormatter(private val strings: TrackingNotificationStr
         )
     }
 
-    private fun multi(tracked: List<TrackedJourneyWithJourney>): TrackingNotificationContent {
+    private fun multi(tracked: List<TrackedJourneyWithJourney>, now: LocalDateTime): TrackingNotificationContent {
         val lines = tracked.map { item ->
             val journey = item.journey
-            val leg = journey.railLegs().firstOrNull()
-            buildString {
-                append(route(item))
-                append(" | ")
-                appendPlatform(leg)
-                append(departureClock(journey))
-                append(" -> ")
-                append(arrivalClock(journey))
-                legLabel(leg, includeDetail = false)?.let {
-                    append(" | ")
-                    append(it)
-                }
-            }
+            val stops = stopsOf(journey)
+            val builder = StyledTextBuilder()
+            builder.append(route(item))
+            builder.append(" | ")
+            appendStopChain(builder, stops, closestIndex(stops, now))
+            appendLineLabel(builder, journey.railLegs().firstOrNull(), includeDetail = false)
+            builder.build()
         }
         return TrackingNotificationContent(
             title = strings.multiTitle(tracked.size),
-            text = lines.joinToString("\n"),
+            text = StyledNotificationText(lines.joinToString("\n") { it.text }),
             lines = lines,
         )
     }
 
-    private fun StringBuilder.appendPlatform(leg: Leg?) {
-        val platform = leg?.origin?.platform?.takeIf { it.isNotBlank() } ?: return
-        append(strings.platformSegment(platform))
-        append(": ")
+    /** First rail leg departure followed by each rail leg destination (transfers + final arrival). */
+    private fun stopsOf(journey: Journey): List<TrackedStop> {
+        val rails = journey.railLegs()
+        if (rails.isEmpty()) return emptyList()
+        val stops = mutableListOf(stopOf(rails.first().origin))
+        rails.forEach { stops += stopOf(it.destination) }
+        return stops
+    }
+
+    private fun stopOf(event: StopEvent): TrackedStop {
+        val iso = event.prognosedTime?.takeIf { it.isNotBlank() } ?: event.scheduledTime
+        return TrackedStop(
+            clock = formatJourneyClock(iso),
+            platform = event.platform?.takeIf { it.isNotBlank() },
+            time = parseJourneyDateTime(iso),
+        )
+    }
+
+    private fun closestIndex(stops: List<TrackedStop>, now: LocalDateTime): Int? =
+        stops.indices
+            .filter { stops[it].time != null }
+            .minByOrNull { abs(ChronoUnit.SECONDS.between(stops[it].time, now)) }
+
+    private fun appendStopChain(builder: StyledTextBuilder, stops: List<TrackedStop>, closest: Int?) {
+        stops.forEachIndexed { index, stop ->
+            if (index > 0) builder.append(" -> ")
+            val bold = index == closest
+            builder.append(stop.clock, bold)
+            val platform = stop.platform ?: return@forEachIndexed
+            builder.append(" (")
+            appendPlatform(builder, strings.platformSegment(platform), platform, bold)
+            builder.append(")")
+        }
+    }
+
+    /** Appends the localized platform segment, bolding only the platform value (not the prefix). */
+    private fun appendPlatform(
+        builder: StyledTextBuilder,
+        segment: String,
+        platform: String,
+        bold: Boolean,
+    ) {
+        val at = segment.lastIndexOf(platform)
+        if (!bold || at < 0) {
+            builder.append(segment)
+            return
+        }
+        builder.append(segment.substring(0, at))
+        builder.append(platform, bold = true)
+        builder.append(segment.substring(at + platform.length))
+    }
+
+    private fun appendLineLabel(builder: StyledTextBuilder, leg: Leg?, includeDetail: Boolean) {
+        val name = leg?.lineName?.takeIf { it.isNotBlank() } ?: return
+        builder.append(" | ")
+        builder.append(name, bold = true)
+        val detail = leg.lineDetail?.takeIf { it.isNotBlank() && it != name }
+        if (includeDetail && detail != null) builder.append(" ($detail)")
     }
 
     private fun route(item: TrackedJourneyWithJourney): String =
         "${item.entity.fromName} -> ${item.entity.toName}"
 
-    private fun departureClock(journey: Journey): String {
-        val origin = journey.railLegs().firstOrNull()?.origin
-        val iso = origin?.prognosedTime ?: origin?.scheduledTime ?: journey.departure
-        return formatJourneyClock(iso)
-    }
+    private data class TrackedStop(
+        val clock: String,
+        val platform: String?,
+        val time: LocalDateTime?,
+    )
 
-    private fun arrivalClock(journey: Journey): String {
-        val destination = journey.railLegs().lastOrNull()?.destination
-        val iso = destination?.prognosedTime ?: destination?.scheduledTime ?: journey.arrival
-        return formatJourneyClock(iso)
-    }
+    private class StyledTextBuilder {
+        private val sb = StringBuilder()
+        private val ranges = mutableListOf<BoldRange>()
 
-    private fun legLabel(leg: Leg?, includeDetail: Boolean): String? {
-        val name = leg?.lineName?.takeIf { it.isNotBlank() } ?: return null
-        val detail = leg.lineDetail?.takeIf { it.isNotBlank() && it != name }
-        return if (includeDetail && detail != null) "$name ($detail)" else name
+        fun append(text: String, bold: Boolean = false) {
+            val start = sb.length
+            sb.append(text)
+            if (bold && text.isNotEmpty()) ranges += BoldRange(start, sb.length)
+        }
+
+        fun build(): StyledNotificationText = StyledNotificationText(sb.toString(), ranges.toList())
     }
 }

@@ -5,16 +5,16 @@ import de.openbahn.model.Leg
 import de.openbahn.model.StopEvent
 import de.openbahn.navigator.data.TrackedJourneyEntity
 import de.openbahn.navigator.data.TrackedJourneyWithJourney
+import java.time.LocalDateTime
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class TrackingNotificationFormatterTest {
 
     private val strings = object : TrackingNotificationStrings {
         override fun platformSegment(platform: String): String = "Pt. $platform"
-        override fun transfers(count: Int): String =
-            if (count == 0) "Direct connection" else "$count Transfers"
         override fun multiTitle(count: Int): String = "$count tracked connections"
     }
 
@@ -26,44 +26,80 @@ class TrackingNotificationFormatterTest {
     }
 
     @Test
-    fun single_buildsTitleAndBody() {
+    fun single_buildsStopTimelineWithPlatforms() {
         val item = tracked(
             from = "Hamburg",
             to = "Berlin",
             legs = listOf(
                 leg(
-                    platform = "14A-D",
-                    depScheduled = "2026-05-30T18:10:00",
-                    depPrognosed = "2026-05-30T18:15:00",
-                    arrScheduled = "2026-05-30T21:10:00",
-                    arrPrognosed = "2026-05-30T21:15:00",
+                    platform = "1",
+                    depScheduled = "2026-05-30T12:30:00",
+                    depPrognosed = "2026-05-30T12:35:00",
+                    arrPlatform = "13",
+                    arrScheduled = "2026-05-30T14:50:00",
+                    arrPrognosed = "2026-05-30T14:55:00",
                     lineName = "RE3",
-                    lineDetail = "82129",
+                    lineDetail = "12345",
                 ),
                 leg(
-                    platform = "5",
-                    depScheduled = "2026-05-30T21:20:00",
-                    arrScheduled = "2026-05-30T22:00:00",
-                    lineName = "S1",
-                ),
-                leg(
-                    platform = "8",
-                    depScheduled = "2026-05-30T22:05:00",
-                    arrScheduled = "2026-05-30T22:30:00",
-                    lineName = "U2",
+                    platform = "13",
+                    depScheduled = "2026-05-30T15:05:00",
+                    arrPlatform = "2",
+                    arrScheduled = "2026-05-30T16:02:00",
+                    lineName = "S5",
                 ),
             ),
         )
 
-        val content = formatter.format(listOf(item))!!
+        val content = formatter.format(listOf(item), now = at("2026-05-30T12:36:00"))!!
 
         assertEquals("Hamburg -> Berlin", content.title)
-        assertEquals("Pt. 14A-D: 18:15 -> 22:30 | RE3 (82129) | 2 Transfers", content.text)
+        assertEquals(
+            "12:35 (Pt. 1) -> 14:55 (Pt. 13) -> 16:02 (Pt. 2) | RE3 (12345)",
+            content.text.text,
+        )
         assertEquals(listOf(content.text), content.lines)
+        // Closest stop to now (12:36) is the departure at 12:35; line name is always bold.
+        assertEquals(listOf("12:35", "1", "RE3"), boldSubstrings(content.text))
     }
 
     @Test
-    fun single_directConnection_omitsTransferSegment() {
+    fun single_boldsStopClosestToNow() {
+        val item = tracked(
+            from = "Hamburg",
+            to = "Berlin",
+            legs = listOf(
+                leg(
+                    platform = "1",
+                    depScheduled = "2026-05-30T12:30:00",
+                    depPrognosed = "2026-05-30T12:35:00",
+                    arrPlatform = "13",
+                    arrScheduled = "2026-05-30T14:50:00",
+                    arrPrognosed = "2026-05-30T14:55:00",
+                    lineName = "RE3",
+                    lineDetail = "12345",
+                ),
+                leg(
+                    platform = "13",
+                    depScheduled = "2026-05-30T15:05:00",
+                    arrPlatform = "2",
+                    arrScheduled = "2026-05-30T16:02:00",
+                    lineName = "S5",
+                ),
+            ),
+        )
+
+        val content = formatter.format(listOf(item), now = at("2026-05-30T14:54:00"))!!
+
+        // Closest stop is the transfer at 14:55 on platform 13.
+        assertEquals(listOf("14:55", "13", "RE3"), boldSubstrings(content.text))
+        // Bold ranges cover exactly the value, not the parentheses or the "Pt. " prefix.
+        val platformStart = content.text.text.indexOf("(Pt. 13)") + "(Pt. ".length
+        assertTrue(content.text.boldRanges.any { it.start == platformStart && it.end == platformStart + 2 })
+    }
+
+    @Test
+    fun single_directConnection_omitsDuplicateDetail() {
         val item = tracked(
             from = "Hamburg",
             to = "Berlin",
@@ -78,10 +114,11 @@ class TrackingNotificationFormatterTest {
             ),
         )
 
-        val content = formatter.format(listOf(item))!!
+        val content = formatter.format(listOf(item), now = at("2026-05-30T18:14:00"))!!
 
         // lineDetail identical to lineName is not duplicated in parentheses.
-        assertEquals("Pt. 14A-D: 18:15 -> 21:15 | ICE", content.text)
+        assertEquals("18:15 (Pt. 14A-D) -> 21:15 | ICE", content.text.text)
+        assertEquals(listOf("18:15", "14A-D", "ICE"), boldSubstrings(content.text))
     }
 
     @Test
@@ -99,13 +136,14 @@ class TrackingNotificationFormatterTest {
             ),
         )
 
-        val content = formatter.format(listOf(item))!!
+        val content = formatter.format(listOf(item), now = at("2026-05-30T18:14:00"))!!
 
-        assertEquals("18:15 -> 21:15 | RE3", content.text)
+        assertEquals("18:15 -> 21:15 | RE3", content.text.text)
+        assertEquals(listOf("18:15", "RE3"), boldSubstrings(content.text))
     }
 
     @Test
-    fun single_skipsWalkingLegForPlatformAndLine() {
+    fun single_skipsWalkingLegForTimelineAndLine() {
         val item = tracked(
             from = "Hamburg",
             to = "Berlin",
@@ -126,9 +164,10 @@ class TrackingNotificationFormatterTest {
             ),
         )
 
-        val content = formatter.format(listOf(item))!!
+        val content = formatter.format(listOf(item), now = at("2026-05-30T18:14:00"))!!
 
-        assertEquals("Pt. 3: 18:15 -> 21:15 | RE3", content.text)
+        assertEquals("18:15 (Pt. 3) -> 21:15 | RE3", content.text.text)
+        assertEquals(listOf("18:15", "3", "RE3"), boldSubstrings(content.text))
     }
 
     @Test
@@ -138,16 +177,20 @@ class TrackingNotificationFormatterTest {
             to = "Berlin",
             legs = listOf(
                 leg(
-                    platform = "14A-D",
-                    depScheduled = "2026-05-30T18:15:00",
-                    arrScheduled = "2026-05-30T21:15:00",
+                    platform = "1",
+                    depScheduled = "2026-05-30T12:30:00",
+                    depPrognosed = "2026-05-30T12:35:00",
+                    arrPlatform = "13",
+                    arrScheduled = "2026-05-30T14:50:00",
+                    arrPrognosed = "2026-05-30T14:55:00",
                     lineName = "RE3",
                     lineDetail = "82129",
                 ),
                 leg(
-                    platform = "2",
-                    depScheduled = "2026-05-30T21:20:00",
-                    arrScheduled = "2026-05-30T22:00:00",
+                    platform = "13",
+                    depScheduled = "2026-05-30T15:05:00",
+                    arrPlatform = "5",
+                    arrScheduled = "2026-05-30T15:30:00",
                     lineName = "S5",
                 ),
             ),
@@ -165,18 +208,28 @@ class TrackingNotificationFormatterTest {
             ),
         )
 
-        val content = formatter.format(listOf(first, second))!!
+        val content = formatter.format(listOf(first, second), now = at("2026-05-30T12:36:00"))!!
 
         assertEquals("2 tracked connections", content.title)
         assertEquals(
             listOf(
-                "Hamburg -> Berlin | Pt. 14A-D: 18:15 -> 22:00 | RE3",
+                "Hamburg -> Berlin | 12:35 (Pt. 1) -> 14:55 (Pt. 13) -> 15:30 (Pt. 5) | RE3",
                 "Köln -> München | 09:00 -> 13:30 | ICE 599",
             ),
-            content.lines,
+            content.lines.map { it.text },
         )
-        assertEquals(content.lines.joinToString("\n"), content.text)
+        // Combined collapsed text carries no styling; each expanded line keeps its own bold ranges.
+        assertEquals(content.lines.joinToString("\n") { it.text }, content.text.text)
+        assertTrue(content.text.boldRanges.isEmpty())
+        assertEquals(listOf("12:35", "1", "RE3"), boldSubstrings(content.lines[0]))
+        // In the second connection 13:30 is nearer to 12:36 than 09:00.
+        assertEquals(listOf("13:30", "ICE 599"), boldSubstrings(content.lines[1]))
     }
+
+    private fun boldSubstrings(styled: StyledNotificationText): List<String> =
+        styled.boldRanges.map { styled.text.substring(it.start, it.end) }
+
+    private fun at(iso: String): LocalDateTime = LocalDateTime.parse(iso)
 
     private fun tracked(from: String, to: String, legs: List<Leg>): TrackedJourneyWithJourney {
         val journey = Journey(
@@ -205,6 +258,7 @@ class TrackingNotificationFormatterTest {
         arrScheduled: String,
         lineName: String?,
         depPrognosed: String? = null,
+        arrPlatform: String? = null,
         arrPrognosed: String? = null,
         lineDetail: String? = null,
         isWalking: Boolean = false,
@@ -217,6 +271,7 @@ class TrackingNotificationFormatterTest {
         ),
         destination = StopEvent(
             name = "destination",
+            platform = arrPlatform,
             scheduledTime = arrScheduled,
             prognosedTime = arrPrognosed,
         ),

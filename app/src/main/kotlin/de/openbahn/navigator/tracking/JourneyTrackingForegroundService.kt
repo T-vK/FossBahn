@@ -5,7 +5,11 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.graphics.Typeface
 import android.os.IBinder
+import android.text.Spannable
+import android.text.SpannableString
+import android.text.style.StyleSpan
 import androidx.core.app.NotificationCompat
 import de.openbahn.api.debug.OpenBahnDebugLog
 import de.openbahn.navigator.MainActivity
@@ -87,7 +91,7 @@ class JourneyTrackingForegroundService : Service() {
 
     private fun buildForegroundNotification(content: TrackingNotificationContent?): Notification {
         val title = content?.title ?: getString(R.string.tracking_foreground_title)
-        val collapsedText = content?.lines?.firstOrNull()
+        val collapsedText: CharSequence = content?.lines?.firstOrNull()?.toSpannable()
             ?: getString(R.string.tracking_foreground_starting)
         val openApp = PendingIntent.getActivity(
             this,
@@ -108,10 +112,10 @@ class JourneyTrackingForegroundService : Service() {
         if (content != null) {
             if (content.lines.size > 1) {
                 val inbox = NotificationCompat.InboxStyle().setBigContentTitle(title)
-                content.lines.forEach { inbox.addLine(it) }
+                content.lines.forEach { inbox.addLine(it.toSpannable()) }
                 builder.setStyle(inbox)
             } else {
-                builder.setStyle(NotificationCompat.BigTextStyle().bigText(content.text))
+                builder.setStyle(NotificationCompat.BigTextStyle().bigText(content.text.toSpannable()))
             }
         }
         return builder.build()
@@ -123,15 +127,22 @@ class JourneyTrackingForegroundService : Service() {
         override fun platformSegment(platform: String): String =
             context.getString(R.string.tracking_foreground_platform, platform)
 
-        override fun transfers(count: Int): String =
-            if (count == 0) {
-                context.getString(R.string.share_direct)
-            } else {
-                context.getString(R.string.transfers_count, count)
-            }
-
         override fun multiTitle(count: Int): String =
             context.getString(R.string.tracking_foreground_count_title, count)
+    }
+
+    private fun StyledNotificationText.toSpannable(): CharSequence {
+        if (boldRanges.isEmpty()) return text
+        val spannable = SpannableString(text)
+        boldRanges.forEach { range ->
+            spannable.setSpan(
+                StyleSpan(Typeface.BOLD),
+                range.start,
+                range.end,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+        }
+        return spannable
     }
 
     companion object {
