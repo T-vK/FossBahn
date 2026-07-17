@@ -35,7 +35,7 @@ data class TrackingNotificationContent(
  *
  * Single connection:
  *   Title `Departure -> Destination`
- *   Body  `Pt. {platform}: {departure} -> {arrival} | {line} | {transfers}`
+ *   Body  `Pt. {platform}: {departure} -> {arrival} | {line} [| {transfers}]`
  *
  * Multiple connections:
  *   Title `N tracked connections`
@@ -60,8 +60,11 @@ class TrackingNotificationFormatter(private val strings: TrackingNotificationStr
                 append(" | ")
                 append(it)
             }
-            append(" | ")
-            append(strings.transfers(journey.railTransferCount()))
+            val transferCount = journey.railTransferCount()
+            if (transferCount > 0) {
+                append(" | ")
+                append(strings.transfers(transferCount))
+            }
         }
         return TrackingNotificationContent(
             title = route(item),

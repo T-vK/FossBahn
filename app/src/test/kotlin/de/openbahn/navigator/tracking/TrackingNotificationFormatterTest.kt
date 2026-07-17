@@ -63,7 +63,7 @@ class TrackingNotificationFormatterTest {
     }
 
     @Test
-    fun single_directConnectionUsesZeroTransferWording() {
+    fun single_directConnection_omitsTransferSegment() {
         val item = tracked(
             from = "Hamburg",
             to = "Berlin",
@@ -81,7 +81,7 @@ class TrackingNotificationFormatterTest {
         val content = formatter.format(listOf(item))!!
 
         // lineDetail identical to lineName is not duplicated in parentheses.
-        assertEquals("Pt. 14A-D: 18:15 -> 21:15 | ICE | Direct connection", content.text)
+        assertEquals("Pt. 14A-D: 18:15 -> 21:15 | ICE", content.text)
     }
 
     @Test
@@ -101,7 +101,7 @@ class TrackingNotificationFormatterTest {
 
         val content = formatter.format(listOf(item))!!
 
-        assertEquals("18:15 -> 21:15 | RE3 | Direct connection", content.text)
+        assertEquals("18:15 -> 21:15 | RE3", content.text)
     }
 
     @Test
@@ -128,7 +128,7 @@ class TrackingNotificationFormatterTest {
 
         val content = formatter.format(listOf(item))!!
 
-        assertEquals("Pt. 3: 18:15 -> 21:15 | RE3 | Direct connection", content.text)
+        assertEquals("Pt. 3: 18:15 -> 21:15 | RE3", content.text)
     }
 
     @Test
