@@ -411,6 +411,73 @@ class SearchViewModelTest {
     }
 
     @Test
+    fun arrivalSearch_showsFirstPageBeforeRefinementCompletes() = runTest(dispatcher) {
+        fun journey(id: String, arrival: String) = Journey(
+            id = id,
+            legs = listOf(
+                Leg(
+                    origin = StopEvent("Berlin Hbf", scheduledTime = "2026-05-30T07:00:00"),
+                    destination = StopEvent("München Hbf", scheduledTime = arrival),
+                ),
+            ),
+            durationMinutes = 60,
+            transfers = 0,
+            departure = "2026-05-30T07:00:00",
+            arrival = arrival,
+        )
+        val best = journey("best", "2026-05-30T09:59:00")
+        val later = journey("later", "2026-05-30T10:30:00")
+        val tooEarly = journey("tooEarly", "2026-05-30T09:40:00")
+        val preceding = journey("preceding", "2026-05-30T09:53:00")
+        val earlierGate = CompletableDeferred<Unit>()
+
+        coEvery {
+            searchRepository.searchJourneys(any(), any(), any(), any(), any())
+        } returns JourneySearchResult(
+            journeys = listOf(best, later),
+            pagingEarlier = "earlier-page-token",
+            pagingLater = "later-page-token",
+        )
+        coEvery {
+            searchRepository.searchJourneys(any(), any(), any(), any(), eq("earlier-page-token"))
+        } coAnswers {
+            earlierGate.await()
+            JourneySearchResult(
+                journeys = listOf(tooEarly, preceding),
+                pagingEarlier = "even-earlier-token",
+            )
+        }
+        coEvery {
+            searchRepository.searchJourneys(any(), any(), any(), any(), eq("later-page-token"))
+        } returns JourneySearchResult(
+            journeys = emptyList(),
+            pagingLater = "even-later-token",
+        )
+
+        val viewModel = createViewModel()
+        viewModel.selectFrom(berlin)
+        viewModel.selectTo(munich)
+        viewModel.setWhen(LocalDateTime.of(2026, 5, 30, 10, 0), arrivalSearch = true)
+        viewModel.search()
+        advanceUntilIdle()
+
+        val interim = viewModel.state.value
+        assertFalse(interim.isLoading)
+        assertTrue(interim.isRefiningArrivalResults)
+        assertEquals(listOf("best", "later"), interim.journeys.map { it.id })
+
+        earlierGate.complete(Unit)
+        advanceUntilIdle()
+
+        val finalState = viewModel.state.value
+        assertFalse(finalState.isRefiningArrivalResults)
+        assertEquals(
+            listOf("preceding", "best", "later"),
+            finalState.journeys.map { it.id },
+        )
+    }
+
+    @Test
     fun departureSearch_keepsApiOrder() = runTest(dispatcher) {
         fun journey(id: String, arrival: String) = Journey(
             id = id,

@@ -10,6 +10,7 @@ import de.openbahn.api.JourneySearchTime
 import de.openbahn.api.debug.OpenBahnDebugLog
 import de.openbahn.api.haltIdForJourney
 import de.openbahn.model.Journey
+import de.openbahn.model.JourneySearchResult
 import de.openbahn.model.JourneySearchOptions
 import de.openbahn.model.Location
 import de.openbahn.model.OnTimeToleranceSettings
@@ -34,6 +35,8 @@ import de.openbahn.navigator.tracking.DelayTrackingWorker
 import java.io.IOException
 import java.time.LocalDateTime
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -66,6 +69,8 @@ data class SearchUiState(
     /** Arrival-search connections hidden until the user taps "Earlier connections". */
     val hiddenArrivalJourneys: List<Journey> = emptyList(),
     val isLoading: Boolean = false,
+    /** True while adjacent arrival-search pages are fetched after the first page is shown. */
+    val isRefiningArrivalResults: Boolean = false,
     val isLoadingEarlier: Boolean = false,
     val isLoadingLater: Boolean = false,
     /** True while Bahn-Vorhersage ratings are still loading after connections are shown. */
@@ -556,6 +561,7 @@ class SearchViewModel(
         _state.update {
             it.copy(
                 isLoading = true,
+                isRefiningArrivalResults = false,
                 isLoadingEarlier = false,
                 isLoadingLater = false,
                 predictionsLoading = false,
@@ -640,103 +646,90 @@ class SearchViewModel(
             )
             val existing = if (replaceResults) emptyList() else _state.value.journeys
             val existingIds = existing.map { it.id }.toSet()
-            // Never reorder API results. For the initial arrival ("arrive by") search we fetch the
-            // adjacent earlier and later pages, merge them chronologically, then hide leading results
-            // until the best match is first or a qualifying buffer connection is first with the best
-            // match second.
+            val generation = searchGeneration
+            val isInitialArrivalSearch = options.arrivalSearch && replaceResults && pagingReference == null
+            val needsArrivalRefinement = isInitialArrivalSearch && page.journeys.isNotEmpty() &&
+                (page.pagingEarlier != null || page.pagingLater != null)
+
+            if (needsArrivalRefinement) {
+                publishSearchResults(
+                    existing = existing,
+                    existingIds = existingIds,
+                    incoming = page.journeys,
+                    hiddenArrivalJourneys = emptyList(),
+                    page = page,
+                    fetchedEarlierPagingEarlier = null,
+                    fetchedLaterPagingLater = null,
+                    replaceResults = replaceResults,
+                    prepend = prepend,
+                    options = options,
+                    generation = generation,
+                    isRefiningArrivalResults = true,
+                )
+                try {
+                    refineInitialArrivalSearch(
+                        from = from,
+                        to = to,
+                        options = options,
+                        whenTime = whenTime,
+                        initialPage = page,
+                        generation = generation,
+                    )
+                } catch (e: Exception) {
+                    OpenBahnDebugLog.w("Search", "arrival refinement failed: ${e.message}")
+                    _state.update { it.copy(isRefiningArrivalResults = false) }
+                }
+                return
+            }
+
             var incoming = page.journeys
             var hiddenArrivalJourneys = if (replaceResults) emptyList() else _state.value.hiddenArrivalJourneys
             var fetchedEarlierPagingEarlier: String? = null
             var fetchedLaterPagingLater: String? = null
-            val isInitialArrivalSearch = options.arrivalSearch && replaceResults && pagingReference == null
             if (isInitialArrivalSearch && page.journeys.isNotEmpty()) {
-                val earlierJourneys = if (page.pagingEarlier != null) {
-                    val earlierPage = searchUseCase.searchJourneys(
-                        from, to, options, whenTime, page.pagingEarlier,
-                    )
-                    fetchedEarlierPagingEarlier = earlierPage.pagingEarlier
-                    earlierPage.journeys
-                } else {
-                    emptyList()
-                }
-                val laterJourneys = if (page.pagingLater != null) {
-                    val laterPage = searchUseCase.searchJourneys(
-                        from, to, options, whenTime, page.pagingLater,
-                    )
-                    fetchedLaterPagingLater = laterPage.pagingLater
-                    laterPage.journeys
-                } else {
-                    emptyList()
-                }
-                val trimmed = trimArrivalResultsForDisplay(
-                    mergeArrivalSearchPages(
-                        initial = page.journeys,
-                        earlier = earlierJourneys,
-                        later = laterJourneys,
-                    ),
-                    whenTime,
-                )
+                val trimmed = trimArrivalResultsForDisplay(page.journeys, whenTime)
                 incoming = trimmed.visible
                 hiddenArrivalJourneys = trimmed.hidden
             }
-            val mergedJourneys = mergeJourneys(existing, incoming, prepend)
-            val newJourneys = incoming.filter { it.id !in existingIds }
-            val keptRated = if (replaceResults) {
-                emptyList()
-            } else {
-                _state.value.ratedJourneys.filter { rated ->
-                    mergedJourneys.any { it.id == rated.journey.id }
-                }
-            }
-            logSearchOutcome(mergedJourneys.size, mergedJourneys.isEmpty() && replaceResults)
-            val scrollToken = if (replaceResults && mergedJourneys.isNotEmpty()) {
-                _state.value.scrollToResultsToken + 1
-            } else {
-                _state.value.scrollToResultsToken
-            }
-            val generation = searchGeneration
-            _state.update {
-                it.copy(
-                    journeys = mergedJourneys,
-                    ratedJourneys = keptRated,
-                    hiddenArrivalJourneys = hiddenArrivalJourneys,
-                    pagingEarlier = when {
-                        replaceResults -> fetchedEarlierPagingEarlier ?: page.pagingEarlier
-                        prepend -> page.pagingEarlier
-                        else -> it.pagingEarlier
-                    },
-                    pagingLater = when {
-                        replaceResults -> fetchedLaterPagingLater ?: page.pagingLater
-                        !prepend && pagingReference != null -> page.pagingLater
-                        else -> it.pagingLater
-                    },
-                    isLoading = false,
-                    isLoadingEarlier = false,
-                    isLoadingLater = false,
-                    predictionsLoading = _state.value.showPredictions && newJourneys.isNotEmpty(),
-                    info = if (mergedJourneys.isEmpty() && replaceResults) {
-                        noConnectionsInfoKey(options)
-                    } else {
-                        null
-                    },
-                    scrollToResultsToken = scrollToken,
-                )
-            }
-            if (_state.value.showPredictions && newJourneys.isNotEmpty()) {
-                startPredictionsJob(newJourneys, prepend, generation)
-            }
+            publishSearchResults(
+                existing = existing,
+                existingIds = existingIds,
+                incoming = incoming,
+                hiddenArrivalJourneys = hiddenArrivalJourneys,
+                page = page,
+                fetchedEarlierPagingEarlier = fetchedEarlierPagingEarlier,
+                fetchedLaterPagingLater = fetchedLaterPagingLater,
+                replaceResults = replaceResults,
+                prepend = prepend,
+                options = options,
+                generation = generation,
+                isRefiningArrivalResults = false,
+            )
         } catch (e: DbApiBlockedException) {
             _state.update {
-                it.copy(isLoading = false, isLoadingEarlier = false, isLoadingLater = false, error = "error_api_blocked")
+                it.copy(
+                    isLoading = false,
+                    isRefiningArrivalResults = false,
+                    isLoadingEarlier = false,
+                    isLoadingLater = false,
+                    error = "error_api_blocked",
+                )
             }
         } catch (e: DbParseException) {
             _state.update {
-                it.copy(isLoading = false, isLoadingEarlier = false, isLoadingLater = false, error = "error_parse")
+                it.copy(
+                    isLoading = false,
+                    isRefiningArrivalResults = false,
+                    isLoadingEarlier = false,
+                    isLoadingLater = false,
+                    error = "error_parse",
+                )
             }
         } catch (e: DbApiException) {
             _state.update {
                 it.copy(
                     isLoading = false,
+                    isRefiningArrivalResults = false,
                     isLoadingEarlier = false,
                     isLoadingLater = false,
                     error = "error_search_failed",
@@ -744,17 +737,143 @@ class SearchViewModel(
             }
         } catch (e: IOException) {
             _state.update {
-                it.copy(isLoading = false, isLoadingEarlier = false, isLoadingLater = false, error = "error_network")
+                it.copy(
+                    isLoading = false,
+                    isRefiningArrivalResults = false,
+                    isLoadingEarlier = false,
+                    isLoadingLater = false,
+                    error = "error_network",
+                )
             }
         } catch (e: Exception) {
             _state.update {
                 it.copy(
                     isLoading = false,
+                    isRefiningArrivalResults = false,
                     isLoadingEarlier = false,
                     isLoadingLater = false,
                     error = "error_search_failed",
                 )
             }
+        }
+    }
+
+    private suspend fun refineInitialArrivalSearch(
+        from: Location,
+        to: Location,
+        options: JourneySearchOptions,
+        whenTime: LocalDateTime,
+        initialPage: JourneySearchResult,
+        generation: Long,
+    ) {
+        if (generation != searchGeneration) return
+        val (earlierPage, laterPage) = coroutineScope {
+            val earlier = async {
+                initialPage.pagingEarlier?.let { token ->
+                    searchUseCase.searchJourneys(from, to, options, whenTime, token)
+                }
+            }
+            val later = async {
+                initialPage.pagingLater?.let { token ->
+                    searchUseCase.searchJourneys(from, to, options, whenTime, token)
+                }
+            }
+            earlier.await() to later.await()
+        }
+        if (generation != searchGeneration) return
+        val trimmed = trimArrivalResultsForDisplay(
+            mergeArrivalSearchPages(
+                initial = initialPage.journeys,
+                earlier = earlierPage?.journeys.orEmpty(),
+                later = laterPage?.journeys.orEmpty(),
+            ),
+            whenTime,
+        )
+        val previousIds = _state.value.journeys.map { it.id }.toSet()
+        publishSearchResults(
+            existing = _state.value.journeys,
+            existingIds = previousIds,
+            incoming = trimmed.visible,
+            hiddenArrivalJourneys = trimmed.hidden,
+            page = initialPage,
+            fetchedEarlierPagingEarlier = earlierPage?.pagingEarlier,
+            fetchedLaterPagingLater = laterPage?.pagingLater,
+            replaceResults = false,
+            prepend = false,
+            options = options,
+            generation = generation,
+            isRefiningArrivalResults = false,
+            replaceVisibleJourneys = true,
+        )
+    }
+
+    private fun publishSearchResults(
+        existing: List<Journey>,
+        existingIds: Set<String>,
+        incoming: List<Journey>,
+        hiddenArrivalJourneys: List<Journey>,
+        page: JourneySearchResult,
+        fetchedEarlierPagingEarlier: String?,
+        fetchedLaterPagingLater: String?,
+        replaceResults: Boolean,
+        prepend: Boolean,
+        options: JourneySearchOptions,
+        generation: Long,
+        isRefiningArrivalResults: Boolean,
+        replaceVisibleJourneys: Boolean = false,
+    ) {
+        val mergedJourneys = when {
+            replaceVisibleJourneys -> incoming
+            else -> mergeJourneys(existing, incoming, prepend)
+        }
+        val newJourneys = incoming.filter { it.id !in existingIds }
+        val keptRated = when {
+            replaceResults -> emptyList()
+            replaceVisibleJourneys -> _state.value.ratedJourneys.filter { rated ->
+                mergedJourneys.any { it.id == rated.journey.id }
+            }
+            else -> _state.value.ratedJourneys.filter { rated ->
+                mergedJourneys.any { it.id == rated.journey.id }
+            }
+        }
+        logSearchOutcome(mergedJourneys.size, mergedJourneys.isEmpty() && replaceResults)
+        val scrollToken = if (replaceResults && mergedJourneys.isNotEmpty()) {
+            _state.value.scrollToResultsToken + 1
+        } else {
+            _state.value.scrollToResultsToken
+        }
+        _state.update {
+            it.copy(
+                journeys = mergedJourneys,
+                ratedJourneys = keptRated,
+                hiddenArrivalJourneys = hiddenArrivalJourneys,
+                pagingEarlier = when {
+                    replaceResults || replaceVisibleJourneys ->
+                        fetchedEarlierPagingEarlier ?: page.pagingEarlier
+                    prepend -> page.pagingEarlier
+                    else -> it.pagingEarlier
+                },
+                pagingLater = when {
+                    replaceResults || replaceVisibleJourneys ->
+                        fetchedLaterPagingLater ?: page.pagingLater
+                    !prepend && page.pagingLater != null -> page.pagingLater
+                    else -> it.pagingLater
+                },
+                isLoading = false,
+                isRefiningArrivalResults = isRefiningArrivalResults,
+                isLoadingEarlier = false,
+                isLoadingLater = false,
+                predictionsLoading = _state.value.showPredictions && newJourneys.isNotEmpty(),
+                info = if (mergedJourneys.isEmpty() && replaceResults) {
+                    noConnectionsInfoKey(options)
+                } else {
+                    null
+                },
+                scrollToResultsToken = scrollToken,
+            )
+        }
+        if (_state.value.showPredictions && newJourneys.isNotEmpty()) {
+            startPredictionsJob(newJourneys, prepend, generation)
         }
     }
 

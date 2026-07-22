@@ -29,6 +29,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -383,6 +384,13 @@ fun SearchScreen(
                     LoadingIndicator()
                 }
             }
+            if (state.isRefiningArrivalResults && state.journeys.isNotEmpty()) {
+                item(key = "refining_arrival_results") {
+                    ArrivalRefinementIndicator(
+                        modifier = Modifier.testTag("search_refining_arrival_results"),
+                    )
+                }
+            }
             if (state.hasSearched && state.journeys.isNotEmpty()) {
                 if (state.pagingEarlier != null || state.hiddenArrivalJourneys.isNotEmpty()) {
                     item(key = "load_earlier") {
@@ -462,6 +470,25 @@ fun SearchScreen(
 }
 
 @Composable
+private fun ArrivalRefinementIndicator(modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+        Text(
+            text = stringResource(R.string.search_refining_arrival_results),
+            modifier = Modifier.padding(start = 8.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
 private fun PagingConnectionsButton(
     label: String,
     onClick: () -> Unit,
@@ -515,6 +542,7 @@ private fun firstResultListIndex(state: SearchUiState): Int? {
     if (state.error != null) index++
     if (state.info != null) index++
     if (state.isLoading) index++
+    if (state.isRefiningArrivalResults && state.journeys.isNotEmpty()) index++
     if (state.hasSearched && state.journeys.isNotEmpty() &&
         (state.pagingEarlier != null || state.hiddenArrivalJourneys.isNotEmpty())
     ) index++

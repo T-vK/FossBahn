@@ -199,6 +199,7 @@
     <string name="delay_minutes">+%d Min. Verspätung</string>
     <string name="scheduled_time_short">Plan %1$s</string>
     <string name="load_earlier_connections">Frühere Verbindungen</string>
+    <string name="search_refining_arrival_results">Ergebnisse werden verfeinert…</string>
     <string name="load_later_connections">Spätere Verbindungen</string>
     <string name="filter_transport">Verkehrsmittel</string>
     <string name="filter_bike">Fahrradmitnahme</string>
