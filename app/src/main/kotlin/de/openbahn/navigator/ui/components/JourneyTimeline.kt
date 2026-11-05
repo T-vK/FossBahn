@@ -58,6 +58,7 @@ import de.openbahn.model.boardIndexInRoute
 import de.openbahn.model.delayMinutesFromTimes
 import de.openbahn.model.routeStopSegment
 import de.openbahn.model.stationNamesMatch
+import de.openbahn.model.trainDestinationName
 import de.openbahn.model.OnTimeToleranceSettings
 import de.openbahn.model.stopProbability
 import de.openbahn.model.stopTimelinessIsEstimate
@@ -815,7 +816,7 @@ private fun TimelineTimeWithPercent(
 @Composable
 private fun LegTimelineTrainChip(leg: Leg) {
     val line = leg.lineName?.takeIf { it.isNotBlank() } ?: return
-    val destination = leg.destination.name
+    val destination = leg.trainDestinationName()
     Surface(
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),

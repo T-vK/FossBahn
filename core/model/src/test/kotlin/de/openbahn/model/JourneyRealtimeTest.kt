@@ -81,6 +81,29 @@ class JourneyRealtimeTest {
     }
 
     @Test
+    fun withRealtimeFrom_keepsSearchDirectionWhenRefreshOmitsIt() {
+        val search = Journey(
+            id = "j1",
+            legs = listOf(
+                Leg(
+                    origin = StopEvent("A", scheduledTime = "2026-05-30T12:00:00"),
+                    destination = StopEvent("B", scheduledTime = "2026-05-30T14:00:00"),
+                    direction = "München Hbf",
+                ),
+            ),
+            durationMinutes = 120,
+            transfers = 0,
+            departure = "2026-05-30T12:00:00",
+            arrival = "2026-05-30T14:00:00",
+        )
+        val refreshed = search.copy(
+            legs = listOf(search.legs.single().copy(direction = null)),
+        )
+        val merged = search.withRealtimeFrom(refreshed)
+        assertEquals("München Hbf", merged.legs.single().direction)
+    }
+
+    @Test
     fun withBoardRealtime_appliesPlatformWithoutDelay() {
         val stop = StopEvent("A", scheduledTime = "2026-05-30T12:00:00", platform = "3")
 

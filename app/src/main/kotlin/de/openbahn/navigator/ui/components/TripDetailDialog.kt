@@ -28,6 +28,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import de.openbahn.model.Leg
 import de.openbahn.model.StopEvent
+import de.openbahn.model.trainDestinationName
 import de.openbahn.navigator.R
 
 @Composable
@@ -64,7 +65,10 @@ internal fun TripDetailDialog(
                             fontWeight = FontWeight.SemiBold,
                         )
                         Text(
-                            text = stringResource(R.string.timeline_direction_to, leg.destination.name),
+                            text = stringResource(
+                                R.string.timeline_direction_to,
+                                leg.trainDestinationName(displayStops),
+                            ),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

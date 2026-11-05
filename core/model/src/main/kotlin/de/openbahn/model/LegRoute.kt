@@ -98,3 +98,13 @@ fun StopEvent.boardLocation(): Location? {
 /** Full stop list from refresh payloads used to merge realtime onto passenger segment stops. */
 fun Leg.realtimeReferenceStops(): List<StopEvent> =
     routeStops.ifEmpty { tripRouteStops() }
+
+/**
+ * Name shown as the train's destination (part of the line identity, e.g. "to München Hbf").
+ * Prefers API [Leg.direction], then the last stop of [fullRoute] when the complete run is known.
+ */
+fun Leg.trainDestinationName(fullRoute: List<StopEvent>? = null): String {
+    direction?.takeIf { it.isNotBlank() }?.let { return it }
+    fullRoute?.lastOrNull()?.name?.takeIf { it.isNotBlank() }?.let { return it }
+    return destination.name
+}

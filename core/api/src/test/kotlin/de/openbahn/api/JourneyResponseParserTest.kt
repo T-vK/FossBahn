@@ -45,6 +45,9 @@ class JourneyResponseParserTest {
         assertEquals("S 12", sBahn.lineName)
         val ice = railLegs.first { it.lineName?.startsWith("ICE") == true }
         assertEquals("ICE 523", ice.lineName)
+        assertEquals("Hennef(Sieg)", sBahn.direction)
+        assertEquals("München Hbf", ice.direction)
+        assertEquals("Nürnberg Hbf", ice.destination.name)
     }
 
     @Test

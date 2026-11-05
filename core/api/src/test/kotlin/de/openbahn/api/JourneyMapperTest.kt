@@ -22,6 +22,7 @@ class JourneyMapperTest {
         assertEquals("Berlin Hbf", j.legs.first().origin.name)
         assertEquals("München Hbf", j.legs.first().destination.name)
         assertEquals("ICE 123", j.legs.first().lineName)
+        assertEquals("München Hbf", j.legs.first().direction)
     }
 
     @Test
@@ -45,6 +46,7 @@ class JourneyMapperTest {
         assertTrue(j.legs.size >= 2, "Expected multiple legs, got ${j.legs.size}")
         assertEquals("Köln Hbf", j.legs.first().origin.name)
         assertEquals("Nürnberg Hbf", j.legs.last().destination.name)
+        assertEquals("München Hbf", j.legs.last().direction)
         assertTrue(j.priceHint != null || j.durationMinutes > 0)
     }
 }

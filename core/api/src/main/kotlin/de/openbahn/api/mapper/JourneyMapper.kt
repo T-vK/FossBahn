@@ -79,6 +79,7 @@ internal object JourneyMapper {
             ),
             lineName = lineDisplay(vm, a.journeyId).primary,
             lineDetail = lineDisplay(vm, a.journeyId).detail,
+            direction = vm?.richtung?.takeIf { it.isNotBlank() },
             product = vm?.produktGattung?.let(::mapProduct),
             operator = vm?.betreiber,
             loadFactor = vm?.auslastung,

@@ -43,6 +43,7 @@ fun Journey.withRealtimeFrom(refreshed: Journey): Journey {
                 ref.routeStops.isNotEmpty() -> ref.routeStops
                 else -> emptyList()
             },
+            direction = ref.direction?.takeIf { it.isNotBlank() } ?: leg.direction,
         )
     }
     val first = mergedLegs.first()

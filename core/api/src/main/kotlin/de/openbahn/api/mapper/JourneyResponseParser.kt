@@ -660,6 +660,8 @@ internal object JourneyResponseParser {
             routeStops = mapRouteStops(halte),
             lineName = if (isWalking) (line.primary ?: "Fußweg") else line.primary,
             lineDetail = line.detail,
+            direction = text(vm, "richtung")?.takeIf { it.isNotBlank() }
+                ?: text(a, "richtung")?.takeIf { it.isNotBlank() },
             product = productCode?.let(::mapProduct),
             operator = text(vm, "betreiber") ?: text(a, "betreiber"),
             loadFactor = text(vm, "auslastung"),

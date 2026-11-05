@@ -54,4 +54,30 @@ class LegRouteTest {
         )
         assertEquals(4, leg.tripRouteStops().size)
     }
+
+    @Test
+    fun trainDestinationName_prefersDirectionOverPassengerStop() {
+        val leg = Leg(
+            origin = StopEvent("Köln Hbf", scheduledTime = "2026-01-01T10:00:00"),
+            destination = StopEvent("Nürnberg Hbf", scheduledTime = "2026-01-01T14:00:00"),
+            direction = "München Hbf",
+        )
+        assertEquals("München Hbf", leg.trainDestinationName())
+        assertEquals("München Hbf", leg.trainDestinationName(listOf(leg.destination)))
+    }
+
+    @Test
+    fun trainDestinationName_usesFullRouteWhenDirectionMissing() {
+        val leg = Leg(
+            origin = StopEvent("Köln Hbf", scheduledTime = "2026-01-01T10:00:00"),
+            destination = StopEvent("Nürnberg Hbf", scheduledTime = "2026-01-01T14:00:00"),
+        )
+        val fullRoute = listOf(
+            StopEvent("Köln Hbf", scheduledTime = "2026-01-01T10:00:00"),
+            StopEvent("Nürnberg Hbf", scheduledTime = "2026-01-01T14:00:00"),
+            StopEvent("München Hbf", scheduledTime = "2026-01-01T15:30:00"),
+        )
+        assertEquals("München Hbf", leg.trainDestinationName(fullRoute))
+        assertEquals("Nürnberg Hbf", leg.trainDestinationName())
+    }
 }

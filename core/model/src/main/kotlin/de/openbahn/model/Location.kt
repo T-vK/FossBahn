@@ -45,6 +45,11 @@ data class Leg(
     val lineName: String? = null,
     /** Zug-/Fahrtnummer when distinct from [lineName] (e.g. 81633). */
     val lineDetail: String? = null,
+    /**
+     * Vehicle headsign / final destination from API `richtung`
+     * (e.g. ICE 523 nach München Hbf), not the passenger alighting stop.
+     */
+    val direction: String? = null,
     val product: TransportProduct? = null,
     val operator: String? = null,
     val loadFactor: String? = null,
