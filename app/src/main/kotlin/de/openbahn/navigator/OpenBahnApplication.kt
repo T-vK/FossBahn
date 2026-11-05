@@ -24,8 +24,8 @@ class OpenBahnApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        // Before any SSLContext / OkHttp client: Akamai fingerprints supported_groups.
-        BahnTls.install()
+        // Cronet (Chromium TLS) before any Bahn HttpClient — Conscrypt is OPS_BLOCKED.
+        BahnTls.install(this)
         OpenBahnDebugLog.isEnabled = BuildConfig.DEBUG
         startKoin {
             androidContext(this@OpenBahnApplication)

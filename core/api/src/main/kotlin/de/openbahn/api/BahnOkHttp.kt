@@ -1,5 +1,6 @@
 package de.openbahn.api
 
+import com.google.net.cronet.okhttptransport.CronetInterceptor
 import de.openbahn.api.debug.OpenBahnDebugLog
 import okhttp3.CipherSuite
 import okhttp3.ConnectionSpec
@@ -21,15 +22,15 @@ import javax.net.ssl.X509TrustManager
 /**
  * OkHttp tuned for Deutsche Bahn's Akamai edge.
  *
- * Akamai classifies TLS ClientHello fingerprints (especially `supported_groups`).
- * Stock JVM/Android defaults often get `OPS_BLOCKED` / HTML Access Denied, while
- * browsers and DB Navigator work. Advertising the classical Chrome-like group
- * order `x25519,secp256r1,secp384r1` unblocks the public vendo endpoints
- * (reproduced locally with curl `--curves` / `jdk.tls.namedGroups`; see
- * public-transport/db-vendo-client#46 and BetterBahn#231).
+ * Android: prefer Chromium [CronetInterceptor] — platform Conscrypt fingerprints are
+ * OPS_BLOCKED, and neither `jdk.tls.namedGroups` nor `SSLParameters.setNamedGroups`
+ * exist on Android Conscrypt (`applied=false` in production logs).
+ *
+ * JVM/desktop tests: advertise Chrome-like `supported_groups` via the OpenJDK property
+ * and optional `setNamedGroups` (see public-transport/db-vendo-client#46).
  */
 internal object BahnOkHttp {
-    /** Same order that unblocks int.bahn.de / app.services-bahn.de from this network. */
+    /** Classical group order that unblocks int.bahn.de from OpenJDK / curl on this network. */
     val PREFERRED_NAMED_GROUPS = listOf("x25519", "secp256r1", "secp384r1")
 
     private const val JDK_NAMED_GROUPS_PROP = "jdk.tls.namedGroups"
@@ -38,9 +39,8 @@ internal object BahnOkHttp {
     private val socketGroupsLogged = AtomicBoolean(false)
 
     /**
-     * Must run before the first [SSLContext] is created for Bahn hosts.
-     * Safe to call repeatedly. Sets the JVM named-groups property (honored by
-     * OpenJDK / many Android runtimes) and records the fingerprint in logs.
+     * Must run before the first [SSLContext] is created for Bahn hosts on the JVM.
+     * Safe to call repeatedly. No-op for Android Conscrypt (property is ignored).
      */
     fun installTlsFingerprint() {
         if (!installed.compareAndSet(false, true)) return
@@ -94,16 +94,47 @@ internal object BahnOkHttp {
 
     fun createClient(): OkHttpClient {
         installTlsFingerprint()
-        return OkHttpClient.Builder()
-            .protocols(listOf(Protocol.HTTP_1_1))
-            .connectionSpecs(listOf(connectionSpec))
-            .sslSocketFactory(NamedGroupsSslSocketFactory(baseSslSocketFactory), trustManager)
+        val builder = OkHttpClient.Builder()
             .followRedirects(true)
             .followSslRedirects(true)
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .callTimeout(35, TimeUnit.SECONDS)
+
+        val context = BahnTls.appContextOrNull()
+        if (context != null) {
+            val cronet = BahnCronet.engineOrNull(context)
+            if (cronet != null) {
+                // Preserve Content-Type on the body first; Cronet interceptor must be last.
+                builder.addInterceptor { chain ->
+                    val req = chain.request()
+                    OpenBahnDebugLog.d(
+                        "BahnTls",
+                        "outgoing ${req.method} ${req.url} bodyCt=${req.body?.contentType()} " +
+                            "hdrCt=${req.header("Content-Type")} accept=${req.header("Accept")}",
+                    )
+                    chain.proceed(req)
+                }
+                builder.addInterceptor(PreserveContentTypeInterceptor())
+                builder.addInterceptor(CronetInterceptor.newBuilder(cronet).build())
+                OpenBahnDebugLog.d("BahnTls", "OkHttp using Cronet transport (Chromium TLS)")
+                return builder.build()
+            }
+            // Do not wrap SSLSocket / force HTTP/1.1 — that makes Conscrypt look even less
+            // like a normal Android app and stays OPS_BLOCKED.
+            OpenBahnDebugLog.w(
+                "BahnTls",
+                "Cronet missing; using platform OkHttp/Conscrypt (likely OPS_BLOCKED on Bahn)",
+            )
+            return builder.build()
+        }
+
+        // JVM / unit & live-api tests: OpenJDK honors jdk.tls.namedGroups.
+        return builder
+            .protocols(listOf(Protocol.HTTP_1_1))
+            .connectionSpecs(listOf(connectionSpec))
+            .sslSocketFactory(NamedGroupsSslSocketFactory(baseSslSocketFactory), trustManager)
             .build()
     }
 
@@ -145,8 +176,8 @@ internal object BahnOkHttp {
         }
 
         /**
-         * Android 14+ / newer JDKs expose [SSLParameters.setNamedGroups].
-         * Older JVMs rely on [jdk.tls.namedGroups] set in [installTlsFingerprint].
+         * Newer JDKs expose [SSLParameters.setNamedGroups].
+         * Android Conscrypt does not — callers should use Cronet instead.
          */
         private fun applyNamedGroups(ssl: SSLSocket): Boolean {
             return try {

@@ -19,6 +19,8 @@ mockk = "1.13.13"
 coroutines = "1.9.0"
 koin = "4.0.1"
 zxing = "3.5.3"
+cronet = "500.1.0"
+cronet-okhttp = "0.1.2"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "core-ktx" }
@@ -56,6 +58,9 @@ koin-compose = { module = "io.insert-koin:koin-androidx-compose", version.ref = 
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
 osmdroid = { module = "org.osmdroid:osmdroid-android", version.ref = "osmdroid" }
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
+cronet-api = { module = "org.chromium.net:cronet-api", version.ref = "cronet" }
+cronet-bundled = { module = "org.chromium.net:cronet-bundled", version.ref = "cronet" }
+cronet-okhttp = { module = "com.google.net.cronet:cronet-okhttp", version.ref = "cronet-okhttp" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit5" }
 junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit5" }
 junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit5" }

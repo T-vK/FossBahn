@@ -32,6 +32,11 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
+    // Chromium TLS stack — Android Conscrypt ClientHellos get OPS_BLOCKED by Bahn/Akamai;
+    // jdk.tls.namedGroups / SSLParameters.setNamedGroups are OpenJDK-only and do nothing here.
+    implementation(libs.cronet.api)
+    implementation(libs.cronet.bundled)
+    implementation(libs.cronet.okhttp)
 
     testImplementation(libs.junit.jupiter.api)
     testImplementation(libs.kotlinx.coroutines.test)
@@ -40,6 +45,7 @@ dependencies {
     testRuntimeOnly(libs.junit.jupiter.engine)
 
     androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.kotlinx.coroutines.test)
 }
 

@@ -30,6 +30,7 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.ServerResponseException
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
@@ -38,6 +39,7 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.http.content.ByteArrayContent
 import io.ktor.http.content.TextContent
@@ -81,6 +83,7 @@ class DbVendoClient(
         val locations = try {
             val text = readApiText(
                 httpClient.get("$baseUrl/reiseloesung/orte") {
+                    webBahnHeaders()
                     parameter("suchbegriff", query)
                     parameter("typ", "ALL")
                     parameter("max", 12)
@@ -111,6 +114,7 @@ class DbVendoClient(
         OpenBahnDebugLog.d("DbVendo", "searchLocationsNearby lat=$latitude lon=$longitude")
         val text = readApiText(
             httpClient.get("$baseUrl/reiseloesung/orte/nearby") {
+                webBahnHeaders()
                 parameter("lat", latitude)
                 parameter("long", longitude)
                 parameter("maxNo", maxResults)
@@ -189,6 +193,7 @@ class DbVendoClient(
     private suspend fun postWebFahrplan(bodyText: String): String {
         return try {
             val response = httpClient.post("$baseUrl/angebote/fahrplan") {
+                webBahnHeaders()
                 contentType(ContentType.Application.Json)
                 setBody(TextContent(bodyText, ContentType.Application.Json))
             }
@@ -222,7 +227,11 @@ class DbVendoClient(
         val contentType = ContentType.parse(MOBILE_JOURNEY_CONTENT_TYPE)
         return try {
             val response = httpClient.post("$MOBILE_BASE_URL/angebote/fahrplan") {
-                header("Accept", MOBILE_JOURNEY_CONTENT_TYPE)
+                // Replace Accept (ContentNegotiation adds application/json) and never send charset.
+                headers.remove(HttpHeaders.Accept)
+                headers.remove(HttpHeaders.ContentType)
+                header(HttpHeaders.Accept, MOBILE_JOURNEY_CONTENT_TYPE)
+                header(HttpHeaders.ContentType, MOBILE_JOURNEY_CONTENT_TYPE)
                 header("X-Correlation-ID", mobileCorrelationId())
                 setBody(ByteArrayContent(bodyText.toByteArray(Charsets.UTF_8), contentType))
             }
@@ -257,7 +266,10 @@ class DbVendoClient(
         val contentType = ContentType.parse(MOBILE_LOCATION_CONTENT_TYPE)
         return try {
             val response = httpClient.post("$MOBILE_BASE_URL/location/search") {
-                header("Accept", MOBILE_LOCATION_CONTENT_TYPE)
+                headers.remove(HttpHeaders.Accept)
+                headers.remove(HttpHeaders.ContentType)
+                header(HttpHeaders.Accept, MOBILE_LOCATION_CONTENT_TYPE)
+                header(HttpHeaders.ContentType, MOBILE_LOCATION_CONTENT_TYPE)
                 header("X-Correlation-ID", mobileCorrelationId())
                 setBody(ByteArrayContent(bodyText.toByteArray(Charsets.UTF_8), contentType))
             }
@@ -340,10 +352,18 @@ class DbVendoClient(
     private fun mobileCorrelationId(): String =
         "${UUID.randomUUID()}_${UUID.randomUUID()}"
 
+    /** Browser-like headers for int.bahn.de only — not for app.services-bahn.de. */
+    private fun HttpRequestBuilder.webBahnHeaders() {
+        header("Accept", "application/json")
+        header("Origin", "https://www.bahn.de")
+        header("Referer", "https://www.bahn.de/")
+    }
+
     /** All stops on the vehicle run (before/after your segment), via bahn.de trip id. */
     suspend fun fetchTripRoute(journeyId: String): List<StopEvent> {
         if (journeyId.isBlank()) return emptyList()
         val text = httpClient.get("$baseUrl/reiseloesung/fahrt") {
+            webBahnHeaders()
             parameter("journeyId", journeyId)
         }.bodyAsText()
         if (text.contains("OPS_BLOCKED")) throw DbApiBlockedException("Trip route blocked")
@@ -372,6 +392,7 @@ class DbVendoClient(
     ): String {
         val path = if (departures) "abfahrten" else "ankuenfte"
         return httpClient.get("$baseUrl/reiseloesung/$path") {
+            webBahnHeaders()
             parameter("ortExtId", stationExtId)
             parameter("datum", whenTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")))
             parameter("zeit", whenTime.format(DateTimeFormatter.ofPattern("HH:mm:ss")))
@@ -384,6 +405,7 @@ class DbVendoClient(
     suspend fun refreshJourney(refreshToken: String): Journey? {
         val body = buildJsonObject { put("ctxRecon", refreshToken); put("poly", true) }
         val text = httpClient.post("$baseUrl/reiseloesung/verbindung") {
+            webBahnHeaders()
             contentType(ContentType.Application.Json)
             setBody(body)
         }.bodyAsText()
@@ -607,6 +629,7 @@ class DbVendoClient(
         val ortExtId = station.evaNumber ?: station.id
         val text = readApiText(
             httpClient.get("$baseUrl/reiseloesung/abfahrten") {
+                webBahnHeaders()
                 parameter("ortExtId", ortExtId)
                 parameter("datum", whenTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")))
                 parameter("zeit", whenTime.format(DateTimeFormatter.ofPattern("HH:mm:ss")))
@@ -634,6 +657,7 @@ class DbVendoClient(
         val ortExtId = station.evaNumber ?: station.id
         val text = readApiText(
             httpClient.get("$baseUrl/reiseloesung/ankuenfte") {
+                webBahnHeaders()
                 parameter("ortExtId", ortExtId)
                 parameter("datum", whenTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")))
                 parameter("zeit", whenTime.format(DateTimeFormatter.ofPattern("HH:mm:ss")))
@@ -693,15 +717,10 @@ class DbVendoClient(
                     })
                 }
                 defaultRequest {
-                    headers.append("Accept", "application/json")
+                    // Keep defaults minimal. Origin/Referer are web-only and look wrong on
+                    // app.services-bahn.de; a long GitHub UA has also tripped Akamai on /orte.
                     headers.append("Accept-Language", "de-DE,de;q=0.9,en;q=0.8")
-                    headers.append("Origin", "https://www.bahn.de")
-                    headers.append("Referer", "https://www.bahn.de/")
-                    // Identify as this FOSS app — do not impersonate DB Navigator or a browser.
-                    headers.append(
-                        "User-Agent",
-                        "OpenBahnNavigator/1.0 (FOSS; +https://github.com/T-vK/FossBahn)",
-                    )
+                    headers.append("User-Agent", "OpenBahnNavigator/1.0 (FOSS)")
                 }
                 engine {
                     preconfigured = BahnOkHttp.createClient()

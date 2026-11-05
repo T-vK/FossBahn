@@ -32,6 +32,10 @@ android {
         versionName = appVersionName
         testInstrumentationRunner = "de.openbahn.navigator.OpenBahnTestRunner"
         vectorDrawables { useSupportLibrary = true }
+        // Cronet ships four ABIs (~14MB); keep phone/emulator ABIs only.
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
         val bahnVorhersageApiUrl = (project.findProperty("bahnVorhersageApiUrl") as String?)?.trim()
             ?.takeIf { it.isNotEmpty() }
             ?: "https://bahnvorhersage.de/api/mobile/v2"
