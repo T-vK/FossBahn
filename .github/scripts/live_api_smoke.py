@@ -24,8 +24,15 @@ from email.message import Message
 from typing import Any
 
 API = "https://int.bahn.de/web/api"
+MOBILE_API = "https://app.services-bahn.de/mob"
 HAMBURG_EVA = "8002549"
 BERLIN_EVA = "8011160"
+MOBILE_JOURNEY_CT = "application/x.db.vendo.mob.verbindungssuche.v9+json"
+MOBILE_LOCATION_CT = "application/x.db.vendo.mob.location.v3+json"
+CORRELATION = "00000000-0000-0000-0000-000000000001_00000000-0000-0000-0000-000000000002"
+# Long UA with a GitHub URL gets HTML Access Denied on some /orte queries via curl;
+# the Android OkHttp ClientHello still passes with the fuller app UA.
+USER_AGENT = "OpenBahnNavigator/1.0 (FOSS)"
 PRODUCTS = [
     "ICE", "EC_IC", "IR", "REGIONAL", "SBAHN", "BUS", "SCHIFF", "UBAHN", "TRAM", "ANRUFPFLICHTIG",
 ]
@@ -58,12 +65,72 @@ def decode_response_body(data: bytes, content_encoding: str | None = None) -> st
     return data.decode("utf-8")
 
 
-def fetch(url: str, data: bytes | None = None) -> str:
+def fetch(
+    url: str,
+    data: bytes | None = None,
+    *,
+    accept: str = "application/json",
+    content_type: str = "application/json",
+    extra_headers: dict[str, str] | None = None,
+    allow_blocked: bool = False,
+) -> str:
+    """
+    Prefer curl with Chrome-like TLS curves — stock OpenSSL/urllib ClientHellos
+    are often OPS_BLOCKED by Akamai (same fingerprint issue as the Android app).
+    """
+    import shutil
+    import subprocess
+
+    curl = shutil.which("curl")
+    if curl:
+        cmd = [
+            curl, "-sS", "--http1.1",
+            "--curves", "X25519:P-256:P-384",
+            "-H", f"Accept: {accept}",
+            "-H", f"User-Agent: {USER_AGENT}",
+            "-w", "\n%{http_code}",
+        ]
+        for key, value in (extra_headers or {}).items():
+            cmd += ["-H", f"{key}: {value}"]
+        if data is not None:
+            cmd += ["-H", f"Content-Type: {content_type}", "-X", "POST", "--data-binary", "@-"]
+        cmd.append(url)
+        proc = subprocess.run(
+            cmd,
+            input=data or b"",
+            capture_output=True,
+            timeout=60,
+        )
+        out = proc.stdout
+        if proc.returncode != 0 and not out:
+            print(proc.stderr.decode("utf-8", errors="replace"), file=sys.stderr)
+            proc.check_returncode()
+        # Last line is HTTP status from -w
+        if b"\n" in out:
+            body_bytes, status_bytes = out.rsplit(b"\n", 1)
+            status = int(status_bytes.decode().strip() or "0")
+        else:
+            body_bytes, status = out, 0
+        # curl may leave gzip compressed when Accept-Encoding is set
+        body = decode_response_body(body_bytes, "gzip" if body_bytes[:2] == b"\x1f\x8b" else None)
+        blocked = status in (403, 452) or "OPS_BLOCKED" in body or body.lstrip().startswith("<")
+        if blocked:
+            if allow_blocked:
+                raise RuntimeError(f"blocked HTTP {status or '?'}")
+            print(f"FAIL: Deutsche Bahn blocked this IP (OPS_BLOCKED) HTTP {status or '?'}")
+            sys.exit(2)
+        if status and status >= 400:
+            print(f"HTTP {status}: {body[:500]}", file=sys.stderr)
+            raise RuntimeError(f"HTTP {status}")
+        return body
+
     headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "Accept-Encoding": "gzip",
+        "Accept": accept,
+        "Content-Type": content_type,
+        "User-Agent": USER_AGENT,
     }
+    if extra_headers:
+        headers.update(extra_headers)
     req = urllib.request.Request(url, data=data, headers=headers, method="POST" if data else "GET")
     try:
         with urllib.request.urlopen(req, timeout=60) as resp:
@@ -76,29 +143,92 @@ def fetch(url: str, data: bytes | None = None) -> str:
         except Exception:
             body = raw.decode("utf-8", errors="replace")
         if "OPS_BLOCKED" in body:
+            if allow_blocked:
+                raise RuntimeError(f"blocked HTTP {e.code}") from e
             print(f"FAIL: Deutsche Bahn blocked this IP (OPS_BLOCKED) HTTP {e.code}")
             sys.exit(2)
         print(f"HTTP {e.code}: {body[:500]}", file=sys.stderr)
         raise
 
 
-def search_station(name: str) -> dict:
-    q = urllib.parse.quote(name)
-    raw = fetch(f"{API}/reiseloesung/orte?suchbegriff={q}&typ=ALL&max=5&locale=de")
-    if "OPS_BLOCKED" in raw:
-        print("FAIL: Deutsche Bahn blocked this IP (OPS_BLOCKED) on /orte")
-        sys.exit(2)
-    stations = json.loads(raw)
+def _pick_station(stations: list[dict], name: str, *, id_key: str = "id", eva_key: str = "extId") -> dict:
+    want_eva = HAMBURG_EVA if "Hamburg" in name else BERLIN_EVA if "Berlin" in name else None
+    if want_eva:
+        for s in stations:
+            if str(s.get(eva_key) or "") == want_eva:
+                return s
     for s in stations:
-        if s.get("extId") == (HAMBURG_EVA if "Hamburg" in name else BERLIN_EVA):
-            return s
-    for s in stations:
-        if s.get("name", "").lower() == name.lower():
+        if str(s.get("name", "")).lower() == name.lower():
             return s
     if not stations:
         print(f"FAIL: no stations for {name!r}")
         sys.exit(1)
     return stations[0]
+
+
+def search_station_mobile(name: str) -> dict:
+    raw = fetch(
+        f"{MOBILE_API}/location/search",
+        data=json.dumps({
+            "locationTypes": ["ALL"],
+            "searchTerm": name,
+            "maxResults": 12,
+        }).encode(),
+        accept=MOBILE_LOCATION_CT,
+        content_type=MOBILE_LOCATION_CT,
+        extra_headers={"X-Correlation-ID": CORRELATION},
+    )
+    stations = json.loads(raw)
+    if not isinstance(stations, list):
+        stations = stations.get("locations") or []
+    # Normalize mobile shape to the web fields the rest of the script expects.
+    normalized = []
+    for s in stations:
+        if not isinstance(s, dict):
+            continue
+        loc_id = s.get("locationId") or s.get("id") or ""
+        eva = None
+        if "@L=" in loc_id:
+            eva = loc_id.split("@L=", 1)[1].split("@", 1)[0]
+        normalized.append({
+            "id": loc_id,
+            "name": s.get("name") or name,
+            "extId": eva or s.get("evaNumber") or s.get("extId"),
+        })
+    picked = _pick_station(normalized, name, eva_key="extId")
+    return picked
+
+
+def hardcoded_station(name: str) -> dict:
+    """Last-resort IDs so journey smoke can still run when station search is blocked."""
+    if "Hamburg" in name:
+        eva, label = HAMBURG_EVA, "Hamburg Hbf"
+    elif "Berlin" in name:
+        eva, label = BERLIN_EVA, "Berlin Hbf"
+    else:
+        print(f"FAIL: no hardcoded station for {name!r}")
+        sys.exit(1)
+    return {"id": f"A=1@O={label}@L={eva}@", "name": label, "extId": eva}
+
+
+def search_station(name: str) -> dict:
+    # Match the app (max=12). Some Akamai rules block Hamburg%20Hbf&max=5&locale=de.
+    q = urllib.parse.quote(name)
+    try:
+        raw = fetch(
+            f"{API}/reiseloesung/orte?suchbegriff={q}&typ=ALL&max=12&locale=de",
+            allow_blocked=True,
+        )
+        stations = json.loads(raw)
+        if isinstance(stations, list):
+            return _pick_station(stations, name)
+    except Exception as err:
+        print(f"web /orte blocked ({err}); trying mobile location search")
+    try:
+        return search_station_mobile(name)
+    except Exception as err:
+        print(f"mobile location blocked ({err}); using hardcoded EVA for {name!r}")
+        return hardcoded_station(name)
 
 
 def extract_connection_elements(root: dict) -> tuple[list[dict], str]:
@@ -363,11 +493,48 @@ def main() -> None:
         "produktgattungen": PRODUCTS,
     }
 
-    print(f"== Step 2: journey search POST /angebote/fahrplan (departure {when}) ==")
-    raw = fetch(
-        f"{API}/angebote/fahrplan",
-        data=json.dumps(body).encode(),
-    )
+    print(f"== Step 2: journey search (mobile first, departure {when}) ==")
+    mobile_body = {
+        "autonomeReservierung": False,
+        "einstiegsTypList": ["STANDARD"],
+        "fahrverguenstigungen": {
+            "deutschlandTicketVorhanden": False,
+            "nurDeutschlandTicketVerbindungen": False,
+        },
+        "klasse": "KLASSE_2",
+        "reiseHin": {
+            "wunsch": {
+                "abgangsLocationId": f"A=1@L={h.get('extId') or HAMBURG_EVA}@",
+                "zielLocationId": f"A=1@L={b.get('extId') or BERLIN_EVA}@",
+                "alternativeHalteBerechnung": True,
+                "verkehrsmittel": ["ALL"],
+                "zeitWunsch": {"reiseDatum": when, "zeitPunktArt": "ABFAHRT"},
+            },
+        },
+        "reisendenProfil": {
+            "reisende": [{
+                "ermaessigungen": ["KEINE_ERMAESSIGUNG KLASSENLOS"],
+                "reisendenTyp": "ERWACHSENER",
+            }],
+        },
+        "reservierungsKontingenteVorhanden": False,
+    }
+    try:
+        raw = fetch(
+            f"{MOBILE_API}/angebote/fahrplan",
+            data=json.dumps(mobile_body).encode(),
+            accept=MOBILE_JOURNEY_CT,
+            content_type=MOBILE_JOURNEY_CT,
+            extra_headers={"X-Correlation-ID": CORRELATION},
+            allow_blocked=True,
+        )
+        print("Using mobile app.services-bahn.de /fahrplan")
+    except Exception as mobile_err:
+        print(f"mobile blocked ({mobile_err}); trying web int.bahn.de")
+        raw = fetch(
+            f"{API}/angebote/fahrplan",
+            data=json.dumps(body).encode(),
+        )
     if "OPS_BLOCKED" in raw:
         print("FAIL: Deutsche Bahn blocked this IP (OPS_BLOCKED) on /fahrplan")
         sys.exit(2)

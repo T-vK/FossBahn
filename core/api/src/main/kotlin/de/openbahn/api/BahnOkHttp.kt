@@ -10,6 +10,7 @@ import java.net.InetAddress
 import java.net.Socket
 import java.security.KeyStore
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLParameters
 import javax.net.ssl.SSLSocket
@@ -20,34 +21,55 @@ import javax.net.ssl.X509TrustManager
 /**
  * OkHttp tuned for Deutsche Bahn's Akamai edge.
  *
- * Akamai classifies TLS ClientHello fingerprints (supported_groups / cipher order).
- * Stock Conscrypt/OpenSSL defaults are frequently served HTML "Access Denied" for
- * `/orte` and `/fahrplan` while browsers and DB Navigator still work. Aligning
- * named groups and cipher suites with common Chrome/Android stacks unblocks many
- * of those clients (see public-transport/db-vendo-client#46 and BetterBahn#231).
+ * Akamai classifies TLS ClientHello fingerprints (especially `supported_groups`).
+ * Stock JVM/Android defaults often get `OPS_BLOCKED` / HTML Access Denied, while
+ * browsers and DB Navigator work. Advertising the classical Chrome-like group
+ * order `x25519,secp256r1,secp384r1` unblocks the public vendo endpoints
+ * (reproduced locally with curl `--curves` / `jdk.tls.namedGroups`; see
+ * public-transport/db-vendo-client#46 and BetterBahn#231).
  */
 internal object BahnOkHttp {
-    @Volatile
-    private var namedGroupsLogged = false
+    /** Same order that unblocks int.bahn.de / app.services-bahn.de from this network. */
+    val PREFERRED_NAMED_GROUPS = listOf("x25519", "secp256r1", "secp384r1")
+
+    private const val JDK_NAMED_GROUPS_PROP = "jdk.tls.namedGroups"
+
+    private val installed = AtomicBoolean(false)
+    private val socketGroupsLogged = AtomicBoolean(false)
+
+    /**
+     * Must run before the first [SSLContext] is created for Bahn hosts.
+     * Safe to call repeatedly. Sets the JVM named-groups property (honored by
+     * OpenJDK / many Android runtimes) and records the fingerprint in logs.
+     */
+    fun installTlsFingerprint() {
+        if (!installed.compareAndSet(false, true)) return
+        val value = PREFERRED_NAMED_GROUPS.joinToString(",")
+        val previous = System.getProperty(JDK_NAMED_GROUPS_PROP)
+        if (previous.isNullOrBlank()) {
+            System.setProperty(JDK_NAMED_GROUPS_PROP, value)
+            OpenBahnDebugLog.d("BahnTls", "set $JDK_NAMED_GROUPS_PROP=$value")
+        } else {
+            OpenBahnDebugLog.d(
+                "BahnTls",
+                "keep existing $JDK_NAMED_GROUPS_PROP=$previous (wanted $value)",
+            )
+        }
+    }
 
     private val trustManager: X509TrustManager by lazy {
+        installTlsFingerprint()
         val factory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
         factory.init(null as KeyStore?)
         factory.trustManagers.filterIsInstance<X509TrustManager>().first()
     }
 
     private val baseSslSocketFactory: SSLSocketFactory by lazy {
+        installTlsFingerprint()
         SSLContext.getInstance("TLS").apply {
             init(null, arrayOf(trustManager), null)
         }.socketFactory
     }
-
-    /** Prefer classical X25519/P-256/P-384 ordering that has been observed to pass Akamai. */
-    private val preferredNamedGroups = arrayOf(
-        "x25519",
-        "secp256r1",
-        "secp384r1",
-    )
 
     private val connectionSpec: ConnectionSpec = ConnectionSpec.Builder(ConnectionSpec.MODERN_TLS)
         .tlsVersions(TlsVersion.TLS_1_3, TlsVersion.TLS_1_2)
@@ -70,17 +92,20 @@ internal object BahnOkHttp {
         )
         .build()
 
-    fun createClient(): OkHttpClient = OkHttpClient.Builder()
-        .protocols(listOf(Protocol.HTTP_1_1))
-        .connectionSpecs(listOf(connectionSpec))
-        .sslSocketFactory(NamedGroupsSslSocketFactory(baseSslSocketFactory), trustManager)
-        .followRedirects(true)
-        .followSslRedirects(true)
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .callTimeout(35, TimeUnit.SECONDS)
-        .build()
+    fun createClient(): OkHttpClient {
+        installTlsFingerprint()
+        return OkHttpClient.Builder()
+            .protocols(listOf(Protocol.HTTP_1_1))
+            .connectionSpecs(listOf(connectionSpec))
+            .sslSocketFactory(NamedGroupsSslSocketFactory(baseSslSocketFactory), trustManager)
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .callTimeout(35, TimeUnit.SECONDS)
+            .build()
+    }
 
     private class NamedGroupsSslSocketFactory(
         private val delegate: SSLSocketFactory,
@@ -109,27 +134,35 @@ internal object BahnOkHttp {
 
         private fun tune(socket: Socket): Socket {
             val ssl = socket as? SSLSocket ?: return socket
-            try {
-                val params: SSLParameters = ssl.sslParameters
-                val method = SSLParameters::class.java.methods.firstOrNull {
-                    it.name == "setNamedGroups" && it.parameterTypes.size == 1
-                }
-                if (method != null) {
-                    method.invoke(params, preferredNamedGroups)
-                    ssl.sslParameters = params
-                    if (!namedGroupsLogged) {
-                        namedGroupsLogged = true
-                        OpenBahnDebugLog.d(
-                            "BahnTls",
-                            "TLS named groups=${preferredNamedGroups.joinToString()} http=1.1",
-                        )
-                    }
-                }
-            } catch (e: Throwable) {
-                OpenBahnDebugLog.w("BahnTls", "named groups not applied: ${e.message}")
+            val applied = applyNamedGroups(ssl)
+            if (socketGroupsLogged.compareAndSet(false, true)) {
+                OpenBahnDebugLog.d(
+                    "BahnTls",
+                    "socket named groups applied=$applied groups=${PREFERRED_NAMED_GROUPS.joinToString()} http=1.1",
+                )
             }
             return ssl
         }
-    }
 
+        /**
+         * Android 14+ / newer JDKs expose [SSLParameters.setNamedGroups].
+         * Older JVMs rely on [jdk.tls.namedGroups] set in [installTlsFingerprint].
+         */
+        private fun applyNamedGroups(ssl: SSLSocket): Boolean {
+            return try {
+                val params: SSLParameters = ssl.sslParameters
+                val method = SSLParameters::class.java.methods.firstOrNull {
+                    it.name == "setNamedGroups" &&
+                        it.parameterTypes.size == 1 &&
+                        it.parameterTypes[0].isArray
+                } ?: return false
+                method.invoke(params, PREFERRED_NAMED_GROUPS.toTypedArray())
+                ssl.sslParameters = params
+                true
+            } catch (e: Throwable) {
+                OpenBahnDebugLog.w("BahnTls", "socket named groups failed: ${e.message}")
+                false
+            }
+        }
+    }
 }

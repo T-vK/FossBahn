@@ -10,6 +10,11 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 
 internal object LiveApiTestSupport {
+    init {
+        // Match production: install Akamai-passing named groups before any SSLContext.
+        BahnTls.install()
+    }
+
     const val HAMBURG_HBF_EVA = "8002549"
     const val BERLIN_HBF_EVA = "8011160"
     val BERLIN_ZONE: ZoneId = ZoneId.of("Europe/Berlin")

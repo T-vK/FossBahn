@@ -10,6 +10,7 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.ByteArrayContent
 import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
@@ -81,9 +82,15 @@ class DbVendoJourneyIntegrationTest {
 
     private fun capturingClient(response: String, sentTimes: MutableList<String>): DbVendoClient {
         val engine = MockEngine { request ->
-            val body = (request.body as TextContent).text
-            Regex("\"anfrageZeitpunkt\":\"([^\"]+)\"").find(body)?.groupValues?.get(1)
-                ?.let { sentTimes += it }
+            val body = when (val content = request.body) {
+                is TextContent -> content.text
+                is ByteArrayContent -> content.bytes().decodeToString()
+                else -> error("Unexpected body ${content::class.simpleName}")
+            }
+            // Mobile uses reiseDatum; web uses anfrageZeitpunkt.
+            val sent = Regex("\"reiseDatum\":\"([^\"]+)\"").find(body)?.groupValues?.get(1)
+                ?: Regex("\"anfrageZeitpunkt\":\"([^\"]+)\"").find(body)?.groupValues?.get(1)
+            sent?.let { sentTimes += it }
             respond(
                 content = response,
                 status = HttpStatusCode.OK,
@@ -162,18 +169,38 @@ class DbVendoJourneyIntegrationTest {
     }
 
     @Test
-    fun searchJourneys_fallsBackToMobileWhenWebReturnsAccessDeniedHtml() = runTest {
+    fun searchJourneys_usesMobileApiFirst() = runTest {
         val engine = MockEngine { request ->
             when {
-                request.url.host.contains("int.bahn.de") -> respond(
-                    content = """
-                        <HTML><HEAD><TITLE>Access Denied</TITLE></HEAD>
-                        <BODY><H1>Access Denied</H1></BODY></HTML>
-                    """.trimIndent(),
-                    status = HttpStatusCode.Forbidden,
-                    headers = headersOf(HttpHeaders.ContentType, "text/html"),
-                )
                 request.url.host.contains("app.services-bahn.de") -> respond(
+                    content = journeyJson,
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+                request.url.host.contains("int.bahn.de") -> error("web API should not be called when mobile succeeds")
+                else -> error("Unexpected host: ${request.url.host}")
+            }
+        }
+        val http = HttpClient(engine) {
+            expectSuccess = false
+            install(ContentNegotiation) {
+                json(Json { ignoreUnknownKeys = true; isLenient = true })
+            }
+        }
+        val journeys = DbVendoClient(httpClient = http).searchJourneys(hamburg, berlin).journeys
+        assertTrue(journeys.isNotEmpty(), "expected mobile API to return journeys")
+    }
+
+    @Test
+    fun searchJourneys_fallsBackToWebWhenMobileBlocked() = runTest {
+        val engine = MockEngine { request ->
+            when {
+                request.url.host.contains("app.services-bahn.de") -> respond(
+                    content = """{"status":"ERROR","code":"OPS_BLOCKED"}""",
+                    status = HttpStatusCode.Forbidden,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+                request.url.host.contains("int.bahn.de") -> respond(
                     content = journeyJson,
                     status = HttpStatusCode.OK,
                     headers = headersOf(HttpHeaders.ContentType, "application/json"),
@@ -188,6 +215,6 @@ class DbVendoJourneyIntegrationTest {
             }
         }
         val journeys = DbVendoClient(httpClient = http).searchJourneys(hamburg, berlin).journeys
-        assertTrue(journeys.isNotEmpty(), "expected mobile fallback to return journeys")
+        assertTrue(journeys.isNotEmpty(), "expected web fallback to return journeys")
     }
 }

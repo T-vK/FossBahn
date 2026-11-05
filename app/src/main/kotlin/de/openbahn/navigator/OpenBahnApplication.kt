@@ -3,6 +3,7 @@ package de.openbahn.navigator
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import de.openbahn.api.BahnTls
 import de.openbahn.api.debug.OpenBahnDebugLog
 import de.openbahn.navigator.data.UserPreferencesRepository
 import de.openbahn.navigator.di.appModule
@@ -23,6 +24,8 @@ class OpenBahnApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // Before any SSLContext / OkHttp client: Akamai fingerprints supported_groups.
+        BahnTls.install()
         OpenBahnDebugLog.isEnabled = BuildConfig.DEBUG
         startKoin {
             androidContext(this@OpenBahnApplication)

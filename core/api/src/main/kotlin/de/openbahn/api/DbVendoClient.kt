@@ -39,8 +39,10 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import io.ktor.http.content.ByteArrayContent
 import io.ktor.http.content.TextContent
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.utils.io.charsets.Charsets
 import kotlinx.serialization.SerializationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -166,19 +168,21 @@ class DbVendoClient(
         whenTime: LocalDateTime,
         pagingReference: String? = null,
     ): String {
-        val body = JourneyRequestBuilder.build(from, to, options, whenTime, pagingReference)
-        val bodyText = json.encodeToString(JsonObject.serializer(), body)
-        val anfrageZeitpunkt = body["anfrageZeitpunkt"]?.jsonPrimitive?.contentOrNull
+        val anfrageZeitpunkt = whenTime.toString()
         OpenBahnDebugLog.d(
             "DbVendo",
             "postFahrplan ${FahrplanDiagnostics.describeLocation(from)} -> " +
                 "${FahrplanDiagnostics.describeLocation(to)} anfrageZeitpunkt=$anfrageZeitpunkt",
         )
+        // Mobile first: with a matching TLS fingerprint, app.services-bahn.de accepts
+        // journey search while int.bahn.de /angebote/fahrplan often stays OPS_BLOCKED.
         return try {
-            postWebFahrplan(bodyText)
-        } catch (e: DbApiBlockedException) {
-            OpenBahnDebugLog.w("DbVendo", "web /fahrplan blocked, trying mobile API")
             postMobileFahrplan(from, to, options, whenTime, pagingReference)
+        } catch (e: DbApiBlockedException) {
+            OpenBahnDebugLog.w("DbVendo", "mobile /fahrplan blocked, trying web API")
+            val body = JourneyRequestBuilder.build(from, to, options, whenTime, pagingReference)
+            val bodyText = json.encodeToString(JsonObject.serializer(), body)
+            postWebFahrplan(bodyText)
         }
     }
 
@@ -214,13 +218,13 @@ class DbVendoClient(
     ): String {
         val body = JourneyRequestBuilder.buildMobile(from, to, options, whenTime, pagingReference)
         val bodyText = json.encodeToString(JsonObject.serializer(), body)
+        // Mobile edge rejects Content-Type with charset=utf-8 (HTTP 405); send raw bytes.
         val contentType = ContentType.parse(MOBILE_JOURNEY_CONTENT_TYPE)
         return try {
             val response = httpClient.post("$MOBILE_BASE_URL/angebote/fahrplan") {
                 header("Accept", MOBILE_JOURNEY_CONTENT_TYPE)
-                header("Content-Type", MOBILE_JOURNEY_CONTENT_TYPE)
                 header("X-Correlation-ID", mobileCorrelationId())
-                setBody(TextContent(bodyText, contentType))
+                setBody(ByteArrayContent(bodyText.toByteArray(Charsets.UTF_8), contentType))
             }
             val text = readApiText(response, label = "mobile-fahrplan")
             OpenBahnDebugLog.d(
@@ -254,9 +258,8 @@ class DbVendoClient(
         return try {
             val response = httpClient.post("$MOBILE_BASE_URL/location/search") {
                 header("Accept", MOBILE_LOCATION_CONTENT_TYPE)
-                header("Content-Type", MOBILE_LOCATION_CONTENT_TYPE)
                 header("X-Correlation-ID", mobileCorrelationId())
-                setBody(TextContent(bodyText, contentType))
+                setBody(ByteArrayContent(bodyText.toByteArray(Charsets.UTF_8), contentType))
             }
             val text = readApiText(response, label = "mobile-location")
             parseLocationResponse(text)
@@ -673,33 +676,36 @@ class DbVendoClient(
         private const val MOBILE_LOCATION_CONTENT_TYPE =
             "application/x.db.vendo.mob.location.v3+json"
 
-        fun createDefaultClient(): HttpClient = HttpClient(OkHttp) {
-            // expectSuccess=false so we can map Akamai HTML 403 bodies to DbApiBlockedException.
-            expectSuccess = false
-            install(HttpTimeout) {
-                requestTimeoutMillis = 30_000
-                connectTimeoutMillis = 15_000
-                socketTimeoutMillis = 20_000
-            }
-            install(ContentNegotiation) {
-                json(Json {
-                    ignoreUnknownKeys = true
-                    isLenient = true
-                })
-            }
-            defaultRequest {
-                headers.append("Accept", "application/json")
-                headers.append("Accept-Language", "de-DE,de;q=0.9,en;q=0.8")
-                headers.append("Origin", "https://www.bahn.de")
-                headers.append("Referer", "https://www.bahn.de/")
-                // Identify as this FOSS app — do not impersonate DB Navigator or a browser.
-                headers.append(
-                    "User-Agent",
-                    "OpenBahnNavigator/1.0 (FOSS; +https://github.com/T-vK/FossBahn)",
-                )
-            }
-            engine {
-                preconfigured = BahnOkHttp.createClient()
+        fun createDefaultClient(): HttpClient {
+            BahnTls.install()
+            return HttpClient(OkHttp) {
+                // expectSuccess=false so we can map Akamai HTML 403 bodies to DbApiBlockedException.
+                expectSuccess = false
+                install(HttpTimeout) {
+                    requestTimeoutMillis = 30_000
+                    connectTimeoutMillis = 15_000
+                    socketTimeoutMillis = 20_000
+                }
+                install(ContentNegotiation) {
+                    json(Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    })
+                }
+                defaultRequest {
+                    headers.append("Accept", "application/json")
+                    headers.append("Accept-Language", "de-DE,de;q=0.9,en;q=0.8")
+                    headers.append("Origin", "https://www.bahn.de")
+                    headers.append("Referer", "https://www.bahn.de/")
+                    // Identify as this FOSS app — do not impersonate DB Navigator or a browser.
+                    headers.append(
+                        "User-Agent",
+                        "OpenBahnNavigator/1.0 (FOSS; +https://github.com/T-vK/FossBahn)",
+                    )
+                }
+                engine {
+                    preconfigured = BahnOkHttp.createClient()
+                }
             }
         }
     }
