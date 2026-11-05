@@ -522,12 +522,28 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun search_whenLocationApiBlocked_showsBlockedErrorInsteadOfCrashing() = runTest(dispatcher) {
+    fun search_withSelectedStations_skipsBlockedLocationApi() = runTest(dispatcher) {
         coEvery { searchRepository.searchLocations(any(), any()) } throws
             DbApiBlockedException("Location search blocked")
         val viewModel = createViewModel()
         viewModel.selectFrom(berlin)
         viewModel.selectTo(munich)
+        viewModel.search()
+        advanceUntilIdle()
+
+        assertNull(viewModel.state.value.error)
+        assertEquals(listOf("test-journey-1"), viewModel.state.value.journeys.map { it.id })
+        coVerify(exactly = 0) { searchRepository.searchLocations(any(), any()) }
+        coVerify(atLeast = 1) { searchRepository.searchJourneys(any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun search_whenLocationApiBlockedWithoutSelection_showsBlockedError() = runTest(dispatcher) {
+        coEvery { searchRepository.searchLocations(any(), any()) } throws
+            DbApiBlockedException("Location search blocked")
+        val viewModel = createViewModel()
+        viewModel.setFromQuery("Berlin Hbf")
+        viewModel.setToQuery("München Hbf")
         viewModel.search()
         advanceUntilIdle()
 

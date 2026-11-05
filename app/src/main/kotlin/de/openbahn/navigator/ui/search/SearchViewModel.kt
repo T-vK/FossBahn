@@ -989,7 +989,31 @@ class SearchViewModel(
     ): Location? {
         if (query.trim().length < 2) return null
         val recent = locationHistory.recentMatching(query)
-        val apiResults = searchUseCase.searchLocations(query, _state.value.locale)
+        // Prefer selected / recent / suggestion matches first. Akamai often returns HTML
+        // "Access Denied" for /orte; that must not abort a search when stations are already known.
+        val localResolved = resolveLocationForSearch(
+            query,
+            selected,
+            suggestions,
+            recent,
+            apiResults = emptyList(),
+        )
+        if (localResolved != null) {
+            OpenBahnDebugLog.d(
+                "Search",
+                "resolveLocation($label) used local match \"${localResolved.name}\" (skipped /orte)",
+            )
+            return localResolved
+        }
+        val apiResults = try {
+            searchUseCase.searchLocations(query, _state.value.locale)
+        } catch (e: Exception) {
+            OpenBahnDebugLog.w(
+                "Search",
+                "resolveLocation($label) /orte failed q=\"$query\": ${e.message}",
+            )
+            throw e
+        }
         val resolved = resolveLocationForSearch(query, selected, suggestions, recent, apiResults)
         if (resolved == null) {
             OpenBahnDebugLog.w(
