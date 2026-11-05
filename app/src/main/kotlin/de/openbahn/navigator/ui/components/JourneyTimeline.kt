@@ -710,7 +710,9 @@ private fun TimelineTimeColumn(
         ?: delayMinutesFromTimes(scheduled, prognosed)
         ?: 0
     val display = prognosed?.takeIf { it.isNotBlank() } ?: scheduled
-    val showScheduledStruck = prognosed != null && prognosed != scheduled
+    // Compare displayed clocks, not raw ISO strings (same minute, different offset/format).
+    val showScheduledStruck = !prognosed.isNullOrBlank() &&
+        formatJourneyClock(prognosed) != formatJourneyClock(scheduled)
     val clock = formatJourneyClock(display)
     val percent = timelinessProbability?.let { (it * 100).toInt().coerceIn(0, 100) }
 

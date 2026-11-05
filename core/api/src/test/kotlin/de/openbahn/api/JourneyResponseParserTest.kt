@@ -206,8 +206,12 @@ class JourneyResponseParserTest {
 
     @Test
     fun parsesMobileDbnavLueneburgHamburg_forTracking() {
-        val text = javaClass.getResource("/dbnav-journey-lueneburg-hamburg.json")!!.readText()
-        val journey = JourneyResponseParser.parse(text).journeys.single()
+        val result = JourneyResponseParser.parse(
+            javaClass.getResource("/dbnav-journey-lueneburg-hamburg.json")!!.readText(),
+        )
+        assertEquals("mobile-earlier-token", result.pagingEarlier)
+        assertEquals("mobile-later-token", result.pagingLater)
+        val journey = result.journeys.single()
         assertEquals("mobtest_checksum_1", journey.id)
         assertTrue(!journey.refreshToken.isNullOrBlank())
         assertEquals(33, journey.durationMinutes)
@@ -218,5 +222,10 @@ class JourneyResponseParserTest {
         assertEquals("ICE 786", leg.lineName)
         assertEquals("ICE_786", leg.tripId)
         assertTrue(leg.product != null)
+        // Identical ezAbgangsDatum must not become a fake "delayed" prognosed time.
+        assertEquals(null, leg.origin.prognosedTime)
+        assertEquals(null, leg.origin.delayMinutes)
+        assertEquals("2026-11-05T17:40:00+01:00", leg.destination.prognosedTime)
+        assertEquals(7, leg.destination.delayMinutes)
     }
 }

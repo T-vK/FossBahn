@@ -2,16 +2,22 @@ package de.openbahn.model
 
 /** Merges live stop times from [other] into this stop, keeping the richer delay information. */
 fun StopEvent.withRealtimeFrom(other: StopEvent): StopEvent {
-    val otherDelay = other.delayMinutes ?: 0
+    val otherDelay = other.delayMinutes
+        ?: delayMinutesFromTimes(scheduledTime, other.prognosedTime)
+        ?: 0
     val thisDelay = delayMinutes ?: 0
-    val otherHasPrognosis = other.prognosedTime != null && other.prognosedTime != scheduledTime
+    val otherHasPrognosis = otherDelay > 0
     val shouldMergeDelay = otherDelay > thisDelay || otherHasPrognosis
     val platformChanged = !other.platform.isNullOrBlank() && other.platform != platform
     val cancelledUpdate = other.cancelled && !cancelled
     if (!shouldMergeDelay && !platformChanged && !cancelledUpdate) return this
     return copy(
         prognosedTime = if (shouldMergeDelay) other.prognosedTime ?: prognosedTime else prognosedTime,
-        delayMinutes = if (shouldMergeDelay) other.delayMinutes ?: delayMinutes else delayMinutes,
+        delayMinutes = if (shouldMergeDelay) {
+            (other.delayMinutes ?: otherDelay).takeIf { it > 0 } ?: delayMinutes
+        } else {
+            delayMinutes
+        },
         platform = when {
             platformChanged -> other.platform
             shouldMergeDelay -> other.platform ?: platform
@@ -56,9 +62,10 @@ fun StopEvent.withBoardRealtime(
     delayMinutes: Int?,
     platform: String? = null,
 ): StopEvent {
-    val effectiveDelay = delayMinutes ?: delayMinutesFromTimes(scheduled, prognosed)
-    val hasDelayUpdate = (effectiveDelay ?: 0) > 0 ||
-        (!prognosed.isNullOrBlank() && prognosed != scheduledTime)
+    val effectiveDelay = delayMinutes
+        ?: delayMinutesFromTimes(scheduledTime, prognosed)
+        ?: delayMinutesFromTimes(scheduled, prognosed)
+    val hasDelayUpdate = (effectiveDelay ?: 0) > 0
     val platformChanged = !platform.isNullOrBlank() && platform != this.platform
     if (!hasDelayUpdate && !platformChanged) return this
     return copy(
@@ -66,7 +73,7 @@ fun StopEvent.withBoardRealtime(
         delayMinutes = if (hasDelayUpdate && effectiveDelay != null) {
             maxOf(this.delayMinutes ?: 0, effectiveDelay).takeIf { it > 0 }
         } else {
-            delayMinutes
+            this.delayMinutes
         },
         platform = when {
             platformChanged -> platform

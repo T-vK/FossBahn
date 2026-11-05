@@ -668,7 +668,10 @@ private fun StopTimeText(
         ?: delayMinutesFromTimes(scheduled, prognosed)
         ?: 0
     val display = prognosed?.takeIf { it.isNotBlank() } ?: scheduled
-    val showScheduledStruck = prognosed != null && prognosed != scheduled
+    // Compare displayed clocks, not raw ISO strings (mobile/board formats often differ
+    // for the same minute, e.g. …T17:57:00 vs …T17:57:00+01:00).
+    val showScheduledStruck = !prognosed.isNullOrBlank() &&
+        formatJourneyClock(prognosed) != formatJourneyClock(scheduled)
     val clock = formatJourneyClock(display)
     val percent = timelinessProbability?.let { (it * 100).toInt().coerceIn(0, 100) }
     Column(horizontalAlignment = Alignment.End) {

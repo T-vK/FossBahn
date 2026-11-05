@@ -241,8 +241,13 @@ internal object JourneyResponseParser {
         root["verbindungReference"]?.jsonObject?.let { ref ->
             return text(ref, "earlier") to text(ref, "later")
         }
-        val single = text(root, "pagingReference")
-        return null to single
+        // Mobile dbnav uses frueherContext / spaeterContext at the response root.
+        val earlier = text(root, "frueherContext")
+            ?: text(root, "earlier")
+        val later = text(root, "spaeterContext")
+            ?: text(root, "later")
+            ?: text(root, "pagingReference")
+        return earlier to later
     }
 
     private data class ParsedStopTimes(
@@ -380,16 +385,36 @@ internal object JourneyResponseParser {
         times: ParsedStopTimes,
         cancelled: Boolean = false,
         remarks: List<String> = emptyList(),
-    ) = StopEvent(
-        name = name,
-        id = id,
-        platform = platform,
-        scheduledTime = times.scheduled,
-        prognosedTime = times.prognosed,
-        delayMinutes = times.delayMinutes,
-        cancelled = cancelled,
-        remarks = remarks,
-    )
+    ): StopEvent {
+        // Mobile often sets ez*Datum equal to scheduled (same instant, sometimes different
+        // ISO shape). Storing that as prognosedTime makes the UI strike through 17:57 → 17:57.
+        val delay = times.delayMinutes ?: computeDelayMinutes(times.scheduled, times.prognosed)
+        val prognosed = times.prognosed?.takeIf { p ->
+            !isSameInstant(times.scheduled, p) && (delay != null || clockHhMm(times.scheduled) != clockHhMm(p))
+        }
+        return StopEvent(
+            name = name,
+            id = id,
+            platform = platform,
+            scheduledTime = times.scheduled,
+            prognosedTime = prognosed,
+            delayMinutes = delay,
+            cancelled = cancelled,
+            remarks = remarks,
+        )
+    }
+
+    private fun isSameInstant(a: String, b: String): Boolean {
+        if (a == b) return true
+        val am = parseInstantMillis(a) ?: return false
+        val bm = parseInstantMillis(b) ?: return false
+        return am == bm
+    }
+
+    private fun clockHhMm(isoTime: String): String {
+        val t = isoTime.indexOf('T')
+        return if (t >= 0 && isoTime.length >= t + 6) isoTime.substring(t + 1, t + 6) else isoTime
+    }
 
     private fun isCancelled(section: JsonObject, halt: JsonObject?, forDeparture: Boolean): Boolean {
         val sectionFlags = if (forDeparture) {

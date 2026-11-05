@@ -21,6 +21,8 @@ class JourneyFormattersTest {
     @Test
     fun formatJourneyClock_iso() {
         assertEquals("08:00", formatJourneyClock("2026-06-01T08:00:00"))
+        assertEquals("17:57", formatJourneyClock("2026-11-05T17:57:00+01:00"))
+        assertEquals("17:57", formatJourneyClock("2026-11-05T17:57:00"))
     }
 
     @Test

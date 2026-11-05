@@ -1,4 +1,6 @@
 {
+  "frueherContext": "mobile-earlier-token",
+  "spaeterContext": "mobile-later-token",
   "verbindungen": [
     {
       "verbindung": {
@@ -23,13 +25,15 @@
               "locationId": "A=1@O=Lüneburg@X=10419891@Y=53249652@U=80@L=8000238@",
               "evaNr": "8000238"
             },
-            "abgangsDatum": "2026-11-05T17:00:00",
+            "abgangsDatum": "2026-11-05T17:00:00+01:00",
+            "ezAbgangsDatum": "2026-11-05T17:00:00+01:00",
             "ankunftsOrt": {
               "name": "Hamburg Hbf",
               "locationId": "A=1@O=Hamburg Hbf@X=10006909@Y=53552733@U=80@L=8002549@",
               "evaNr": "8002549"
             },
-            "ankunftsDatum": "2026-11-05T17:33:00",
+            "ankunftsDatum": "2026-11-05T17:33:00+01:00",
+            "ezAnkunftsDatum": "2026-11-05T17:40:00+01:00",
             "halte": [
               {
                 "ort": {
@@ -37,7 +41,8 @@
                   "evaNr": "8000238",
                   "locationId": "A=1@L=8000238@"
                 },
-                "abgangsDatum": "2026-11-05T17:00:00"
+                "abgangsDatum": "2026-11-05T17:00:00+01:00",
+                "ezAbgangsDatum": "2026-11-05T17:00:00+01:00"
               },
               {
                 "ort": {
@@ -45,7 +50,8 @@
                   "evaNr": "8002549",
                   "locationId": "A=1@L=8002549@"
                 },
-                "ankunftsDatum": "2026-11-05T17:33:00"
+                "ankunftsDatum": "2026-11-05T17:33:00+01:00",
+                "ezAnkunftsDatum": "2026-11-05T17:40:00+01:00"
               }
             ]
           }
