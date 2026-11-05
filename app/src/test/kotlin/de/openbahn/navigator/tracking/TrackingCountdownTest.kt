@@ -14,6 +14,15 @@ class TrackingCountdownTest {
         assertEquals("0:00", formatTrackingCountdown(0))
         assertEquals("1:05", formatTrackingCountdown(65))
         assertEquals("12:34", formatTrackingCountdown(754))
+        assertEquals("59:59", formatTrackingCountdown(3599))
+    }
+
+    @Test
+    fun formatTrackingCountdown_formatsHoursWhenOverOneHour() {
+        assertEquals("1:00:00", formatTrackingCountdown(3600))
+        assertEquals("1:05:30", formatTrackingCountdown(3930))
+        assertEquals("2:00:01", formatTrackingCountdown(7201))
+        assertEquals("10:05:03", formatTrackingCountdown(36_303))
     }
 
     @Test

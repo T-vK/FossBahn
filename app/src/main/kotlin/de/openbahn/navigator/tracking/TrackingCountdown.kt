@@ -7,12 +7,21 @@ import de.openbahn.navigator.ui.util.parseJourneyDateTime
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
-/** Formats remaining seconds as `M:SS` or `MM:SS` (minutes may exceed two digits). */
+/**
+ * Formats remaining seconds as `M:SS` / `MM:SS` up to 59:59, then `H:MM:SS`
+ * (hours may exceed one digit).
+ */
 fun formatTrackingCountdown(totalSeconds: Long): String {
     val clamped = totalSeconds.coerceAtLeast(0)
-    val minutes = clamped / 60
+    val hours = clamped / 3600
+    val minutes = (clamped % 3600) / 60
     val seconds = clamped % 60
-    return "$minutes:${seconds.toString().padStart(2, '0')}"
+    val ss = seconds.toString().padStart(2, '0')
+    return if (hours > 0) {
+        "$hours:${minutes.toString().padStart(2, '0')}:$ss"
+    } else {
+        "$minutes:$ss"
+    }
 }
 
 data class TrackingTitleCountdown(
@@ -116,7 +125,7 @@ private fun eventDateTime(event: de.openbahn.model.StopEvent): LocalDateTime? {
 }
 
 /**
- * Builds a notification title with an optional countdown prefix (`↑ 12:34 ·` or `↓ 45:30 ·`)
+ * Builds a notification title with an optional countdown prefix (`↑ 12:34 ·`, `↓ 1:05:30 ·`)
  * followed by the route name.
  */
 fun buildTrackingNotificationTitle(
