@@ -1,7 +1,9 @@
 package de.openbahn.navigator.tracking
 
 import de.openbahn.api.DbVendoClient
+import de.openbahn.api.debug.OpenBahnDebugLog
 import de.openbahn.model.Journey
+import de.openbahn.model.Location
 import de.openbahn.model.maxDelayMinutes
 import de.openbahn.model.withRealtimeFrom
 import de.openbahn.navigator.data.TrackedJourneyEntity
@@ -80,7 +82,13 @@ class TrackedJourneyRefreshUseCase(
         val existing = Json.decodeFromString<Journey>(entity.journeyJson)
         val token = entity.refreshToken?.takeIf { it.isNotBlank() }
         val toRefresh = if (token != null) existing.copy(refreshToken = token) else existing
-        val merged = refreshWithLiveData(toRefresh)
+        val storedFrom = entity.fromLocationJson?.let {
+            runCatching { Json.decodeFromString<Location>(it) }.getOrNull()
+        }
+        val storedTo = entity.toLocationJson?.let {
+            runCatching { Json.decodeFromString<Location>(it) }.getOrNull()
+        }
+        val merged = refreshWithLiveData(toRefresh, storedFrom, storedTo)
         return RefreshEntityResult(
             merged = merged,
             platformChanges = PlatformChangeDetector.detect(existing, merged),
@@ -95,16 +103,36 @@ class TrackedJourneyRefreshUseCase(
 
     /**
      * DB journey refresh plus station-board enrichment (same pipeline as connection search).
+     * Prefers stop IDs on legs; falls back to locations stored when the user tapped Track
+     * (needed for mobile-dbnav journeys whose legs historically lacked EVA ids).
      */
-    private suspend fun refreshWithLiveData(journey: Journey): Journey {
-        val (from, to) = journey.trackingEndpoints()
+    private suspend fun refreshWithLiveData(
+        journey: Journey,
+        storedFrom: Location? = null,
+        storedTo: Location? = null,
+    ): Journey {
+        val (legFrom, legTo) = journey.trackingEndpoints()
+        val from = legFrom ?: storedFrom
+        val to = legTo ?: storedTo
         val token = journey.refreshToken?.takeIf { it.isNotBlank() }
         val afterRefresh = if (token != null) {
-            client.refreshJourney(token)?.let { journey.withRealtimeFrom(it) } ?: journey
+            runCatching { client.refreshJourney(token) }
+                .onFailure { e ->
+                    OpenBahnDebugLog.w("Tracking", "refreshJourney failed: ${e.message}")
+                }
+                .getOrNull()
+                ?.let { journey.withRealtimeFrom(it) }
+                ?: journey
         } else {
             journey
         }
-        if (from == null && to == null) return afterRefresh
+        if (from == null && to == null) {
+            OpenBahnDebugLog.w(
+                "Tracking",
+                "no board endpoints for journey ${journey.id.take(24)} (legs lack stop ids)",
+            )
+            return afterRefresh
+        }
         return client.enrichJourneysWithRealtime(listOf(afterRefresh), from, to).firstOrNull()
             ?: afterRefresh
     }

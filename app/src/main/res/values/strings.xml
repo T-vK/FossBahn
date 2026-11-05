@@ -64,6 +64,9 @@
     <string name="info_no_connections">No connections found for this route and time. Try different options or a later departure.</string>
     <string name="info_no_connections_dticket">No connections found with “D-Ticket connections only” enabled. Turn it off in Options or Filters and search again.</string>
     <string name="info_no_connections_filters">No connections found with the current filters (transport modes, direct only, etc.). Open Filters and reset or widen your selection.</string>
+    <string name="track_started">Connection is being tracked. Open Live Updates for delay alerts.</string>
+    <string name="track_already_arrived">This connection has already arrived — pick a future departure to track.</string>
+    <string name="track_missing_stations">Select departure and destination stations before tracking.</string>
     <string name="filters">Options</string>
     <string name="settings_title">Settings</string>
     <string name="settings_search_hint">Search settings</string>

@@ -203,4 +203,20 @@ class JourneyResponseParserTest {
         assertTrue(leg.origin.cancelled)
         assertEquals("FLX 1247", leg.lineName)
     }
+
+    @Test
+    fun parsesMobileDbnavLueneburgHamburg_forTracking() {
+        val text = javaClass.getResource("/dbnav-journey-lueneburg-hamburg.json")!!.readText()
+        val journey = JourneyResponseParser.parse(text).journeys.single()
+        assertEquals("mobtest_checksum_1", journey.id)
+        assertTrue(!journey.refreshToken.isNullOrBlank())
+        assertEquals(33, journey.durationMinutes)
+        assertEquals(0, journey.transfers)
+        val leg = journey.legs.single()
+        assertEquals("8000238", leg.origin.id)
+        assertEquals("8002549", leg.destination.id)
+        assertEquals("ICE 786", leg.lineName)
+        assertEquals("ICE_786", leg.tripId)
+        assertTrue(leg.product != null)
+    }
 }

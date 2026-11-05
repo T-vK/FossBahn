@@ -664,6 +664,7 @@ private fun errorStringRes(key: String): Int = when (key) {
     "error_parse" -> R.string.error_parse
     "error_location_permission" -> R.string.error_location_permission
     "error_location_unavailable" -> R.string.error_location_unavailable
+    "track_missing_stations" -> R.string.track_missing_stations
     else -> R.string.error_search_failed
 }
 
@@ -671,5 +672,7 @@ private fun infoStringRes(key: String): Int = when (key) {
     "info_no_connections" -> R.string.info_no_connections
     "info_no_connections_dticket" -> R.string.info_no_connections_dticket
     "info_no_connections_filters" -> R.string.info_no_connections_filters
+    "track_started" -> R.string.track_started
+    "track_already_arrived" -> R.string.track_already_arrived
     else -> R.string.info_no_connections
 }

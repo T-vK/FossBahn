@@ -14,9 +14,9 @@ object LineDisplayMapper {
     fun fromVerkehrsmittel(vm: JsonObject?, journeyId: String? = null): LineDisplay {
         if (vm == null) return LineDisplay(null)
         val name = text(vm, "name")
-        val kurz = text(vm, "kurzText")
-        val mittel = text(vm, "mittelText")
-        val lang = text(vm, "langText")
+        val kurz = text(vm, "kurzText") ?: text(vm, "kurztext")
+        val mittel = text(vm, "mittelText") ?: text(vm, "mitteltext")
+        val lang = text(vm, "langText") ?: text(vm, "langtext")
         val product = text(vm, "produktGattung")
         val lineNumber = text(vm, "linienNummer") ?: text(vm, "nummer")
         val zb = labelFromJourneyId(journeyId)

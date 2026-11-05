@@ -1,0 +1,56 @@
+{
+  "verbindungen": [
+    {
+      "verbindung": {
+        "reiseDauer": 1980,
+        "alternative": false,
+        "checksum": "mobtest_checksum_1",
+        "umstiegeAnzahl": 0,
+        "schemaVersion": "1.25.6",
+        "schemaName": "trip",
+        "kontext": "¶HKI¶T$A=1@O=Lüneburg@L=8000238@$A=1@O=Hamburg Hbf@L=8002549@$TESTCTX",
+        "verbindungsAbschnitte": [
+          {
+            "nummer": 0,
+            "abschnittsDauer": 1980,
+            "typ": "FAHRZEUG",
+            "kurztext": "ICE 786",
+            "langtext": "ICE 786",
+            "produktGattung": "ICE",
+            "risZuglaufId": "ICE_786",
+            "abgangsOrt": {
+              "name": "Lüneburg",
+              "locationId": "A=1@O=Lüneburg@X=10419891@Y=53249652@U=80@L=8000238@",
+              "evaNr": "8000238"
+            },
+            "abgangsDatum": "2026-11-05T17:00:00",
+            "ankunftsOrt": {
+              "name": "Hamburg Hbf",
+              "locationId": "A=1@O=Hamburg Hbf@X=10006909@Y=53552733@U=80@L=8002549@",
+              "evaNr": "8002549"
+            },
+            "ankunftsDatum": "2026-11-05T17:33:00",
+            "halte": [
+              {
+                "ort": {
+                  "name": "Lüneburg",
+                  "evaNr": "8000238",
+                  "locationId": "A=1@L=8000238@"
+                },
+                "abgangsDatum": "2026-11-05T17:00:00"
+              },
+              {
+                "ort": {
+                  "name": "Hamburg Hbf",
+                  "evaNr": "8002549",
+                  "locationId": "A=1@L=8002549@"
+                },
+                "ankunftsDatum": "2026-11-05T17:33:00"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

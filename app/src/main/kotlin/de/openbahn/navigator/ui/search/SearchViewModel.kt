@@ -345,9 +345,19 @@ class SearchViewModel(
     }
 
     fun trackJourney(journey: Journey) {
-        val from = _state.value.from ?: return
-        val to = _state.value.to ?: return
+        val from = _state.value.from
+        val to = _state.value.to
+        if (from == null || to == null) {
+            OpenBahnDebugLog.w("Search", "trackJourney aborted: from/to not set")
+            _state.update { it.copy(error = "track_missing_stations") }
+            return
+        }
         viewModelScope.launch {
+            if (de.openbahn.navigator.ui.util.isJourneyLongArrived(journey)) {
+                OpenBahnDebugLog.w("Search", "trackJourney aborted: journey already arrived")
+                _state.update { it.copy(info = "track_already_arrived") }
+                return@launch
+            }
             trackingRepository.track(
                 journey = journey,
                 fromName = from.name,
@@ -355,6 +365,11 @@ class SearchViewModel(
                 fromLocation = from,
                 toLocation = to,
             )
+            OpenBahnDebugLog.d(
+                "Search",
+                "trackJourney ok id=${journey.id.take(24)} refresh=${!journey.refreshToken.isNullOrBlank()}",
+            )
+            _state.update { it.copy(info = "track_started") }
         }
     }
 

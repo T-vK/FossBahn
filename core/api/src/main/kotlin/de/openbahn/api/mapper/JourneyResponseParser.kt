@@ -481,6 +481,8 @@ internal object JourneyResponseParser {
         if (legs.isEmpty()) return null
 
         val duration = intVal(v, "verbindungsDauerInSeconds")?.div(60)
+            // Mobile dbnav: reiseDauer is seconds (int); web often sends ISO-8601 PT…H…M.
+            ?: intVal(v, "reiseDauer")?.let { seconds -> ((seconds + 59) / 60).coerceAtLeast(1) }
             ?: parseDurationMinutes(text(v, "reiseDauer"))
             ?: 60
 
@@ -538,27 +540,34 @@ internal object JourneyResponseParser {
         )
     }
 
-    private fun buildJourney(v: JsonObject, legs: List<Leg>, duration: Int): Journey =
-        Journey(
+    private fun buildJourney(v: JsonObject, legs: List<Leg>, duration: Int): Journey {
+        val refreshToken = text(v, "ctxRecon") ?: text(v, "kontext")
+        return Journey(
+            // Mobile often omits verbindungsId; prefer checksum/kontext over a random UUID
+            // so tracked journeys stay stable across refresh.
             id = text(v, "verbindungsId")
                 ?: text(v, "tripId")
                 ?: text(v, "id")
+                ?: text(v, "checksum")
+                ?: refreshToken?.takeIf { it.length >= 16 }?.let { "ctx-${it.hashCode().toUInt()}" }
                 ?: UUID.randomUUID().toString(),
             legs = legs,
             durationMinutes = duration,
             transfers = intVal(v, "umstiegsAnzahl")
+                ?: intVal(v, "umstiegeAnzahl") // mobile dbnav spelling
                 ?: intVal(v, "umstiege")
                 ?: (legs.size - 1).coerceAtLeast(0),
             departure = legs.first().origin.prognosedTime ?: legs.first().origin.scheduledTime,
             arrival = legs.last().destination.prognosedTime ?: legs.last().destination.scheduledTime,
             priceHint = priceHint(v),
-            refreshToken = text(v, "ctxRecon") ?: text(v, "kontext"),
+            refreshToken = refreshToken,
             deutschlandTicketValid = bool(v, "dticketGueltig"),
             remarks = distinctRemarks(
                 mapHinweise(v["hinweise"]?.jsonArray),
                 mapHinweise(v["himMeldungen"]?.jsonArray),
             ),
         )
+    }
 
     private fun mapAbschnitt(a: JsonObject, connectionTripId: String? = null): Leg? {
         val halte = halteArray(a)
@@ -567,7 +576,11 @@ internal object JourneyResponseParser {
         val startHalt = haltObject(a, "startHalt", "start", "abfahrtsHalt")
         val zielHalt = haltObject(a, "zielHalt", "ziel", "ankunftsHalt", "zielBahnhof")
         val vm = a["verkehrsmittel"]?.jsonObject
+        val sectionTyp = text(a, "typ")
         val isWalking = text(vm, "typ")?.equals("WALK", ignoreCase = true) == true
+            || sectionTyp.equals("WALK", ignoreCase = true)
+            || sectionTyp.equals("FUSSWEG", ignoreCase = true)
+            || sectionTyp.equals("TRANSFER", ignoreCase = true)
         val durationMinutes = intVal(a, "abschnittsDauer")?.let { seconds ->
             ((seconds + 59) / 60).coerceAtLeast(1)
         }
@@ -591,11 +604,15 @@ internal object JourneyResponseParser {
             ?: text(a, "zielGleis")
             ?: text(lastHalt, "gleis")
             ?: text(zielHalt, "gleis")
-        val line = lineDisplay(vm, text(a, "journeyId"))
+        // Mobile dbnav puts line fields on the section (no nested verkehrsmittel).
+        val lineSource = vm ?: a
+        val line = lineDisplay(lineSource, text(a, "journeyId") ?: text(a, "risZuglaufId"))
+        val productCode = text(vm, "produktGattung") ?: text(a, "produktGattung")
         return Leg(
             origin = stopEventFromParsed(
                 name = depName,
                 id = stationExtId(a, "abfahrtsOrt", "abfahrtsOrtExtId", firstHalt)
+                    ?: stationExtId(a, "abgangsOrt", "abgangsOrtExtId", firstHalt)
                     ?: stationExtIdFromHalt(startHalt)
                     ?: text(firstHalt, "id"),
                 platform = depPlatform,
@@ -616,14 +633,15 @@ internal object JourneyResponseParser {
             intermediateStops = mapIntermediateStops(halte, depName, arrName),
             priorStops = mapPriorStops(halte, depName, depTimes.scheduled),
             routeStops = mapRouteStops(halte),
-            lineName = line.primary,
+            lineName = if (isWalking) (line.primary ?: "Fußweg") else line.primary,
             lineDetail = line.detail,
-            product = text(vm, "produktGattung")?.let(::mapProduct),
-            operator = text(vm, "betreiber"),
+            product = productCode?.let(::mapProduct),
+            operator = text(vm, "betreiber") ?: text(a, "betreiber"),
             loadFactor = text(vm, "auslastung"),
-            bikeAllowed = bool(vm, "fahrradErlaubt"),
+            bikeAllowed = bool(vm, "fahrradErlaubt") ?: bool(a, "fahrradErlaubt"),
             tripId = text(a, "journeyId")
                 ?: text(a, "zuglaufId")
+                ?: text(a, "risZuglaufId")
                 ?: text(a, "fahrtId")
                 ?: text(vm, "journeyId")
                 ?: connectionTripId,
@@ -726,17 +744,22 @@ internal object JourneyResponseParser {
         parseStopTimes(startHalt, HaltTimeRole.DEPARTURE),
         haltMatchingName(halte, depName)?.let { parseStopTimes(it, HaltTimeRole.DEPARTURE) },
         parseStopTimes(firstHalt, HaltTimeRole.DEPARTURE),
-        timeText(section, "abfahrtsZeitpunkt", "abgangsZeitpunkt", "abfahrtsZeit", "abgangsZeit", "abfahrt")
-            ?.let { scheduled ->
-                ParsedStopTimes(
-                    scheduled = scheduled,
-                    prognosed = timeText(
-                        section,
-                        *prognosedKeys(HaltTimeRole.DEPARTURE),
-                    ),
-                    delayMinutes = intVal(section, "verspaetung", "verspätung", "delay"),
-                )
-            },
+        parseStopTimes(section, HaltTimeRole.DEPARTURE),
+        timeText(
+            section,
+            "abfahrtsZeitpunkt",
+            "abgangsZeitpunkt",
+            "abgangsDatum",
+            "abfahrtsZeit",
+            "abgangsZeit",
+            "abfahrt",
+        )?.let { scheduled ->
+            ParsedStopTimes(
+                scheduled = scheduled,
+                prognosed = timeText(section, *prognosedKeys(HaltTimeRole.DEPARTURE)),
+                delayMinutes = intVal(section, "verspaetung", "verspätung", "delay"),
+            )
+        },
     )
 
     private fun sectionArrivalTimes(
@@ -750,14 +773,12 @@ internal object JourneyResponseParser {
         parseStopTimes(zielHalt, HaltTimeRole.ARRIVAL),
         haltMatchingName(halte, arrName)?.let { parseStopTimes(it, HaltTimeRole.ARRIVAL) },
         parseStopTimes(lastHalt, HaltTimeRole.ARRIVAL),
+        parseStopTimes(section, HaltTimeRole.ARRIVAL),
         timeText(section, "ankunftsZeitpunkt", "ankunftsDatum", "ankunftsZeit", "ankunft")
             ?.let { scheduled ->
                 ParsedStopTimes(
                     scheduled = scheduled,
-                    prognosed = timeText(
-                        section,
-                        *prognosedKeys(HaltTimeRole.ARRIVAL),
-                    ),
+                    prognosed = timeText(section, *prognosedKeys(HaltTimeRole.ARRIVAL)),
                     delayMinutes = intVal(section, "verspaetung", "verspätung", "delay"),
                 )
             },
@@ -772,17 +793,31 @@ internal object JourneyResponseParser {
 
     private fun stationNameFromHalt(halt: JsonObject?): String? {
         if (halt == null) return null
+        val ort = halt["ort"]?.jsonObject
         return text(halt, "name")
             ?: text(halt, "bezeichnung")
             ?: text(halt, "bahnhofsName")
-            ?: nameFromHaltId(text(halt, "id"))
+            ?: text(ort, "name")
+            ?: text(ort, "bezeichnung")
+            ?: nameFromHaltId(text(halt, "id") ?: text(ort, "locationId") ?: text(ort, "id"))
     }
 
     private fun stationExtIdFromHalt(halt: JsonObject?): String? {
         if (halt == null) return null
+        val ort = halt["ort"]?.jsonObject
         return text(halt, "extId")
             ?: text(halt, "evaNr")
+            ?: text(ort, "evaNr")
+            ?: text(ort, "extId")
+            ?: evaFromLocationId(text(ort, "locationId") ?: text(halt, "locationId"))
             ?: text(halt, "id")?.takeIf { it.all(Char::isDigit) }
+            ?: text(ort, "id")?.takeIf { it.all(Char::isDigit) }
+    }
+
+    private fun evaFromLocationId(locationId: String?): String? {
+        if (locationId.isNullOrBlank()) return null
+        return Regex("""@L=(\d+)@""").find(locationId)?.groupValues?.getOrNull(1)
+            ?: locationId.takeIf { it.all(Char::isDigit) && it.length >= 6 }
     }
 
     private fun ortJsonObject(section: JsonObject, ortKey: String): JsonObject? {
@@ -806,10 +841,16 @@ internal object JourneyResponseParser {
         ortKey: String,
         extIdKey: String,
         halt: JsonObject?,
-    ): String? =
-        text(section, extIdKey)
-            ?: ortJsonObject(section, ortKey)?.let { text(it, "extId") ?: text(it, "id") }
+    ): String? {
+        val ort = ortJsonObject(section, ortKey)
+        return text(section, extIdKey)
+            ?: text(ort, "evaNr")
+            ?: text(ort, "extId")
+            ?: evaFromLocationId(text(ort, "locationId"))
+            ?: text(ort, "id")?.takeIf { it.all(Char::isDigit) || it.contains("@L=") }
+            ?: stationExtIdFromHalt(halt)
             ?: text(halt, "extId")
+    }
 
     private fun lineDisplay(vm: JsonObject?, journeyId: String?): LineDisplay =
         LineDisplayMapper.fromVerkehrsmittel(vm, journeyId)

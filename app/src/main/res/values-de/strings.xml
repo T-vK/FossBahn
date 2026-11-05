@@ -64,6 +64,9 @@
     <string name="info_no_connections">Keine Verbindungen für diese Route und Zeit gefunden. Andere Optionen oder Abfahrtszeit wählen.</string>
     <string name="info_no_connections_dticket">Keine Verbindungen mit aktivem Filter „Nur Deutschland-Ticket-Verbindungen“. In Optionen oder Filtern deaktivieren und erneut suchen.</string>
     <string name="info_no_connections_filters">Keine Verbindungen mit den aktuellen Filtern (Verkehrsmittel, nur direkt, …). Filter öffnen und Auswahl erweitern oder zurücksetzen.</string>
+    <string name="track_started">Verbindung wird verfolgt. Unter Live-Updates sehen Sie Verspätungsmeldungen.</string>
+    <string name="track_already_arrived">Diese Verbindung ist bereits angekommen — wählen Sie eine zukünftige Abfahrt zum Verfolgen.</string>
+    <string name="track_missing_stations">Bitte Abfahrt und Ziel wählen, bevor Sie verfolgen.</string>
     <string name="filters">Optionen</string>
     <string name="settings_title">Einstellungen</string>
     <string name="settings_search_hint">Einstellungen durchsuchen</string>
