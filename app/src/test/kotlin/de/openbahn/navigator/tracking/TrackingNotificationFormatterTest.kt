@@ -442,7 +442,7 @@ class TrackingNotificationFormatterTest {
     }
 
     private fun leg(
-        platform: String?,
+        platform: String? = null,
         depScheduled: String,
         arrScheduled: String,
         lineName: String?,

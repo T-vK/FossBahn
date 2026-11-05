@@ -176,6 +176,10 @@ internal object JourneyResponseParser {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) throw DbParseException("Empty response body")
         if (trimmed.contains("OPS_BLOCKED")) throw DbApiBlockedException("Journey search blocked")
+        // WAF/CDN denial pages (HTML) must not surface as generic parse failures.
+        if (trimmed.startsWith("<") || trimmed.contains("<html", ignoreCase = true)) {
+            throw DbApiBlockedException("Journey search blocked")
+        }
 
         val root = try {
             json.parseToJsonElement(trimmed)

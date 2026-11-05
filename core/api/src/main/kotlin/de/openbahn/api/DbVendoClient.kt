@@ -78,15 +78,7 @@ class DbVendoClient(
             parameter("max", 12)
             parameter("locale", locale)
         }
-        val text = raw.body<String>()
-        if (text.contains("OPS_BLOCKED")) throw DbApiBlockedException("Location search blocked")
-        val locations = try {
-            val asList = json.decodeFromString<List<DbOrt>>(text)
-            LocationMapper.mapOrtList(asList)
-        } catch (_: Exception) {
-            val wrapped = json.decodeFromString<DbLocationResponse>(text)
-            LocationMapper.mapLocations(wrapped)
-        }
+        val locations = parseLocationResponse(raw.body<String>())
         OpenBahnDebugLog.d(
             "DbVendo",
             "searchLocations q=\"$query\" -> ${locations.size} hit(s): " +
@@ -109,14 +101,7 @@ class DbVendoClient(
             parameter("maxNo", maxResults)
             parameter("locale", locale)
         }
-        val text = raw.body<String>()
-        if (text.contains("OPS_BLOCKED")) throw DbApiBlockedException("Location search blocked")
-        val locations = try {
-            LocationMapper.mapOrtList(json.decodeFromString(text))
-        } catch (_: Exception) {
-            val wrapped = json.decodeFromString<DbLocationResponse>(text)
-            LocationMapper.mapLocations(wrapped)
-        }
+        val locations = parseLocationResponse(raw.body<String>())
         OpenBahnDebugLog.d("DbVendo", "searchLocationsNearby -> ${locations.size} hit(s)")
         return locations
     }
@@ -207,6 +192,38 @@ class DbVendoClient(
         } catch (e: SerializationException) {
             throw DbParseException(cause = e)
         }
+
+    /**
+     * Parses `/orte` payloads. WAF/CDN blocks often return HTML ("Access Denied") with HTTP 200;
+     * that must become [DbApiBlockedException] — never an uncaught [SerializationException]
+     * (which previously crashed the Search screen).
+     */
+    private fun parseLocationResponse(text: String): List<Location> {
+        val trimmed = text.trim()
+        rejectBlockedApiBody(trimmed, "Location search blocked")
+        return try {
+            val asList = json.decodeFromString<List<DbOrt>>(trimmed)
+            LocationMapper.mapOrtList(asList)
+        } catch (first: Exception) {
+            try {
+                val wrapped = json.decodeFromString<DbLocationResponse>(trimmed)
+                LocationMapper.mapLocations(wrapped)
+            } catch (e: SerializationException) {
+                throw DbParseException("Invalid location JSON from Deutsche Bahn", e)
+            } catch (e: Exception) {
+                throw DbParseException("Failed to parse location response", first)
+            }
+        }
+    }
+
+    /** Reject OPS_BLOCKED JSON and HTML denial pages before attempting JSON decode. */
+    private fun rejectBlockedApiBody(text: String, blockedMessage: String) {
+        if (text.contains("OPS_BLOCKED")) throw DbApiBlockedException(blockedMessage)
+        // e.g. "<HTML><HEAD>\n<TITLE>Access Denied..."
+        if (text.startsWith("<") || text.contains("<html", ignoreCase = true)) {
+            throw DbApiBlockedException(blockedMessage)
+        }
+    }
 
     /** All stops on the vehicle run (before/after your segment), via bahn.de trip id. */
     suspend fun fetchTripRoute(journeyId: String): List<StopEvent> {
@@ -481,8 +498,12 @@ class DbVendoClient(
             products.forEach { parameter("verkehrsmittel[]", it.vendoCode) }
             parameter("locale", locale)
         }.body<String>()
-        if (text.contains("OPS_BLOCKED")) throw DbApiBlockedException("Departures blocked")
-        val response = json.decodeFromString<DbStationBoardResponse>(text)
+        rejectBlockedApiBody(text.trim(), "Departures blocked")
+        val response = try {
+            json.decodeFromString<DbStationBoardResponse>(text)
+        } catch (e: SerializationException) {
+            throw DbParseException("Invalid departures JSON from Deutsche Bahn", e)
+        }
         return StationBoardMapper.mapDepartures(response)
     }
 
@@ -502,8 +523,12 @@ class DbVendoClient(
             products.forEach { parameter("verkehrsmittel[]", it.vendoCode) }
             parameter("locale", locale)
         }.body<String>()
-        if (text.contains("OPS_BLOCKED")) throw DbApiBlockedException("Arrivals blocked")
-        val response = json.decodeFromString<DbStationBoardResponse>(text)
+        rejectBlockedApiBody(text.trim(), "Arrivals blocked")
+        val response = try {
+            json.decodeFromString<DbStationBoardResponse>(text)
+        } catch (e: SerializationException) {
+            throw DbParseException("Invalid arrivals JSON from Deutsche Bahn", e)
+        }
         return StationBoardMapper.mapArrivals(response)
     }
 

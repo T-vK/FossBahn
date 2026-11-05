@@ -578,11 +578,47 @@ class SearchViewModel(
                 pagingLater = if (replaceResults) null else it.pagingLater,
             )
         }
-        val from = resolveLocation("from", _state.value.fromQuery, _state.value.from, _state.value.fromSuggestions)
-        val to = resolveLocation("to", _state.value.toQuery, _state.value.to, _state.value.toSuggestions)
-        if (from == null || to == null) {
-            OpenBahnDebugLog.w("Search", "search() aborted: could not resolve stations")
-            _state.update { it.copy(isLoading = false, error = "error_select_stations") }
+        val from: Location
+        val to: Location
+        try {
+            val resolvedFrom = resolveLocation(
+                "from",
+                _state.value.fromQuery,
+                _state.value.from,
+                _state.value.fromSuggestions,
+            )
+            val resolvedTo = resolveLocation(
+                "to",
+                _state.value.toQuery,
+                _state.value.to,
+                _state.value.toSuggestions,
+            )
+            if (resolvedFrom == null || resolvedTo == null) {
+                OpenBahnDebugLog.w("Search", "search() aborted: could not resolve stations")
+                _state.update { it.copy(isLoading = false, error = "error_select_stations") }
+                return
+            }
+            from = resolvedFrom
+            to = resolvedTo
+        } catch (e: DbApiBlockedException) {
+            OpenBahnDebugLog.w("Search", "search() aborted: location API blocked (${e.message})")
+            _state.update { it.copy(isLoading = false, error = "error_api_blocked") }
+            return
+        } catch (e: DbParseException) {
+            OpenBahnDebugLog.w("Search", "search() aborted: location parse failed (${e.message})")
+            _state.update { it.copy(isLoading = false, error = "error_parse") }
+            return
+        } catch (e: DbApiException) {
+            OpenBahnDebugLog.w("Search", "search() aborted: location API error (${e.message})")
+            _state.update { it.copy(isLoading = false, error = "error_search_failed") }
+            return
+        } catch (e: IOException) {
+            OpenBahnDebugLog.w("Search", "search() aborted: network error (${e.message})")
+            _state.update { it.copy(isLoading = false, error = "error_network") }
+            return
+        } catch (e: Exception) {
+            OpenBahnDebugLog.w("Search", "search() aborted: location resolve failed (${e.message})", e)
+            _state.update { it.copy(isLoading = false, error = "error_search_failed") }
             return
         }
         _state.update { it.copy(from = from, to = to) }

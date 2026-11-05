@@ -1,5 +1,6 @@
 package de.openbahn.navigator.ui.search
 
+import de.openbahn.api.DbApiBlockedException
 import de.openbahn.model.Journey
 import de.openbahn.model.JourneySearchResult
 import de.openbahn.model.Leg
@@ -518,5 +519,20 @@ class SearchViewModelTest {
         advanceUntilIdle()
 
         assertEquals("error_select_stations", viewModel.state.value.error)
+    }
+
+    @Test
+    fun search_whenLocationApiBlocked_showsBlockedErrorInsteadOfCrashing() = runTest(dispatcher) {
+        coEvery { searchRepository.searchLocations(any(), any()) } throws
+            DbApiBlockedException("Location search blocked")
+        val viewModel = createViewModel()
+        viewModel.selectFrom(berlin)
+        viewModel.selectTo(munich)
+        viewModel.search()
+        advanceUntilIdle()
+
+        assertEquals("error_api_blocked", viewModel.state.value.error)
+        assertFalse(viewModel.state.value.isLoading)
+        assertTrue(viewModel.state.value.journeys.isEmpty())
     }
 }
