@@ -6,6 +6,7 @@ import de.openbahn.api.haltIdForCoordinates
 import de.openbahn.model.Location
 import de.openbahn.model.LocationType
 import de.openbahn.model.TransportProduct
+import kotlinx.serialization.json.jsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -27,6 +28,21 @@ class JourneyRequestBuilderTest {
         val products = body["produktgattungen"]!!.toString()
         assertTrue(products.contains("ICE"))
         assertTrue(products.contains("EC_IC"))
+    }
+
+    @Test
+    fun `builds mobile request with halt ids and time wish`() {
+        val body = JourneyRequestBuilder.buildMobile(
+            berlin,
+            munich,
+            JourneySearchOptions(),
+            LocalDateTime.of(2026, 5, 30, 10, 0),
+        )
+        val wunsch = body["reiseHin"]!!.jsonObject["wunsch"]!!.jsonObject
+        assertEquals("A=1@L=8011160@", wunsch["abgangsLocationId"]?.toString()?.trim('"'))
+        assertEquals("A=1@L=8000261@", wunsch["zielLocationId"]?.toString()?.trim('"'))
+        assertEquals("ABFAHRT", wunsch["zeitWunsch"]!!.jsonObject["zeitPunktArt"]?.toString()?.trim('"'))
+        assertEquals("2026-05-30T10:00:00", wunsch["zeitWunsch"]!!.jsonObject["reiseDatum"]?.toString()?.trim('"'))
     }
 
     @Test

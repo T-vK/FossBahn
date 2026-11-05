@@ -126,4 +126,87 @@ internal object JourneyRequestBuilder {
             else -> Unit
         }
     }
+
+    /**
+     * Mobile (`app.services-bahn.de`) journey body used by DB Navigator / db-vendo `dbnav`.
+     * Used as a fallback when the web (`int.bahn.de`) endpoint is WAF-blocked.
+     */
+    fun buildMobile(
+        from: Location,
+        to: Location,
+        options: JourneySearchOptions,
+        whenTime: LocalDateTime,
+        pagingReference: String? = null,
+    ): JsonObject = buildJsonObject {
+        put("autonomeReservierung", false)
+        putJsonArray("einstiegsTypList") { add("STANDARD") }
+        put(
+            "fahrverguenstigungen",
+            buildJsonObject {
+                put(
+                    "deutschlandTicketVorhanden",
+                    options.deutschlandTicketOwned || options.deutschlandTicketConnectionsOnly,
+                )
+                put("nurDeutschlandTicketVerbindungen", options.deutschlandTicketConnectionsOnly)
+            },
+        )
+        put("klasse", if (options.firstClass) "KLASSE_1" else "KLASSE_2")
+        put(
+            "reisendenProfil",
+            buildJsonObject {
+                putJsonArray("reisende") {
+                    add(
+                        buildJsonObject {
+                            putJsonArray("ermaessigungen") { add("KEINE_ERMAESSIGUNG KLASSENLOS") }
+                            put("reisendenTyp", "ERWACHSENER")
+                        },
+                    )
+                }
+            },
+        )
+        put("reservierungsKontingenteVorhanden", false)
+        val products = options.products.ifEmpty { TransportProduct.ALL }
+        put(
+            "reiseHin",
+            buildJsonObject {
+                put(
+                    "wunsch",
+                    buildJsonObject {
+                        put("abgangsLocationId", from.haltIdForJourney())
+                        put("zielLocationId", to.haltIdForJourney())
+                        put("alternativeHalteBerechnung", true)
+                        put("fahrradmitnahme", options.bikeCarriage)
+                        if (options.directOnly) put("maxUmstiege", 0)
+                        else options.maxTransfers?.let { put("maxUmstiege", it) }
+                        options.minTransferMinutes?.let { put("minUmstiegsdauer", it) }
+                        if (!options.fastRoutesOnly) put("economic", true)
+                        putJsonArray("verkehrsmittel") {
+                            // Mobile profile accepts ALL or a product list; ALL matches DB Navigator.
+                            if (products.containsAll(TransportProduct.ALL)) add("ALL")
+                            else products.forEach { add(it.vendoCode) }
+                        }
+                        put(
+                            "zeitWunsch",
+                            buildJsonObject {
+                                put("reiseDatum", whenTime.format(timeFormatter))
+                                put("zeitPunktArt", if (options.arrivalSearch) "ANKUNFT" else "ABFAHRT")
+                            },
+                        )
+                        pagingReference?.let { put("context", it) }
+                        if (options.viaStops.isNotEmpty()) {
+                            putJsonArray("viaLocations") {
+                                options.viaStops.forEach { via ->
+                                    add(
+                                        buildJsonObject {
+                                            put("locationId", haltIdForJourney(via.locationId))
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                    },
+                )
+            },
+        )
+    }
 }

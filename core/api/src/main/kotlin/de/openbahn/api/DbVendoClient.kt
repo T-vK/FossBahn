@@ -24,7 +24,6 @@ import de.openbahn.model.boardLocation
 import de.openbahn.model.withBoardRealtime
 import de.openbahn.model.withRealtimeFrom
 import io.ktor.client.HttpClient
-import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.plugins.HttpTimeout
@@ -32,9 +31,11 @@ import io.ktor.client.plugins.ServerResponseException
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
@@ -52,8 +53,11 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.add
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.UUID
 
 /**
  * Kotlin client for the public bahn.de vendo API (no API key required).
@@ -72,13 +76,21 @@ class DbVendoClient(
 
     suspend fun searchLocations(query: String, locale: String = "de"): List<Location> {
         OpenBahnDebugLog.d("DbVendo", "searchLocations q=\"$query\" locale=$locale")
-        val raw = httpClient.get("$baseUrl/reiseloesung/orte") {
-            parameter("suchbegriff", query)
-            parameter("typ", "ALL")
-            parameter("max", 12)
-            parameter("locale", locale)
+        val locations = try {
+            val text = readApiText(
+                httpClient.get("$baseUrl/reiseloesung/orte") {
+                    parameter("suchbegriff", query)
+                    parameter("typ", "ALL")
+                    parameter("max", 12)
+                    parameter("locale", locale)
+                },
+                label = "orte",
+            )
+            parseLocationResponse(text)
+        } catch (e: DbApiBlockedException) {
+            OpenBahnDebugLog.w("DbVendo", "web /orte blocked, trying mobile location search")
+            searchLocationsMobile(query)
         }
-        val locations = parseLocationResponse(raw.body<String>())
         OpenBahnDebugLog.d(
             "DbVendo",
             "searchLocations q=\"$query\" -> ${locations.size} hit(s): " +
@@ -95,13 +107,16 @@ class DbVendoClient(
         maxResults: Int = 12,
     ): List<Location> {
         OpenBahnDebugLog.d("DbVendo", "searchLocationsNearby lat=$latitude lon=$longitude")
-        val raw = httpClient.get("$baseUrl/reiseloesung/orte/nearby") {
-            parameter("lat", latitude)
-            parameter("long", longitude)
-            parameter("maxNo", maxResults)
-            parameter("locale", locale)
-        }
-        val locations = parseLocationResponse(raw.body<String>())
+        val text = readApiText(
+            httpClient.get("$baseUrl/reiseloesung/orte/nearby") {
+                parameter("lat", latitude)
+                parameter("long", longitude)
+                parameter("maxNo", maxResults)
+                parameter("locale", locale)
+            },
+            label = "orte/nearby",
+        )
+        val locations = parseLocationResponse(text)
         OpenBahnDebugLog.d("DbVendo", "searchLocationsNearby -> ${locations.size} hit(s)")
         return locations
     }
@@ -160,10 +175,20 @@ class DbVendoClient(
                 "${FahrplanDiagnostics.describeLocation(to)} anfrageZeitpunkt=$anfrageZeitpunkt",
         )
         return try {
-            val text = httpClient.post("$baseUrl/angebote/fahrplan") {
+            postWebFahrplan(bodyText)
+        } catch (e: DbApiBlockedException) {
+            OpenBahnDebugLog.w("DbVendo", "web /fahrplan blocked, trying mobile API")
+            postMobileFahrplan(from, to, options, whenTime, pagingReference)
+        }
+    }
+
+    private suspend fun postWebFahrplan(bodyText: String): String {
+        return try {
+            val response = httpClient.post("$baseUrl/angebote/fahrplan") {
                 contentType(ContentType.Application.Json)
                 setBody(TextContent(bodyText, ContentType.Application.Json))
-            }.bodyAsText()
+            }
+            val text = readApiText(response, label = "fahrplan")
             OpenBahnDebugLog.d("DbVendo", "postFahrplan response ${FahrplanDiagnostics.summarizeFahrplanBody(text)}")
             text
         } catch (e: ClientRequestException) {
@@ -172,10 +197,74 @@ class DbVendoClient(
                 "DbVendo",
                 "postFahrplan HTTP ${e.response.status.value} ${FahrplanDiagnostics.summarizeFahrplanBody(errorBody)}",
             )
-            if (errorBody.contains("OPS_BLOCKED")) throw DbApiBlockedException("Journey search blocked")
+            rejectBlockedApiBody(errorBody.trim(), "Journey search blocked")
             throw DbApiException("HTTP_${e.response.status.value}")
         } catch (e: ServerResponseException) {
             OpenBahnDebugLog.w("DbVendo", "postFahrplan HTTP ${e.response.status.value}")
+            throw DbApiException("HTTP_${e.response.status.value}")
+        }
+    }
+
+    private suspend fun postMobileFahrplan(
+        from: Location,
+        to: Location,
+        options: JourneySearchOptions,
+        whenTime: LocalDateTime,
+        pagingReference: String?,
+    ): String {
+        val body = JourneyRequestBuilder.buildMobile(from, to, options, whenTime, pagingReference)
+        val bodyText = json.encodeToString(JsonObject.serializer(), body)
+        val contentType = ContentType.parse(MOBILE_JOURNEY_CONTENT_TYPE)
+        return try {
+            val response = httpClient.post("$MOBILE_BASE_URL/angebote/fahrplan") {
+                header("Accept", MOBILE_JOURNEY_CONTENT_TYPE)
+                header("Content-Type", MOBILE_JOURNEY_CONTENT_TYPE)
+                header("X-Correlation-ID", mobileCorrelationId())
+                setBody(TextContent(bodyText, contentType))
+            }
+            val text = readApiText(response, label = "mobile-fahrplan")
+            OpenBahnDebugLog.d(
+                "DbVendo",
+                "postMobileFahrplan response ${FahrplanDiagnostics.summarizeFahrplanBody(text)}",
+            )
+            text
+        } catch (e: ClientRequestException) {
+            val errorBody = runCatching { e.response.bodyAsText() }.getOrDefault("")
+            OpenBahnDebugLog.w(
+                "DbVendo",
+                "postMobileFahrplan HTTP ${e.response.status.value} " +
+                    FahrplanDiagnostics.summarizeFahrplanBody(errorBody),
+            )
+            rejectBlockedApiBody(errorBody.trim(), "Journey search blocked")
+            throw DbApiException("HTTP_${e.response.status.value}")
+        } catch (e: ServerResponseException) {
+            OpenBahnDebugLog.w("DbVendo", "postMobileFahrplan HTTP ${e.response.status.value}")
+            throw DbApiException("HTTP_${e.response.status.value}")
+        }
+    }
+
+    private suspend fun searchLocationsMobile(query: String): List<Location> {
+        val body = buildJsonObject {
+            putJsonArray("locationTypes") { add("ALL") }
+            put("searchTerm", query)
+            put("maxResults", 12)
+        }
+        val bodyText = json.encodeToString(JsonObject.serializer(), body)
+        val contentType = ContentType.parse(MOBILE_LOCATION_CONTENT_TYPE)
+        return try {
+            val response = httpClient.post("$MOBILE_BASE_URL/location/search") {
+                header("Accept", MOBILE_LOCATION_CONTENT_TYPE)
+                header("Content-Type", MOBILE_LOCATION_CONTENT_TYPE)
+                header("X-Correlation-ID", mobileCorrelationId())
+                setBody(TextContent(bodyText, contentType))
+            }
+            val text = readApiText(response, label = "mobile-location")
+            parseLocationResponse(text)
+        } catch (e: ClientRequestException) {
+            val errorBody = runCatching { e.response.bodyAsText() }.getOrDefault("")
+            rejectBlockedApiBody(errorBody.trim(), "Location search blocked")
+            throw DbApiException("HTTP_${e.response.status.value}")
+        } catch (e: ServerResponseException) {
             throw DbApiException("HTTP_${e.response.status.value}")
         }
     }
@@ -194,9 +283,29 @@ class DbVendoClient(
         }
 
     /**
-     * Parses `/orte` payloads. WAF/CDN blocks often return HTML ("Access Denied") with HTTP 200;
-     * that must become [DbApiBlockedException] — never an uncaught [SerializationException]
-     * (which previously crashed the Search screen).
+     * Reads an API response body. Akamai often returns HTTP 403 (or even 200) with an HTML
+     * "Access Denied" page — that must become [DbApiBlockedException], never a parse crash.
+     */
+    private suspend fun readApiText(response: HttpResponse, label: String): String {
+        val status = response.status.value
+        val text = response.bodyAsText()
+        OpenBahnDebugLog.d("DbVendo", "$label HTTP $status bodyBytes=${text.length}")
+        val trimmed = text.trim()
+        if (status == 403 || status == 452 || status == 429) {
+            rejectBlockedApiBody(trimmed, "$label blocked (HTTP $status)")
+            throw DbApiException("HTTP_$status")
+        }
+        rejectBlockedApiBody(trimmed, "$label blocked")
+        if (status !in 200..299) {
+            throw DbApiException("HTTP_$status")
+        }
+        return text
+    }
+
+    /**
+     * Parses `/orte` (and mobile location) payloads. WAF/CDN blocks often return HTML
+     * ("Access Denied"); that must become [DbApiBlockedException] — never an uncaught
+     * [SerializationException] (which previously crashed the Search screen).
      */
     private fun parseLocationResponse(text: String): List<Location> {
         val trimmed = text.trim()
@@ -224,6 +333,9 @@ class DbVendoClient(
             throw DbApiBlockedException(blockedMessage)
         }
     }
+
+    private fun mobileCorrelationId(): String =
+        "${UUID.randomUUID()}_${UUID.randomUUID()}"
 
     /** All stops on the vehicle run (before/after your segment), via bahn.de trip id. */
     suspend fun fetchTripRoute(journeyId: String): List<StopEvent> {
@@ -490,15 +602,17 @@ class DbVendoClient(
         locale: String = "de",
     ): List<BoardEntry> {
         val ortExtId = station.evaNumber ?: station.id
-        val text = httpClient.get("$baseUrl/reiseloesung/abfahrten") {
-            parameter("ortExtId", ortExtId)
-            parameter("datum", whenTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")))
-            parameter("zeit", whenTime.format(DateTimeFormatter.ofPattern("HH:mm:ss")))
-            parameter("dauer", durationMinutes)
-            products.forEach { parameter("verkehrsmittel[]", it.vendoCode) }
-            parameter("locale", locale)
-        }.body<String>()
-        rejectBlockedApiBody(text.trim(), "Departures blocked")
+        val text = readApiText(
+            httpClient.get("$baseUrl/reiseloesung/abfahrten") {
+                parameter("ortExtId", ortExtId)
+                parameter("datum", whenTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")))
+                parameter("zeit", whenTime.format(DateTimeFormatter.ofPattern("HH:mm:ss")))
+                parameter("dauer", durationMinutes)
+                products.forEach { parameter("verkehrsmittel[]", it.vendoCode) }
+                parameter("locale", locale)
+            },
+            label = "abfahrten",
+        )
         val response = try {
             json.decodeFromString<DbStationBoardResponse>(text)
         } catch (e: SerializationException) {
@@ -515,15 +629,17 @@ class DbVendoClient(
         locale: String = "de",
     ): List<BoardEntry> {
         val ortExtId = station.evaNumber ?: station.id
-        val text = httpClient.get("$baseUrl/reiseloesung/ankuenfte") {
-            parameter("ortExtId", ortExtId)
-            parameter("datum", whenTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")))
-            parameter("zeit", whenTime.format(DateTimeFormatter.ofPattern("HH:mm:ss")))
-            parameter("dauer", durationMinutes)
-            products.forEach { parameter("verkehrsmittel[]", it.vendoCode) }
-            parameter("locale", locale)
-        }.body<String>()
-        rejectBlockedApiBody(text.trim(), "Arrivals blocked")
+        val text = readApiText(
+            httpClient.get("$baseUrl/reiseloesung/ankuenfte") {
+                parameter("ortExtId", ortExtId)
+                parameter("datum", whenTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")))
+                parameter("zeit", whenTime.format(DateTimeFormatter.ofPattern("HH:mm:ss")))
+                parameter("dauer", durationMinutes)
+                products.forEach { parameter("verkehrsmittel[]", it.vendoCode) }
+                parameter("locale", locale)
+            },
+            label = "ankuenfte",
+        )
         val response = try {
             json.decodeFromString<DbStationBoardResponse>(text)
         } catch (e: SerializationException) {
@@ -551,8 +667,15 @@ class DbVendoClient(
         private const val BOARD_LOOKUP_MINUTES = 180
 
         const val DEFAULT_BASE_URL = "https://int.bahn.de/web/api"
+        const val MOBILE_BASE_URL = "https://app.services-bahn.de/mob"
+        private const val MOBILE_JOURNEY_CONTENT_TYPE =
+            "application/x.db.vendo.mob.verbindungssuche.v9+json"
+        private const val MOBILE_LOCATION_CONTENT_TYPE =
+            "application/x.db.vendo.mob.location.v3+json"
 
         fun createDefaultClient(): HttpClient = HttpClient(OkHttp) {
+            // expectSuccess=false so we can map Akamai HTML 403 bodies to DbApiBlockedException.
+            expectSuccess = false
             install(HttpTimeout) {
                 requestTimeoutMillis = 30_000
                 connectTimeoutMillis = 15_000
@@ -566,12 +689,17 @@ class DbVendoClient(
             }
             defaultRequest {
                 headers.append("Accept", "application/json")
-                headers.append("User-Agent", "OpenBahnNavigator/1.0 (FOSS; +https://github.com/openbahn-navigator)")
+                headers.append("Accept-Language", "de-DE,de;q=0.9,en;q=0.8")
+                headers.append("Origin", "https://www.bahn.de")
+                headers.append("Referer", "https://www.bahn.de/")
+                // Identify as this FOSS app — do not impersonate DB Navigator or a browser.
+                headers.append(
+                    "User-Agent",
+                    "OpenBahnNavigator/1.0 (FOSS; +https://github.com/T-vK/FossBahn)",
+                )
             }
             engine {
-                config {
-                    followRedirects(true)
-                }
+                preconfigured = BahnOkHttp.createClient()
             }
         }
     }

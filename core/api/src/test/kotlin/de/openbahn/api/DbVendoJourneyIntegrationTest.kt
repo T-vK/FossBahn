@@ -147,6 +147,7 @@ class DbVendoJourneyIntegrationTest {
             )
         }
         val http = HttpClient(engine) {
+            expectSuccess = false
             install(ContentNegotiation) {
                 json(Json { ignoreUnknownKeys = true; isLenient = true })
             }
@@ -158,5 +159,35 @@ class DbVendoJourneyIntegrationTest {
         } catch (e: DbApiBlockedException) {
             assertTrue(e.message!!.contains("blocked", ignoreCase = true))
         }
+    }
+
+    @Test
+    fun searchJourneys_fallsBackToMobileWhenWebReturnsAccessDeniedHtml() = runTest {
+        val engine = MockEngine { request ->
+            when {
+                request.url.host.contains("int.bahn.de") -> respond(
+                    content = """
+                        <HTML><HEAD><TITLE>Access Denied</TITLE></HEAD>
+                        <BODY><H1>Access Denied</H1></BODY></HTML>
+                    """.trimIndent(),
+                    status = HttpStatusCode.Forbidden,
+                    headers = headersOf(HttpHeaders.ContentType, "text/html"),
+                )
+                request.url.host.contains("app.services-bahn.de") -> respond(
+                    content = journeyJson,
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+                else -> error("Unexpected host: ${request.url.host}")
+            }
+        }
+        val http = HttpClient(engine) {
+            expectSuccess = false
+            install(ContentNegotiation) {
+                json(Json { ignoreUnknownKeys = true; isLenient = true })
+            }
+        }
+        val journeys = DbVendoClient(httpClient = http).searchJourneys(hamburg, berlin).journeys
+        assertTrue(journeys.isNotEmpty(), "expected mobile fallback to return journeys")
     }
 }
