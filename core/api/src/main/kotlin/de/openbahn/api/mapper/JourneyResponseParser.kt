@@ -120,9 +120,16 @@ internal object JourneyResponseParser {
         for (element in entries) {
             val entry = runCatching { element.jsonObject }.getOrNull() ?: continue
             if (!boardEntryMatchesLeg(entry, tripId, leg)) continue
-            return entry["ueber"]?.jsonArray.orEmpty().mapNotNull { via ->
+            val vias = entry["ueber"]?.jsonArray.orEmpty().mapNotNull { via ->
                 runCatching { via.jsonPrimitive.contentOrNull?.trim() }.getOrNull()?.takeIf { it.isNotEmpty() }
             }
+            if (arrivals) return vias
+            val vm = entry["verkehrsmittel"]?.jsonObject ?: entry["verkehrmittel"]?.jsonObject
+            val headsign = text(entry, "richtung")
+                ?: text(vm, "richtung")
+            if (headsign.isNullOrBlank()) return vias
+            if (vias.any { stationNamesMatch(it, headsign) }) return vias
+            return vias + headsign
         }
         return emptyList()
     }

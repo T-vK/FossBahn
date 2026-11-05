@@ -67,6 +67,38 @@ class LegRouteTest {
     }
 
     @Test
+    fun trainDestinationName_prefersTerminusPastAlightOverLineHeadsign() {
+        val leg = Leg(
+            origin = StopEvent("Hamburg Holstenstraße", scheduledTime = "2026-01-01T22:14:00"),
+            destination = StopEvent("Hamburg-Harburg(S)", scheduledTime = "2026-01-01T22:37:00"),
+            direction = "Hamburg-Neugraben",
+        )
+        val fullRoute = listOf(
+            StopEvent("Hamburg Holstenstraße", scheduledTime = "2026-01-01T22:14:00"),
+            StopEvent("Hamburg-Harburg(S)", scheduledTime = "2026-01-01T22:37:00"),
+            StopEvent("Hamburg-Neugraben", scheduledTime = "2026-01-01T22:50:00"),
+            StopEvent("Stade", scheduledTime = "2026-01-01T23:20:00"),
+        )
+        assertEquals("Stade", leg.trainDestinationName(fullRoute))
+        assertEquals("Hamburg-Neugraben", leg.trainDestinationName())
+    }
+
+    @Test
+    fun trainDestinationName_ignoresPassengerSegmentDisguisedAsFullRoute() {
+        val leg = Leg(
+            origin = StopEvent("Hamburg Holstenstraße", scheduledTime = "2026-01-01T22:14:00"),
+            destination = StopEvent("Hamburg-Harburg(S)", scheduledTime = "2026-01-01T22:37:00"),
+            direction = "Hamburg-Neugraben",
+            routeStops = listOf(
+                StopEvent("Hamburg Holstenstraße", scheduledTime = "2026-01-01T22:14:00"),
+                StopEvent("Hamburg Dammtor", scheduledTime = "2026-01-01T22:19:00"),
+                StopEvent("Hamburg-Harburg(S)", scheduledTime = "2026-01-01T22:37:00"),
+            ),
+        )
+        assertEquals("Hamburg-Neugraben", leg.trainDestinationName(leg.routeStops))
+    }
+
+    @Test
     fun trainDestinationName_usesFullRouteWhenDirectionMissing() {
         val leg = Leg(
             origin = StopEvent("Köln Hbf", scheduledTime = "2026-01-01T10:00:00"),

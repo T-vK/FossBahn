@@ -200,6 +200,32 @@ class JourneyResponseParserTest {
     }
 
     @Test
+    fun buildRouteFromBoard_appendsDepartureHeadsignWhenMissingFromVias() {
+        val leg = Leg(
+            origin = StopEvent("Hamburg Holstenstraße", id = "8002550", scheduledTime = "2026-01-01T22:14:00"),
+            destination = StopEvent("Hamburg-Harburg(S)", scheduledTime = "2026-01-01T22:37:00"),
+            routeStops = listOf(
+                StopEvent("Hamburg Holstenstraße", scheduledTime = "2026-01-01T22:14:00"),
+                StopEvent("Hamburg-Harburg(S)", scheduledTime = "2026-01-01T22:37:00"),
+            ),
+            direction = "Hamburg-Neugraben",
+            tripId = "s5-stade",
+            lineName = "S5",
+        )
+        val arrivals = """{"ankuenfte":[{"journeyId":"s5-stade","ueber":["Pinneberg"],"zeit":"2026-01-01T22:14:00"}]}"""
+        val departures = """{"abfahrten":[{"journeyId":"s5-stade","ueber":["Hamburg-Neugraben"],"richtung":"Stade","zeit":"2026-01-01T22:14:00"}]}"""
+        val extended = JourneyResponseParser.buildRouteFromBoard(
+            arrivalsText = arrivals,
+            departuresText = departures,
+            tripId = leg.tripId!!,
+            leg = leg,
+            segment = leg.tripRouteStops(),
+        )
+        assertEquals("Pinneberg", extended.first().name)
+        assertEquals("Stade", extended.last().name)
+    }
+
+    @Test
     fun parsesFlx1247CancellationFixture() {
         val text = javaClass.getResource("/dbweb-scenario-flx1247-cancelled.json")!!.readText()
         val leg = JourneyResponseParser.parse(text).journeys.single().legs.single()

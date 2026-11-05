@@ -100,11 +100,30 @@ fun Leg.realtimeReferenceStops(): List<StopEvent> =
     routeStops.ifEmpty { tripRouteStops() }
 
 /**
- * Name shown as the train's destination (part of the line identity, e.g. "to München Hbf").
- * Prefers API [Leg.direction], then the last stop of [fullRoute] when the complete run is known.
+ * Name shown as the train's destination (part of the line identity, e.g. "to Stade").
+ *
+ * The journey `richtung` is often the line's usual headsign (S5 → Hamburg-Neugraben), not this
+ * vehicle's last stop. Prefer the last stop of a known run that continues past the passenger
+ * alighting station, then [Leg.direction], then the passenger stop.
  */
 fun Leg.trainDestinationName(fullRoute: List<StopEvent>? = null): String {
+    val candidates = listOfNotNull(
+        fullRoute?.takeIf { it.size >= 2 },
+        tripRouteStops().takeIf { it.size >= 2 },
+    )
+    for (route in candidates) {
+        terminusBeyondAlight(route)?.let { return it }
+    }
     direction?.takeIf { it.isNotBlank() }?.let { return it }
-    fullRoute?.lastOrNull()?.name?.takeIf { it.isNotBlank() }?.let { return it }
     return destination.name
+}
+
+/** Last stop of [route] when the vehicle continues after the passenger gets off. */
+private fun Leg.terminusBeyondAlight(route: List<StopEvent>): String? {
+    val board = boardIndexInRoute(route, origin.name, origin.scheduledTime)
+    val alight = alightIndexInRoute(route, destination.name, destination.scheduledTime, board)
+    if (alight < 0 || alight >= route.lastIndex) return null
+    val last = route.last().name.takeIf { it.isNotBlank() } ?: return null
+    if (stationNamesMatch(last, destination.name)) return null
+    return last
 }

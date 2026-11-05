@@ -41,12 +41,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -428,7 +427,6 @@ private fun LegDetailsBlock(
     predictionsRequested: Boolean,
 ) {
     val journeySearch: JourneySearchRepository = koinInject()
-    val scope = rememberCoroutineScope()
     val segmentStops = leg.tripRouteStops()
     var showTripDetail by remember(legIndex, leg.tripId, leg.lineDetail) { mutableStateOf(false) }
     var loadedStops by remember(legIndex, leg.tripId) { mutableStateOf<List<StopEvent>?>(null) }
@@ -436,36 +434,31 @@ private fun LegDetailsBlock(
     val canShowTripRoute = leg.lineDetail != null &&
         (segmentStops.size >= 2 || !leg.tripId.isNullOrBlank())
 
-    fun loadFullRouteIfNeeded() {
-        if (loadedStops != null || routeLoading) return
-        val tripId = leg.tripId
-        if (tripId.isNullOrBlank()) {
-            loadedStops = segmentStops
-            return
+    LaunchedEffect(legIndex, leg.tripId) {
+        if (loadedStops != null) return@LaunchedEffect
+        if (leg.tripId.isNullOrBlank()) {
+            loadedStops = segmentStops.takeIf { it.size >= 2 }
+            return@LaunchedEffect
         }
-        scope.launch {
-            routeLoading = true
-            val reference = segmentStops.ifEmpty { leg.tripRouteStops() }
-            val fetched = runCatching { journeySearch.fetchFullLegRoute(leg) }
-                .getOrElse { reference }
-            loadedStops = if (fetched.size >= 2) fetched else reference
-            routeLoading = false
-        }
+        routeLoading = true
+        val reference = segmentStops.ifEmpty { leg.tripRouteStops() }
+        val fetched = runCatching { journeySearch.fetchFullLegRoute(leg) }
+            .getOrElse { reference }
+        loadedStops = if (fetched.size >= 2) fetched else reference.takeIf { it.size >= 2 }
+        routeLoading = false
     }
 
     LegLineHeader(
         leg = leg,
         canShowTripRoute = canShowTripRoute,
-        onTripNumberClick = {
-            loadFullRouteIfNeeded()
-            showTripDetail = true
-        },
+        onTripNumberClick = { showTripDetail = true },
     )
     LegTimelineBlock(
         leg = leg,
         legIndex = legIndex,
         prediction = prediction,
         predictionsRequested = predictionsRequested,
+        trainRouteStops = loadedStops,
     )
     if (showTripDetail && canShowTripRoute) {
         TripDetailDialog(

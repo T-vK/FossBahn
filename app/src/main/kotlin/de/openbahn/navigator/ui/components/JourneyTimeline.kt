@@ -87,6 +87,7 @@ internal fun LegTimelineBlock(
     routeAlightAt: String? = null,
     routeBoardScheduled: String? = null,
     routeAlightScheduled: String? = null,
+    trainRouteStops: List<StopEvent>? = null,
     modifier: Modifier = Modifier,
 ) {
     val defaultOnTime = OnTimeToleranceSettings()
@@ -172,7 +173,7 @@ internal fun LegTimelineBlock(
             isArrival = false,
             navigateTestTag = "navigate_leg_${legIndex}_departure",
             belowStation = {
-                LegTimelineTrainChip(leg = leg)
+                LegTimelineTrainChip(leg = leg, fullRoute = trainRouteStops)
             },
             modifier = Modifier.testTag("leg_${legIndex}_departure"),
         )
@@ -814,9 +815,9 @@ private fun TimelineTimeWithPercent(
 }
 
 @Composable
-private fun LegTimelineTrainChip(leg: Leg) {
+private fun LegTimelineTrainChip(leg: Leg, fullRoute: List<StopEvent>? = null) {
     val line = leg.lineName?.takeIf { it.isNotBlank() } ?: return
-    val destination = leg.trainDestinationName()
+    val destination = leg.trainDestinationName(fullRoute)
     Surface(
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
