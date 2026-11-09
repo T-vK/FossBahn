@@ -132,7 +132,7 @@ class JourneyRequestBuilderTest {
     @Test
     fun `address location prefers coordinates over nearby stop eva`() {
         val from = Location(
-            id = haltIdForCoordinates(52.5200, 13.4050, "Musterstraße 1, Berlin"),
+            id = haltIdForCoordinates(52.5200, 13.4050, "Musterstraße 1, Berlin", typeCode = 2),
             name = "Musterstraße 1, Berlin",
             type = LocationType.ADDRESS,
             latitude = 52.52,
@@ -140,8 +140,24 @@ class JourneyRequestBuilderTest {
             evaNumber = "8070001",
         )
         val halt = from.haltIdForJourney()
+        assertTrue(halt.startsWith("A=2@"), "expected address type code, got $halt")
         assertTrue(halt.contains("@X="), "expected coordinate halt, got $halt")
         assertFalse(halt.contains("@L=8070001@"), "must not snap to bus stop EVA")
+    }
+
+    @Test
+    fun `address lid A=2 is preserved even when typed as station`() {
+        val from = Location(
+            id = "A=2@O=Musterstrasse+1@X=13405000@Y=52520000@",
+            name = "Musterstraße 1, Berlin",
+            type = LocationType.STATION,
+            latitude = 52.52,
+            longitude = 13.405,
+            evaNumber = "8070001",
+        )
+        val halt = from.haltIdForJourney()
+        assertTrue(halt.startsWith("A=2@"), "inferred address lid must stay A=2, got $halt")
+        assertFalse(halt.contains("@L=8070001@"))
     }
 
     @Test

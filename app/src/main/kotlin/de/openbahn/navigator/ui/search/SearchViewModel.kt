@@ -22,6 +22,7 @@ import de.openbahn.navigator.location.DeviceLocationProvider
 import de.openbahn.navigator.data.FavoriteRoute
 import de.openbahn.navigator.data.FavoriteRouteRepository
 import de.openbahn.navigator.data.LocationHistoryRepository
+import de.openbahn.navigator.data.StationIndex
 import de.openbahn.navigator.data.autocompleteMatchRank
 import de.openbahn.navigator.data.matchesAutocompleteQuery
 import de.openbahn.navigator.data.stableKey
@@ -99,6 +100,7 @@ class SearchViewModel(
     private val pendingSearch: PendingSearchRepository,
     private val deviceLocation: DeviceLocationProvider,
     private val appContext: Context,
+    private val stationIndex: StationIndex = StationIndex(emptyList()),
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SearchUiState())
@@ -271,6 +273,15 @@ class SearchViewModel(
 
     fun updateOptions(options: JourneySearchOptions) {
         _state.update { it.copy(options = options) }
+    }
+
+    /** Raises the minimum transfer filter and re-runs search (from a connection transfer row). */
+    fun requireMinTransferMinutes(minutes: Int) {
+        val clamped = minutes.coerceAtLeast(1)
+        _state.update {
+            it.copy(options = it.options.copy(minTransferMinutes = clamped))
+        }
+        search()
     }
 
     fun setDeutschlandTicketConnectionsOnly(enabled: Boolean) {
@@ -525,11 +536,11 @@ class SearchViewModel(
     private fun loadViaSuggestions(index: Int, query: String) {
         suggestJob?.cancel()
         suggestJob = viewModelScope.launch {
-            val local = locationHistory.rankedForAutocomplete(query)
+            val local = localAutocomplete(query)
                 .excludingStations(_state.value, excludeViaIndex = index)
                 .take(8)
             applyViaSuggestions(index, local)
-            if (query.length < 2) return@launch
+            if (query.trim().length < 2) return@launch
             delay(300)
             if (_state.value.activeViaIndex != index) return@launch
             val api = searchUseCase.searchLocations(query, _state.value.locale)
@@ -540,7 +551,7 @@ class SearchViewModel(
 
     private fun refreshViaSuggestions(index: Int, query: String) {
         viewModelScope.launch {
-            val ranked = locationHistory.rankedForAutocomplete(query)
+            val ranked = localAutocomplete(query)
                 .excludingStations(_state.value, excludeViaIndex = index)
             applyViaSuggestions(index, ranked)
         }
@@ -560,9 +571,34 @@ class SearchViewModel(
                 ActiveLocationField.TO -> _state.value.toQuery
                 ActiveLocationField.NONE -> return@launch
             }
-            val ranked = locationHistory.rankedForAutocomplete(query)
-            applySuggestions(field, ranked)
+            applySuggestions(field, localAutocomplete(query))
         }
+    }
+
+    /** Recent/favorites first, then bundled stations (ranked by match, importance, distance). */
+    private suspend fun localAutocomplete(query: String, limit: Int = 8): List<Location> {
+        val history = locationHistory.rankedForAutocomplete(query, limit = limit)
+        if (query.trim().length < 2) return history
+        val anchor = suggestionAnchor()
+        val bundled = stationIndex.search(
+            query = query,
+            limit = limit,
+            nearLatitude = anchor?.first,
+            nearLongitude = anchor?.second,
+        )
+        return mergeWithApiResults(history, bundled, query).take(limit)
+    }
+
+    /** Prefer the opposite endpoint (or via/from/to) so nearby stations rank higher. */
+    private fun suggestionAnchor(): Pair<Double, Double>? {
+        val state = _state.value
+        val candidates = when (state.activeLocationField) {
+            ActiveLocationField.FROM -> listOfNotNull(state.to, state.from)
+            ActiveLocationField.TO -> listOfNotNull(state.from, state.to)
+            ActiveLocationField.NONE -> listOfNotNull(state.from, state.to)
+        } + state.viaStops.mapNotNull { it.location }
+        return candidates.firstOrNull { it.latitude != null && it.longitude != null }
+            ?.let { it.latitude!! to it.longitude!! }
     }
 
     private suspend fun performSearch(replaceResults: Boolean) {
@@ -573,6 +609,9 @@ class SearchViewModel(
         )
         predictionsJob?.cancel()
         searchGeneration++
+        // Keep suggestion snapshots for resolve — the UI clears them when search starts.
+        val fromSuggestionsSnapshot = _state.value.fromSuggestions
+        val toSuggestionsSnapshot = _state.value.toSuggestions
         _state.update {
             it.copy(
                 isLoading = true,
@@ -600,13 +639,13 @@ class SearchViewModel(
                 "from",
                 _state.value.fromQuery,
                 _state.value.from,
-                _state.value.fromSuggestions,
+                fromSuggestionsSnapshot,
             )
             val resolvedTo = resolveLocation(
                 "to",
                 _state.value.toQuery,
                 _state.value.to,
-                _state.value.toSuggestions,
+                toSuggestionsSnapshot,
             )
             if (resolvedFrom == null || resolvedTo == null) {
                 OpenBahnDebugLog.w("Search", "search() aborted: could not resolve stations")
@@ -1004,19 +1043,25 @@ class SearchViewModel(
     ): Location? {
         if (query.trim().length < 2) return null
         val recent = locationHistory.recentMatching(query)
-        // Prefer selected / recent / suggestion matches first. Akamai often returns HTML
-        // "Access Denied" for /orte; that must not abort a search when stations are already known.
+        val bundled = (
+            listOfNotNull(stationIndex.resolveExact(query)) +
+                stationIndex.search(query, limit = 8)
+            ).distinctBy { it.stableKey() }
+        // Prefer selected / recent / suggestion / bundled station matches first. Akamai often
+        // returns HTML "Access Denied" for /orte; that must not abort a search when stations
+        // are already known. Never skip /orte for unresolved address-like queries.
         val localResolved = resolveLocationForSearch(
             query,
             selected,
             suggestions,
             recent,
-            apiResults = emptyList(),
+            apiResults = bundled,
         )
         if (localResolved != null) {
             OpenBahnDebugLog.d(
                 "Search",
-                "resolveLocation($label) used local match \"${localResolved.name}\" (skipped /orte)",
+                "resolveLocation($label) used local match \"${localResolved.name}\" " +
+                    "type=${localResolved.type} (skipped /orte)",
             )
             return localResolved
         }
@@ -1029,12 +1074,18 @@ class SearchViewModel(
             )
             throw e
         }
-        val resolved = resolveLocationForSearch(query, selected, suggestions, recent, apiResults)
+        val resolved = resolveLocationForSearch(
+            query,
+            selected,
+            suggestions,
+            recent,
+            apiResults = (bundled + apiResults).distinctBy { it.stableKey() },
+        )
         if (resolved == null) {
             OpenBahnDebugLog.w(
                 "Search",
                 "resolveLocation($label) failed q=\"$query\" apiHits=${apiResults.size} " +
-                    apiResults.take(3).joinToString { it.name },
+                    apiResults.take(3).joinToString { "${it.name}/${it.type}" },
             )
         }
         return resolved
@@ -1054,7 +1105,7 @@ class SearchViewModel(
         if (_state.value.activeLocationField != field) return
         suggestJob?.cancel()
         suggestJob = viewModelScope.launch {
-            val local = locationHistory.rankedForAutocomplete(query)
+            val local = localAutocomplete(query)
             applySuggestions(field, local)
             if (query.trim().length < 2) return@launch
             delay(300)

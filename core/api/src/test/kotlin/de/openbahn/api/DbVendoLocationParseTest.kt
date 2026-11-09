@@ -88,6 +88,23 @@ class DbVendoLocationParseTest {
     }
 
     @Test
+    fun searchLocations_parsesAddressLidAsAddressWithCoordinates() = runTest {
+        val json = """
+            [{"id":"A=2@O=Musterstrasse+1,+Berlin@X=13405000@Y=52520000@","name":"Musterstraße 1, Berlin","type":"ADR"}]
+        """.trimIndent()
+        val locations = clientReturning(json).searchLocations("Musterstraße")
+        assertEquals(1, locations.size)
+        val address = locations.first()
+        assertEquals(de.openbahn.model.LocationType.ADDRESS, address.type)
+        assertEquals(null, address.evaNumber)
+        assertEquals(52.52, address.latitude!!, 0.0001)
+        assertEquals(13.405, address.longitude!!, 0.0001)
+        val halt = address.haltIdForJourney()
+        assertTrue(halt.startsWith("A=2@"), halt)
+        assertTrue(halt.contains("@X="), halt)
+    }
+
+    @Test
     fun searchLocations_garbageText_throwsParseNotCrash() = runTest {
         val client = clientReturning("not-json-and-not-html")
         assertThrows<DbParseException> {

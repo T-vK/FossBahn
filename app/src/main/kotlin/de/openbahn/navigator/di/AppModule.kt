@@ -11,6 +11,7 @@ import de.openbahn.navigator.data.MIGRATION_3_4
 import de.openbahn.navigator.data.MIGRATION_4_5
 import de.openbahn.navigator.data.ClaimDraftRepository
 import de.openbahn.navigator.data.PassengerRightsSimulationRepository
+import de.openbahn.navigator.data.StationIndex
 import de.openbahn.navigator.domain.PassengerRightsRepository
 import de.openbahn.navigator.tracking.PassengerRightsNotifier
 import de.openbahn.navigator.tracking.TrackedJourneyRightsCheckUseCase
@@ -69,6 +70,7 @@ val appModule = module {
     single { AppUpdateMonitor(androidContext(), get(), get()) }
     single { PendingSearchRepository() }
     single { LocationHistoryRepository(get(), get()) }
+    single { StationIndex(androidContext()) }
     single { FavoriteRouteRepository(get()) }
     single { TicketRepository(get(), androidContext()) }
     single { JourneyTrackingCoordinator(androidContext(), lazy { get<TrackedJourneyRepository>() }) }
@@ -86,7 +88,7 @@ val appModule = module {
     single<JourneySearchRepository> { JourneySearchUseCase(get(), get()) }
     single { PredictionUseCase(get(), get()) }
     viewModel {
-        SearchViewModel(get(), get(), get(), get(), get(), get(), get(), androidContext())
+        SearchViewModel(get(), get(), get(), get(), get(), get(), get(), androidContext(), get())
     }
     viewModel { FavoritesViewModel(get(), get(), get()) }
     viewModel { StationBoardViewModel(get()) }

@@ -46,4 +46,42 @@ class LocationSearchResolverTest {
         )
         assertNull(resolved)
     }
+
+    @Test
+    fun exactAddressMatchWinsEvenWhenStationsPresent() {
+        val address = Location(
+            id = "A=2@O=Musterstrasse+1@X=13405000@Y=52520000@",
+            name = "Musterstraße 1, Berlin",
+            type = LocationType.ADDRESS,
+            latitude = 52.52,
+            longitude = 13.405,
+        )
+        val resolved = resolveLocationForSearch(
+            query = "Musterstraße 1, Berlin",
+            selected = null,
+            suggestions = emptyList(),
+            recent = emptyList(),
+            apiResults = listOf(berlin, address, berlinOst),
+        )
+        assertEquals(address, resolved)
+    }
+
+    @Test
+    fun selectedAddressIsKept() {
+        val address = Location(
+            id = "A=2@O=Musterstrasse+1@X=13405000@Y=52520000@",
+            name = "Musterstraße 1, Berlin",
+            type = LocationType.ADDRESS,
+            latitude = 52.52,
+            longitude = 13.405,
+        )
+        val resolved = resolveLocationForSearch(
+            query = "Musterstraße 1, Berlin",
+            selected = address,
+            suggestions = emptyList(),
+            recent = emptyList(),
+            apiResults = emptyList(),
+        )
+        assertEquals(address, resolved)
+    }
 }

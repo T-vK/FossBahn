@@ -29,7 +29,7 @@ class DeviceLocationProvider(
         val (lat, lon) = coords
         val displayLabel = reverseGeocodeDisplayLabel(lat, lon) ?: formatCoordinates(lat, lon)
         val searchLocation = Location(
-            id = haltIdForCoordinates(lat, lon, displayLabel),
+            id = haltIdForCoordinates(lat, lon, displayLabel, typeCode = 2),
             name = displayLabel,
             type = LocationType.ADDRESS,
             latitude = lat,

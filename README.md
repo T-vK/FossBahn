@@ -56,6 +56,8 @@ The app talks to public **Deutsche Bahn** and **Bahn-Vorhersage** servers for ti
 
 Timetable data is loaded from public endpoints also used by bahn.de. Please use the app responsibly. **Not affiliated with Deutsche Bahn AG.**
 
+The offline station directory is derived from [Deutsche Bahn Haltestellendaten](https://data.deutschebahn.com/dataset/data-haltestellen) (CC BY 4.0). Regenerate with `python3 scripts/generate-station-index.py`.
+
 ## License
 
 [GPL-3.0-or-later](LICENSE)

@@ -32,25 +32,58 @@ fun haltIdForJourney(
     type: LocationType = LocationType.STATION,
     label: String? = null,
 ): String {
-    if (type == LocationType.ADDRESS && latitude != null && longitude != null) {
-        return haltIdForCoordinates(latitude, longitude, label ?: locationId)
+    val inferredType = locationTypeFromHaltId(locationId) ?: type
+    // Addresses / POIs must keep coordinate lids (A=2 / A=4). Never snap them to a nearby stop EVA.
+    if (inferredType == LocationType.ADDRESS) {
+        val coords = when {
+            latitude != null && longitude != null -> latitude to longitude
+            else -> coordinatesFromHaltId(locationId)
+        }
+        if (coords != null) {
+            val (lat, lon) = coords
+            val addressTypeCode = haltTypeCode(locationId) ?: 2
+            return haltIdForCoordinates(lat, lon, label ?: locationId, typeCode = addressTypeCode)
+        }
+        // Keep a full A=2/A=4 lid from /orte when we cannot rebuild coordinates.
+        if (locationId.startsWith("A=2@") || locationId.startsWith("A=4@")) return locationId
     }
     val eva = evaNumber?.takeIf { it.isNotEmpty() && it.all(Char::isDigit) }
         ?: EVA_IN_HALT_ID.find(locationId)?.groupValues?.getOrNull(1)
         ?: locationId.takeIf { it.length >= 6 && it.all(Char::isDigit) }
     if (eva != null) return "A=1@L=$eva@"
     if (locationId.startsWith("A=1@")) return locationId
-    if (latitude != null && longitude != null) return haltIdForCoordinates(latitude, longitude)
+    if (latitude != null && longitude != null) {
+        return haltIdForCoordinates(latitude, longitude, label, typeCode = 1)
+    }
     return locationId
 }
 
-/** Coordinate halt id (bahn.de `@X`/`@Y` are micro-degrees). */
-fun haltIdForCoordinates(latitude: Double, longitude: Double, label: String? = null): String {
+/**
+ * Coordinate halt id (bahn.de `@X`/`@Y` are micro-degrees).
+ * [typeCode]: 1 = station, 2 = address, 4 = POI (HAFAS `A=` field).
+ */
+fun haltIdForCoordinates(
+    latitude: Double,
+    longitude: Double,
+    label: String? = null,
+    typeCode: Int = 2,
+): String {
     val x = (longitude * COORD_SCALE).toLong()
     val y = (latitude * COORD_SCALE).toLong()
+    val a = typeCode.coerceIn(1, 4)
     val encoded = label?.takeIf { it.isNotBlank() }?.let { encodeHaltName(it) }
-    return if (encoded != null) "A=1@O=$encoded@X=$x@Y=$y@" else "A=1@X=$x@Y=$y@"
+    return if (encoded != null) "A=$a@O=$encoded@X=$x@Y=$y@" else "A=$a@X=$x@Y=$y@"
 }
+
+/** HAFAS location type from lid (`A=1` station, `A=2` address, `A=4` POI). */
+fun locationTypeFromHaltId(haltId: String?): LocationType? = when (haltTypeCode(haltId)) {
+    1 -> LocationType.STATION
+    2, 4 -> LocationType.ADDRESS
+    else -> null
+}
+
+private fun haltTypeCode(haltId: String?): Int? =
+    HALT_TYPE_CODE.find(haltId.orEmpty())?.groupValues?.getOrNull(1)?.toIntOrNull()
 
 private const val COORD_SCALE = 1_000_000.0
 
@@ -58,6 +91,7 @@ private fun encodeHaltName(name: String): String =
     name.replace('@', ' ').replace(' ', '+')
 
 private val EVA_IN_HALT_ID = Regex("""@L=(\d+)@""")
+private val HALT_TYPE_CODE = Regex("""(?:^|@)A=(\d+)(?:@|$)""")
 
 internal object JourneyRequestBuilder {
     private val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
