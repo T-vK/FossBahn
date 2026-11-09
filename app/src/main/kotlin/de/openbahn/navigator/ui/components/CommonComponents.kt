@@ -53,6 +53,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.openbahn.model.BoardEntry
 import de.openbahn.model.Journey
@@ -135,6 +136,9 @@ fun JourneyCard(
                     journey = journey,
                     prediction = prediction,
                     predictionsRequested = predictionsRequested,
+                    // Leave intrinsic width for the duration so large font scale
+                    // cannot squeeze "2:42" into a per-character column.
+                    modifier = Modifier.weight(1f, fill = false),
                 )
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -153,6 +157,9 @@ fun JourneyCard(
                     Text(
                         formatDurationMinutes(journey.durationMinutes),
                         style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Clip,
                     )
                 }
             }
@@ -481,6 +488,7 @@ private fun JourneyTimeRangeHeader(
     journey: Journey,
     prediction: RatedJourney?,
     predictionsRequested: Boolean,
+    modifier: Modifier = Modifier,
 ) {
     val firstLegIndex = journey.legs.indexOfFirst { !it.isWalking }.takeIf { it >= 0 } ?: 0
     val lastLegIndex = journey.legs.indexOfLast { !it.isWalking }.takeIf { it >= 0 } ?: journey.legs.lastIndex
@@ -502,7 +510,7 @@ private fun JourneyTimeRangeHeader(
     val arrDelay = last?.delayMinutes
         ?: delayMinutesFromTimes(arrScheduled, last?.prognosedTime)
         ?: 0
-    Column {
+    Column(modifier) {
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             StopTimeText(
                 scheduled = depScheduled,

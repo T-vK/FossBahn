@@ -385,6 +385,8 @@ internal fun WalkingTimelineBlock(
                     it,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    softWrap = false,
                 )
             }
         }
