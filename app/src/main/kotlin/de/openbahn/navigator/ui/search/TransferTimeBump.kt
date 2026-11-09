@@ -4,13 +4,26 @@ import de.openbahn.model.Location
 import de.openbahn.model.LocationType
 import de.openbahn.model.StopEvent
 
-/** Preset stay durations offered on a specific transfer row. */
+/**
+ * Stay-duration steps used by bahn.de's "Umstiegszeit verlängern" (extend transfer time).
+ * Re-search goes through the same `/angebote/fahrplan` endpoint with
+ * `zwischenhalte[].aufenthaltsdauer` for that transfer station only.
+ */
 val TRANSFER_TIME_PRESETS_MINUTES: List<Int> = listOf(5, 10, 15, 20, 30)
 
 /**
- * Suggests stay durations longer than the scheduled gap at this transfer
- * (not a global min-transfer filter).
+ * Next stay duration above the scheduled gap (and any already requested stay).
+ * Returns null when already at/above the largest preset.
  */
+fun nextTransferStayMinutes(
+    scheduledTransferMinutes: Int?,
+    currentStayMinutes: Int? = null,
+): Int? {
+    val floor = maxOf(scheduledTransferMinutes ?: 0, currentStayMinutes ?: 0)
+    return TRANSFER_TIME_PRESETS_MINUTES.firstOrNull { it > floor }
+}
+
+/** @deprecated Prefer [nextTransferStayMinutes] for the bahn.de-style single button. */
 fun transferTimeBumpOptions(
     scheduledTransferMinutes: Int?,
     limit: Int = 3,

@@ -33,7 +33,12 @@ class AppUpdateCoordinator(
 
     suspend fun checkForUpdate() {
         if (downloadInProgress) return
-        val latest = releaseResolver.fetchLatestApk(context.packageName) ?: return
+        val latest = runCatching { releaseResolver.fetchLatestApk(context.packageName) }
+            .onFailure { e ->
+                OpenBahnDebugLog.w(TAG, "update check failed (offline?): ${e.message}")
+            }
+            .getOrNull()
+            ?: return
         val installedCode = BuildConfig.VERSION_CODE
         if (latest.versionCode <= installedCode) {
             if (_pendingUpdate.value != null) clearPending()
@@ -53,6 +58,8 @@ class AppUpdateCoordinator(
             _pendingUpdate.value = pending
             notifier.showUpdateReady(latest.versionName)
             OpenBahnDebugLog.d(TAG, "Update ready: ${latest.versionName} (${apk.length()} bytes)")
+        } catch (e: Exception) {
+            OpenBahnDebugLog.w(TAG, "update download failed: ${e.message}")
         } finally {
             downloadInProgress = false
         }

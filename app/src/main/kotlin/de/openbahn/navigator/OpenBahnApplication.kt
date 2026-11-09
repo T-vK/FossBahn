@@ -10,6 +10,7 @@ import de.openbahn.navigator.di.appModule
 import de.openbahn.navigator.locale.AppLocaleManager
 import de.openbahn.navigator.tracking.JourneyTrackingCoordinator
 import de.openbahn.navigator.update.AppUpdateMonitor
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -20,7 +21,19 @@ import org.koin.core.context.startKoin
 import org.koin.java.KoinJavaComponent.getKoin
 
 class OpenBahnApplication : Application() {
-    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val applicationScope = CoroutineScope(
+        SupervisorJob() +
+            Dispatchers.Default +
+            CoroutineExceptionHandler { _, throwable ->
+                // Background work (updates, tracking restore) must never crash the process
+                // when the device is offline or a network call fails.
+                OpenBahnDebugLog.w(
+                    "App",
+                    "background coroutine failed: ${throwable.message}",
+                    throwable,
+                )
+            },
+    )
 
     override fun onCreate() {
         super.onCreate()
@@ -37,7 +50,10 @@ class OpenBahnApplication : Application() {
         }
         createNotificationChannels()
         applicationScope.launch {
-            getKoin().get<JourneyTrackingCoordinator>().restoreOnLaunch()
+            runCatching { getKoin().get<JourneyTrackingCoordinator>().restoreOnLaunch() }
+                .onFailure { e ->
+                    OpenBahnDebugLog.w("App", "restoreOnLaunch failed: ${e.message}")
+                }
         }
         getKoin().get<AppUpdateMonitor>().start(applicationScope)
     }

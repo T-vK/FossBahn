@@ -2,20 +2,19 @@ package de.openbahn.navigator.ui.search
 
 import de.openbahn.model.StopEvent
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class TransferTimeBumpTest {
 
     @Test
-    fun suggestsPresetsAboveScheduledTransferOnly() {
-        assertEquals(listOf(15, 20, 30), transferTimeBumpOptions(scheduledTransferMinutes = 10))
-        assertEquals(listOf(10, 15, 20), transferTimeBumpOptions(scheduledTransferMinutes = 8))
-    }
-
-    @Test
-    fun emptyWhenAlreadyAboveMaxPreset() {
-        assertEquals(emptyList<Int>(), transferTimeBumpOptions(scheduledTransferMinutes = 35))
+    fun nextStay_stepsLikeBahnDeButton() {
+        assertEquals(10, nextTransferStayMinutes(scheduledTransferMinutes = 7))
+        assertEquals(15, nextTransferStayMinutes(scheduledTransferMinutes = 10))
+        assertEquals(15, nextTransferStayMinutes(scheduledTransferMinutes = 7, currentStayMinutes = 10))
+        assertEquals(20, nextTransferStayMinutes(scheduledTransferMinutes = 13, currentStayMinutes = 15))
+        assertNull(nextTransferStayMinutes(scheduledTransferMinutes = 35))
     }
 
     @Test

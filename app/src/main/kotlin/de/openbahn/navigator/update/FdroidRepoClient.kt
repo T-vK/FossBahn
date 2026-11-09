@@ -83,6 +83,9 @@ class FdroidRepoClient(
         return try {
             if (connection.responseCode !in 200..299) return null
             connection.inputStream.bufferedReader().use { it.readText() }
+        } catch (_: Exception) {
+            // Offline / DNS / TLS failures must not crash the app (AppUpdateMonitor runs at launch).
+            null
         } finally {
             connection.disconnect()
         }

@@ -221,8 +221,7 @@
     <string name="filter_transfer_time">Minimum transfer time</string>
     <string name="filter_transfer_default">Standard</string>
     <string name="filter_transfer_minutes">%d minutes</string>
-    <string name="transfer_need_more_time">Longer stay at this change</string>
-    <string name="transfer_bump_min_minutes">≥%d min here</string>
+    <string name="transfer_extend_time">Extend transfer time</string>
     <string name="search_via_stop_with_stay">Via %1$d (≥%2$d min stay)</string>
     <string name="filter_accessibility">Accessibility</string>
     <string name="filter_routing">Routing</string>

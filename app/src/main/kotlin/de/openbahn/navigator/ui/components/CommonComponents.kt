@@ -77,6 +77,7 @@ import org.koin.compose.koinInject
 import de.openbahn.navigator.ui.util.CopyJourneyIconButton
 import de.openbahn.navigator.ui.util.NavigateToStopIconButton
 import de.openbahn.navigator.ui.util.ShareJourneyIconButton
+import de.openbahn.navigator.ui.search.transferStationLocation
 import de.openbahn.navigator.ui.util.formatDurationMinutes
 import de.openbahn.navigator.ui.util.formatJourneyClock
 import de.openbahn.navigator.ui.util.journeyDateLabelIfNotToday
@@ -110,7 +111,8 @@ fun JourneyCard(
     prediction: RatedJourney? = null,
     predictionsRequested: Boolean = false,
     expanded: Boolean = false,
-    onRequireTransferStay: ((station: Location, stayMinutes: Int) -> Unit)? = null,
+    onExtendTransferTime: ((station: Location, scheduledTransferMinutes: Int?) -> Unit)? = null,
+    currentTransferStayMinutes: ((station: Location) -> Int?)? = null,
     onOpenFullscreen: (() -> Unit)? = null,
     onTrack: (() -> Unit)? = null,
     onShowAlternatives: (() -> Unit)? = null,
@@ -297,7 +299,11 @@ fun JourneyCard(
                                 prediction = prediction?.predictions?.getOrNull(index),
                                 predictionsRequested = predictionsRequested,
                                 minTransferMinutesUsed = prediction?.minTransferMinutesUsed,
-                                onRequireTransferStay = onRequireTransferStay,
+                                currentStayMinutes = transferStationLocation(
+                                    leg.destination,
+                                    next.origin,
+                                )?.let { currentTransferStayMinutes?.invoke(it) },
+                                onExtendTransferTime = onExtendTransferTime,
                             )
                         }
                     }

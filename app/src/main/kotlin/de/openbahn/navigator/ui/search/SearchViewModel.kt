@@ -276,11 +276,16 @@ class SearchViewModel(
     }
 
     /**
-     * Re-searches with a via stay at [transferStation] so only that change gets a longer
-     * buffer — other transfers and the global min-transfer filter are left alone.
+     * Same mechanism as bahn.de "Umstiegszeit verlängern": re-query `/angebote/fahrplan`
+     * with this transfer station as `zwischenhalt` + `aufenthaltsdauer`, without raising
+     * the global min-transfer filter for every change.
      */
-    fun requireLongerStayAtTransfer(transferStation: Location, stayMinutes: Int) {
-        val clamped = stayMinutes.coerceAtLeast(1)
+    fun extendTransferTimeAt(transferStation: Location, scheduledTransferMinutes: Int?) {
+        val currentStay = currentStayMinutesAt(transferStation)
+        val next = nextTransferStayMinutes(
+            scheduledTransferMinutes = scheduledTransferMinutes,
+            currentStayMinutes = currentStay,
+        ) ?: return
         val key = transferStation.stableKey()
         _state.update { state ->
             val vias = state.viaStops.toMutableList()
@@ -291,7 +296,7 @@ class SearchViewModel(
             val field = ViaStopField(
                 query = transferStation.name,
                 location = transferStation,
-                stayMinutes = clamped,
+                stayMinutes = next,
             )
             if (matchIdx >= 0) vias[matchIdx] = field else vias += field
             state.copy(
@@ -300,6 +305,15 @@ class SearchViewModel(
             )
         }
         search()
+    }
+
+    /** Current requested stay at [transferStation], if the user already extended this change. */
+    fun currentStayMinutesAt(transferStation: Location): Int? {
+        val key = transferStation.stableKey()
+        return _state.value.viaStops.firstOrNull { field ->
+            field.location?.stableKey() == key ||
+                field.location?.name.equals(transferStation.name, ignoreCase = true) == true
+        }?.stayMinutes
     }
 
     fun setDeutschlandTicketConnectionsOnly(enabled: Boolean) {

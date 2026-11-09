@@ -421,14 +421,16 @@ fun SearchScreen(
                         minTransferMinutes = minTransferMinutes,
                         onOpenDetail = onOpenJourneyDetail,
                         onTrack = { viewModel.trackJourney(rated.journey) },
-                        onRequireTransferStay = viewModel::requireLongerStayAtTransfer,
+                        onExtendTransferTime = viewModel::extendTransferTimeAt,
+                        currentTransferStayMinutes = viewModel::currentStayMinutesAt,
                         dismissKeyboard = dismissKeyboard,
                     )
                 } else {
                     JourneyCard(
                         journey = journey,
                         predictionsRequested = predictionsRequested,
-                        onRequireTransferStay = viewModel::requireLongerStayAtTransfer,
+                        onExtendTransferTime = viewModel::extendTransferTimeAt,
+                        currentTransferStayMinutes = viewModel::currentStayMinutesAt,
                         onOpenFullscreen = {
                             dismissKeyboard()
                             JourneyNavigation.set(
@@ -560,14 +562,16 @@ private fun JourneyResultItem(
     minTransferMinutes: Int?,
     onOpenDetail: () -> Unit,
     onTrack: () -> Unit,
-    onRequireTransferStay: (de.openbahn.model.Location, Int) -> Unit,
+    onExtendTransferTime: (de.openbahn.model.Location, Int?) -> Unit,
+    currentTransferStayMinutes: (de.openbahn.model.Location) -> Int?,
     dismissKeyboard: () -> Unit,
 ) {
     JourneyCard(
         journey = ratedJourney.journey,
         prediction = ratedJourney,
         predictionsRequested = predictionsRequested,
-        onRequireTransferStay = onRequireTransferStay,
+        onExtendTransferTime = onExtendTransferTime,
+        currentTransferStayMinutes = currentTransferStayMinutes,
         onOpenFullscreen = {
             dismissKeyboard()
             JourneyNavigation.set(

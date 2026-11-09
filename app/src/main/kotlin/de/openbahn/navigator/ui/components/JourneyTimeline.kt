@@ -10,8 +10,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -28,14 +26,14 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Train
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import de.openbahn.model.Location
+import de.openbahn.navigator.ui.search.nextTransferStayMinutes
 import de.openbahn.navigator.ui.search.transferStationLocation
-import de.openbahn.navigator.ui.search.transferTimeBumpOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -266,7 +264,6 @@ internal fun LegTimelineBlock(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun TransferTimelineBlock(
     fromLeg: Leg,
@@ -274,7 +271,8 @@ internal fun TransferTimelineBlock(
     prediction: TransferPrediction?,
     predictionsRequested: Boolean,
     minTransferMinutesUsed: Int?,
-    onRequireTransferStay: ((station: Location, stayMinutes: Int) -> Unit)? = null,
+    currentStayMinutes: Int? = null,
+    onExtendTransferTime: ((station: Location, scheduledTransferMinutes: Int?) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val transferMins = transferMinutesBetween(fromLeg.destination, toLeg.origin)
@@ -283,8 +281,11 @@ internal fun TransferTimelineBlock(
     val transferStation = remember(fromLeg.destination, toLeg.origin) {
         transferStationLocation(fromLeg.destination, toLeg.origin)
     }
-    val bumpOptions = remember(transferMins) {
-        transferTimeBumpOptions(scheduledTransferMinutes = transferMins?.toInt())
+    val canExtend = remember(transferMins, currentStayMinutes) {
+        nextTransferStayMinutes(
+            scheduledTransferMinutes = transferMins?.toInt(),
+            currentStayMinutes = currentStayMinutes,
+        ) != null
     }
 
     Row(
@@ -375,26 +376,14 @@ internal fun TransferTimelineBlock(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            if (onRequireTransferStay != null && transferStation != null && bumpOptions.isNotEmpty()) {
-                Text(
-                    stringResource(R.string.transfer_need_more_time),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.testTag("transfer_time_bumps"),
+            if (onExtendTransferTime != null && transferStation != null && canExtend) {
+                OutlinedButton(
+                    onClick = {
+                        onExtendTransferTime(transferStation, transferMins?.toInt())
+                    },
+                    modifier = Modifier.testTag("extend_transfer_time"),
                 ) {
-                    bumpOptions.forEach { minutes ->
-                        FilterChip(
-                            selected = false,
-                            onClick = { onRequireTransferStay(transferStation, minutes) },
-                            label = {
-                                Text(stringResource(R.string.transfer_bump_min_minutes, minutes))
-                            },
-                            modifier = Modifier.testTag("transfer_bump_$minutes"),
-                        )
-                    }
+                    Text(stringResource(R.string.transfer_extend_time))
                 }
             }
         }

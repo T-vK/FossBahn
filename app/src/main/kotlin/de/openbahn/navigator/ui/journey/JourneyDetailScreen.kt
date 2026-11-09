@@ -84,7 +84,8 @@ fun JourneyDetailScreen(
         if (isRefreshing) return
         isRefreshing = true
         try {
-            val refreshed = refreshUseCase.refreshJourney(rawJourney) ?: return
+            val refreshed = runCatching { refreshUseCase.refreshJourney(rawJourney) }
+                .getOrElse { return }
             rawJourney = refreshed
             journey = refreshed.applyPassengerRightsSimulation(simulationConfig)
             val assessment = passengerRights.evaluate(
@@ -102,8 +103,12 @@ fun JourneyDetailScreen(
                 val tripRoutes = loadTripRoutesForJourneys(listOf(refreshed)) { leg ->
                     journeySearch.fetchFullLegRoute(leg)
                 }
-                prediction = predictionClient.rateJourney(refreshed, options, tripRoutes)
+                prediction = runCatching {
+                    predictionClient.rateJourney(refreshed, options, tripRoutes)
+                }.getOrNull() ?: prediction
             }
+        } catch (_: Exception) {
+            // Offline / API failures: keep showing the last known journey.
         } finally {
             isRefreshing = false
         }
