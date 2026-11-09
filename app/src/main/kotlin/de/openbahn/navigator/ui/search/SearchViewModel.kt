@@ -275,11 +275,29 @@ class SearchViewModel(
         _state.update { it.copy(options = options) }
     }
 
-    /** Raises the minimum transfer filter and re-runs search (from a connection transfer row). */
-    fun requireMinTransferMinutes(minutes: Int) {
-        val clamped = minutes.coerceAtLeast(1)
-        _state.update {
-            it.copy(options = it.options.copy(minTransferMinutes = clamped))
+    /**
+     * Re-searches with a via stay at [transferStation] so only that change gets a longer
+     * buffer — other transfers and the global min-transfer filter are left alone.
+     */
+    fun requireLongerStayAtTransfer(transferStation: Location, stayMinutes: Int) {
+        val clamped = stayMinutes.coerceAtLeast(1)
+        val key = transferStation.stableKey()
+        _state.update { state ->
+            val vias = state.viaStops.toMutableList()
+            val matchIdx = vias.indexOfFirst { field ->
+                field.location?.stableKey() == key ||
+                    field.location?.name.equals(transferStation.name, ignoreCase = true) == true
+            }
+            val field = ViaStopField(
+                query = transferStation.name,
+                location = transferStation,
+                stayMinutes = clamped,
+            )
+            if (matchIdx >= 0) vias[matchIdx] = field else vias += field
+            state.copy(
+                viaStops = vias,
+                showViaStopsEditor = true,
+            )
         }
         search()
     }
@@ -511,7 +529,12 @@ class SearchViewModel(
         var options = state.options.copy(
             locale = state.locale,
             viaStops = state.viaStops.mapNotNull { field ->
-                field.location?.let { loc -> ViaStop(locationId = loc.haltIdForJourney()) }
+                field.location?.let { loc ->
+                    ViaStop(
+                        locationId = loc.haltIdForJourney(),
+                        stayMinutes = field.stayMinutes,
+                    )
+                }
             },
         )
         if (options.products.isEmpty()) {

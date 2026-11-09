@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import de.openbahn.model.BoardEntry
 import de.openbahn.model.Journey
 import de.openbahn.model.Leg
+import de.openbahn.model.Location
 import de.openbahn.model.railTransferCount
 import de.openbahn.api.JourneyRatingOptions
 import de.openbahn.model.RatedJourney
@@ -109,8 +110,7 @@ fun JourneyCard(
     prediction: RatedJourney? = null,
     predictionsRequested: Boolean = false,
     expanded: Boolean = false,
-    currentMinTransferMinutes: Int? = prediction?.minTransferMinutesUsed,
-    onRequireMinTransferMinutes: ((Int) -> Unit)? = null,
+    onRequireTransferStay: ((station: Location, stayMinutes: Int) -> Unit)? = null,
     onOpenFullscreen: (() -> Unit)? = null,
     onTrack: (() -> Unit)? = null,
     onShowAlternatives: (() -> Unit)? = null,
@@ -297,8 +297,7 @@ fun JourneyCard(
                                 prediction = prediction?.predictions?.getOrNull(index),
                                 predictionsRequested = predictionsRequested,
                                 minTransferMinutesUsed = prediction?.minTransferMinutesUsed,
-                                currentMinTransferMinutes = currentMinTransferMinutes,
-                                onRequireMinTransferMinutes = onRequireMinTransferMinutes,
+                                onRequireTransferStay = onRequireTransferStay,
                             )
                         }
                     }

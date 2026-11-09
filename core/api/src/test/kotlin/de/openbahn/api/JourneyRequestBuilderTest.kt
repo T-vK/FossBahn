@@ -116,6 +116,34 @@ class JourneyRequestBuilderTest {
     }
 
     @Test
+    fun `via stop stay minutes are sent as aufenthaltsdauer`() {
+        val body = JourneyRequestBuilder.build(
+            berlin,
+            munich,
+            JourneySearchOptions(
+                viaStops = listOf(
+                    de.openbahn.model.ViaStop(locationId = "8002549", stayMinutes = 20),
+                ),
+            ),
+            LocalDateTime.now(),
+        )
+        assertTrue(body.toString().contains("aufenthaltsdauer"))
+        assertTrue(body.toString().contains("20"))
+        val mobile = JourneyRequestBuilder.buildMobile(
+            berlin,
+            munich,
+            JourneySearchOptions(
+                viaStops = listOf(
+                    de.openbahn.model.ViaStop(locationId = "8002549", stayMinutes = 20),
+                ),
+            ),
+            LocalDateTime.now(),
+        )
+        assertTrue(mobile.toString().contains("aufenthaltsdauer"))
+        assertTrue(mobile.toString().contains("20"))
+    }
+
+    @Test
     fun `coordinate location uses geo halt id`() {
         val from = Location(
             id = haltIdForCoordinates(52.52, 13.405, "Current position"),

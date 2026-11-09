@@ -233,6 +233,7 @@ internal object JourneyRequestBuilder {
                                     add(
                                         buildJsonObject {
                                             put("locationId", haltIdForJourney(via.locationId))
+                                            via.stayMinutes?.let { put("aufenthaltsdauer", it) }
                                         },
                                     )
                                 }

@@ -253,7 +253,9 @@ fun SearchScreen(
                         SearchLocationField(
                             value = via.query,
                             onValueChange = { viewModel.setViaQuery(index, it) },
-                            label = stringResource(R.string.search_via_stop, index + 1),
+                            label = via.stayMinutes?.let { stay ->
+                                stringResource(R.string.search_via_stop_with_stay, index + 1, stay)
+                            } ?: stringResource(R.string.search_via_stop, index + 1),
                             onFocusChanged = { focused -> viewModel.onViaFocusChanged(index, focused) },
                             onUseCurrentLocation = {
                                 dismissKeyboard()
@@ -419,15 +421,14 @@ fun SearchScreen(
                         minTransferMinutes = minTransferMinutes,
                         onOpenDetail = onOpenJourneyDetail,
                         onTrack = { viewModel.trackJourney(rated.journey) },
-                        onRequireMinTransferMinutes = viewModel::requireMinTransferMinutes,
+                        onRequireTransferStay = viewModel::requireLongerStayAtTransfer,
                         dismissKeyboard = dismissKeyboard,
                     )
                 } else {
                     JourneyCard(
                         journey = journey,
                         predictionsRequested = predictionsRequested,
-                        currentMinTransferMinutes = minTransferMinutes,
-                        onRequireMinTransferMinutes = viewModel::requireMinTransferMinutes,
+                        onRequireTransferStay = viewModel::requireLongerStayAtTransfer,
                         onOpenFullscreen = {
                             dismissKeyboard()
                             JourneyNavigation.set(
@@ -559,15 +560,14 @@ private fun JourneyResultItem(
     minTransferMinutes: Int?,
     onOpenDetail: () -> Unit,
     onTrack: () -> Unit,
-    onRequireMinTransferMinutes: (Int) -> Unit,
+    onRequireTransferStay: (de.openbahn.model.Location, Int) -> Unit,
     dismissKeyboard: () -> Unit,
 ) {
     JourneyCard(
         journey = ratedJourney.journey,
         prediction = ratedJourney,
         predictionsRequested = predictionsRequested,
-        currentMinTransferMinutes = minTransferMinutes,
-        onRequireMinTransferMinutes = onRequireMinTransferMinutes,
+        onRequireTransferStay = onRequireTransferStay,
         onOpenFullscreen = {
             dismissKeyboard()
             JourneyNavigation.set(

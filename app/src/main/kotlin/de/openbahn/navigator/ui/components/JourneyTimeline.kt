@@ -33,6 +33,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import de.openbahn.model.Location
+import de.openbahn.navigator.ui.search.transferStationLocation
 import de.openbahn.navigator.ui.search.transferTimeBumpOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -272,18 +274,17 @@ internal fun TransferTimelineBlock(
     prediction: TransferPrediction?,
     predictionsRequested: Boolean,
     minTransferMinutesUsed: Int?,
-    currentMinTransferMinutes: Int? = minTransferMinutesUsed,
-    onRequireMinTransferMinutes: ((Int) -> Unit)? = null,
+    onRequireTransferStay: ((station: Location, stayMinutes: Int) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val transferMins = transferMinutesBetween(fromLeg.destination, toLeg.origin)
     val probability = prediction?.successProbability
     val percent = probability?.let { (it * 100).toInt().coerceIn(0, 100) }
-    val bumpOptions = remember(transferMins, currentMinTransferMinutes) {
-        transferTimeBumpOptions(
-            scheduledTransferMinutes = transferMins?.toInt(),
-            currentMinTransferMinutes = currentMinTransferMinutes,
-        )
+    val transferStation = remember(fromLeg.destination, toLeg.origin) {
+        transferStationLocation(fromLeg.destination, toLeg.origin)
+    }
+    val bumpOptions = remember(transferMins) {
+        transferTimeBumpOptions(scheduledTransferMinutes = transferMins?.toInt())
     }
 
     Row(
@@ -374,7 +375,7 @@ internal fun TransferTimelineBlock(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            if (onRequireMinTransferMinutes != null && bumpOptions.isNotEmpty()) {
+            if (onRequireTransferStay != null && transferStation != null && bumpOptions.isNotEmpty()) {
                 Text(
                     stringResource(R.string.transfer_need_more_time),
                     style = MaterialTheme.typography.labelSmall,
@@ -387,7 +388,7 @@ internal fun TransferTimelineBlock(
                     bumpOptions.forEach { minutes ->
                         FilterChip(
                             selected = false,
-                            onClick = { onRequireMinTransferMinutes(minutes) },
+                            onClick = { onRequireTransferStay(transferStation, minutes) },
                             label = {
                                 Text(stringResource(R.string.transfer_bump_min_minutes, minutes))
                             },
