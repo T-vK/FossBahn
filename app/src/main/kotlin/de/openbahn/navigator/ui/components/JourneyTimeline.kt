@@ -10,6 +10,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -26,10 +28,12 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Train
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import de.openbahn.navigator.ui.search.transferTimeBumpOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -260,6 +264,7 @@ internal fun LegTimelineBlock(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun TransferTimelineBlock(
     fromLeg: Leg,
@@ -267,11 +272,19 @@ internal fun TransferTimelineBlock(
     prediction: TransferPrediction?,
     predictionsRequested: Boolean,
     minTransferMinutesUsed: Int?,
+    currentMinTransferMinutes: Int? = minTransferMinutesUsed,
+    onRequireMinTransferMinutes: ((Int) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val transferMins = transferMinutesBetween(fromLeg.destination, toLeg.origin)
     val probability = prediction?.successProbability
     val percent = probability?.let { (it * 100).toInt().coerceIn(0, 100) }
+    val bumpOptions = remember(transferMins, currentMinTransferMinutes) {
+        transferTimeBumpOptions(
+            scheduledTransferMinutes = transferMins?.toInt(),
+            currentMinTransferMinutes = currentMinTransferMinutes,
+        )
+    }
 
     Row(
         modifier
@@ -291,6 +304,8 @@ internal fun TransferTimelineBlock(
                     "${mins} min",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    softWrap = false,
                 )
             }
         }
@@ -358,6 +373,28 @@ internal fun TransferTimelineBlock(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            if (onRequireMinTransferMinutes != null && bumpOptions.isNotEmpty()) {
+                Text(
+                    stringResource(R.string.transfer_need_more_time),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.testTag("transfer_time_bumps"),
+                ) {
+                    bumpOptions.forEach { minutes ->
+                        FilterChip(
+                            selected = false,
+                            onClick = { onRequireMinTransferMinutes(minutes) },
+                            label = {
+                                Text(stringResource(R.string.transfer_bump_min_minutes, minutes))
+                            },
+                            modifier = Modifier.testTag("transfer_bump_$minutes"),
+                        )
+                    }
+                }
             }
         }
     }

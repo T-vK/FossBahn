@@ -419,12 +419,15 @@ fun SearchScreen(
                         minTransferMinutes = minTransferMinutes,
                         onOpenDetail = onOpenJourneyDetail,
                         onTrack = { viewModel.trackJourney(rated.journey) },
+                        onRequireMinTransferMinutes = viewModel::requireMinTransferMinutes,
                         dismissKeyboard = dismissKeyboard,
                     )
                 } else {
                     JourneyCard(
                         journey = journey,
                         predictionsRequested = predictionsRequested,
+                        currentMinTransferMinutes = minTransferMinutes,
+                        onRequireMinTransferMinutes = viewModel::requireMinTransferMinutes,
                         onOpenFullscreen = {
                             dismissKeyboard()
                             JourneyNavigation.set(
@@ -556,12 +559,15 @@ private fun JourneyResultItem(
     minTransferMinutes: Int?,
     onOpenDetail: () -> Unit,
     onTrack: () -> Unit,
+    onRequireMinTransferMinutes: (Int) -> Unit,
     dismissKeyboard: () -> Unit,
 ) {
     JourneyCard(
         journey = ratedJourney.journey,
         prediction = ratedJourney,
         predictionsRequested = predictionsRequested,
+        currentMinTransferMinutes = minTransferMinutes,
+        onRequireMinTransferMinutes = onRequireMinTransferMinutes,
         onOpenFullscreen = {
             dismissKeyboard()
             JourneyNavigation.set(

@@ -109,6 +109,8 @@ fun JourneyCard(
     prediction: RatedJourney? = null,
     predictionsRequested: Boolean = false,
     expanded: Boolean = false,
+    currentMinTransferMinutes: Int? = prediction?.minTransferMinutesUsed,
+    onRequireMinTransferMinutes: ((Int) -> Unit)? = null,
     onOpenFullscreen: (() -> Unit)? = null,
     onTrack: (() -> Unit)? = null,
     onShowAlternatives: (() -> Unit)? = null,
@@ -295,6 +297,8 @@ fun JourneyCard(
                                 prediction = prediction?.predictions?.getOrNull(index),
                                 predictionsRequested = predictionsRequested,
                                 minTransferMinutesUsed = prediction?.minTransferMinutesUsed,
+                                currentMinTransferMinutes = currentMinTransferMinutes,
+                                onRequireMinTransferMinutes = onRequireMinTransferMinutes,
                             )
                         }
                     }
