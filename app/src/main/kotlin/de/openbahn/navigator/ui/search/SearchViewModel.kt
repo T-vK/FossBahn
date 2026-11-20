@@ -434,9 +434,15 @@ class SearchViewModel(
 
     fun removeViaStop(index: Int) {
         _state.update { state ->
+            val remaining = state.viaStops.filterIndexed { i, _ -> i != index }
             state.copy(
-                viaStops = state.viaStops.filterIndexed { i, _ -> i != index },
-                activeViaIndex = if (state.activeViaIndex == index) null else state.activeViaIndex,
+                viaStops = remaining,
+                showViaStopsEditor = remaining.isNotEmpty() && state.showViaStopsEditor,
+                activeViaIndex = when (state.activeViaIndex) {
+                    null -> null
+                    index -> null
+                    else -> state.activeViaIndex?.let { if (it > index) it - 1 else it }
+                },
                 viaSuggestions = emptyList(),
             )
         }
@@ -536,6 +542,29 @@ class SearchViewModel(
             )
         }
         search()
+    }
+
+    private suspend fun resolveViaFields(
+        fields: List<ViaStopField>,
+        activeViaIndex: Int?,
+        viaSuggestions: List<Location>,
+    ): List<ViaStopField>? {
+        val resolved = ArrayList<ViaStopField>(fields.size)
+        for ((index, field) in fields.withIndex()) {
+            if (field.query.trim().length < 2) {
+                resolved += field.copy(location = null)
+                continue
+            }
+            val suggestions = if (index == activeViaIndex) {
+                viaSuggestions
+            } else {
+                listOfNotNull(field.location)
+            }
+            val location = resolveLocation("via$index", field.query, field.location, suggestions)
+                ?: return null
+            resolved += field.copy(location = location)
+        }
+        return resolved
     }
 
     private fun searchOptionsWithVia(): JourneySearchOptions {
@@ -649,6 +678,9 @@ class SearchViewModel(
         // Keep suggestion snapshots for resolve — the UI clears them when search starts.
         val fromSuggestionsSnapshot = _state.value.fromSuggestions
         val toSuggestionsSnapshot = _state.value.toSuggestions
+        val viaSuggestionsSnapshot = _state.value.viaSuggestions
+        val activeViaIndexSnapshot = _state.value.activeViaIndex
+        val viaFieldsSnapshot = _state.value.viaStops
         _state.update {
             it.copy(
                 isLoading = true,
@@ -660,8 +692,10 @@ class SearchViewModel(
                 info = null,
                 hasSearched = true,
                 activeLocationField = ActiveLocationField.NONE,
+                activeViaIndex = null,
                 fromSuggestions = emptyList(),
                 toSuggestions = emptyList(),
+                viaSuggestions = emptyList(),
                 journeys = if (replaceResults) emptyList() else it.journeys,
                 ratedJourneys = if (replaceResults) emptyList() else it.ratedJourneys,
                 hiddenArrivalJourneys = if (replaceResults) emptyList() else it.hiddenArrivalJourneys,
@@ -671,6 +705,7 @@ class SearchViewModel(
         }
         val from: Location
         val to: Location
+        val resolvedViaFields: List<ViaStopField>
         try {
             val resolvedFrom = resolveLocation(
                 "from",
@@ -684,13 +719,19 @@ class SearchViewModel(
                 _state.value.to,
                 toSuggestionsSnapshot,
             )
-            if (resolvedFrom == null || resolvedTo == null) {
+            val resolvedVias = resolveViaFields(
+                viaFieldsSnapshot,
+                activeViaIndexSnapshot,
+                viaSuggestionsSnapshot,
+            )
+            if (resolvedFrom == null || resolvedTo == null || resolvedVias == null) {
                 OpenBahnDebugLog.w("Search", "search() aborted: could not resolve stations")
                 _state.update { it.copy(isLoading = false, error = "error_select_stations") }
                 return
             }
             from = resolvedFrom
             to = resolvedTo
+            resolvedViaFields = resolvedVias
         } catch (e: DbApiBlockedException) {
             OpenBahnDebugLog.w("Search", "search() aborted: location API blocked (${e.message})")
             _state.update { it.copy(isLoading = false, error = "error_api_blocked") }
@@ -712,10 +753,11 @@ class SearchViewModel(
             _state.update { it.copy(isLoading = false, error = "error_search_failed") }
             return
         }
-        _state.update { it.copy(from = from, to = to) }
+        _state.update { it.copy(from = from, to = to, viaStops = resolvedViaFields) }
         viewModelScope.launch {
             locationHistory.recordUsed(from)
             locationHistory.recordUsed(to)
+            resolvedViaFields.mapNotNull { it.location }.forEach { locationHistory.recordUsed(it) }
         }
         runSearch(from, to, pagingReference = null, replaceResults = replaceResults)
     }

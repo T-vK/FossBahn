@@ -1,10 +1,13 @@
 package de.openbahn.navigator.ui.search
 
 import de.openbahn.api.DbApiBlockedException
+import de.openbahn.api.haltIdForCoordinates
 import de.openbahn.model.Journey
+import de.openbahn.model.JourneySearchOptions
 import de.openbahn.model.JourneySearchResult
 import de.openbahn.model.Leg
 import de.openbahn.model.Location
+import de.openbahn.model.LocationType
 import de.openbahn.model.RatedJourney
 import de.openbahn.model.StopEvent
 import de.openbahn.navigator.data.FavoriteRouteRepository
@@ -20,6 +23,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import de.openbahn.navigator.locale.AppLanguage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -550,5 +554,64 @@ class SearchViewModelTest {
         assertEquals("error_api_blocked", viewModel.state.value.error)
         assertFalse(viewModel.state.value.isLoading)
         assertTrue(viewModel.state.value.journeys.isEmpty())
+    }
+
+    @Test
+    fun search_resolvesTypedViaAddress() = runTest(dispatcher) {
+        val address = Location(
+            id = haltIdForCoordinates(53.55, 10.0, "Reeperbahn 1, Hamburg", typeCode = 2),
+            name = "Reeperbahn 1, Hamburg",
+            type = LocationType.ADDRESS,
+            latitude = 53.55,
+            longitude = 10.0,
+        )
+        coEvery { searchRepository.searchLocations(match { it.contains("Reeperbahn") }, any()) } returns
+            listOf(address)
+        val optionsSlot = slot<JourneySearchOptions>()
+        coEvery {
+            searchRepository.searchJourneys(any(), any(), capture(optionsSlot), any(), any())
+        } returns JourneySearchResult(journeys = listOf(sampleJourney))
+
+        val viewModel = createViewModel()
+        viewModel.selectFrom(berlin)
+        viewModel.selectTo(munich)
+        viewModel.toggleViaStopsEditor()
+        viewModel.setViaQuery(0, "Reeperbahn 1, Hamburg")
+        viewModel.search()
+        advanceUntilIdle()
+
+        assertNull(viewModel.state.value.error)
+        assertTrue(optionsSlot.isCaptured)
+        val via = optionsSlot.captured.viaStops.single()
+        assertTrue(via.locationId.startsWith("A=2@"), via.locationId)
+        assertEquals(address, viewModel.state.value.viaStops.single().location)
+        assertTrue(viewModel.state.value.showViaStopsEditor)
+    }
+
+    @Test
+    fun search_unresolvedViaShowsSelectError() = runTest(dispatcher) {
+        coEvery { searchRepository.searchLocations(match { it.contains("Nowhere") }, any()) } returns
+            emptyList()
+        val viewModel = createViewModel()
+        viewModel.selectFrom(berlin)
+        viewModel.selectTo(munich)
+        viewModel.toggleViaStopsEditor()
+        viewModel.setViaQuery(0, "Nowhere Street 1")
+        viewModel.search()
+        advanceUntilIdle()
+
+        assertEquals("error_select_stations", viewModel.state.value.error)
+        coVerify(exactly = 0) { searchRepository.searchJourneys(any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun removeLastVia_hidesEditor() = runTest(dispatcher) {
+        val viewModel = createViewModel()
+        viewModel.toggleViaStopsEditor()
+        assertTrue(viewModel.state.value.showViaStopsEditor)
+        assertEquals(1, viewModel.state.value.viaStops.size)
+        viewModel.removeViaStop(0)
+        assertFalse(viewModel.state.value.showViaStopsEditor)
+        assertTrue(viewModel.state.value.viaStops.isEmpty())
     }
 }

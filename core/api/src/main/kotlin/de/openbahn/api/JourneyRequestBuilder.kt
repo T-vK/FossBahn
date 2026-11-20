@@ -35,6 +35,12 @@ fun haltIdForJourney(
     val inferredType = locationTypeFromHaltId(locationId) ?: type
     // Addresses / POIs must keep coordinate lids (A=2 / A=4). Never snap them to a nearby stop EVA.
     if (inferredType == LocationType.ADDRESS) {
+        // Via stops only store the lid; keep a complete A=2/A=4 id instead of stuffing it into @O=.
+        if (label == null && latitude == null && longitude == null &&
+            (locationId.startsWith("A=2@") || locationId.startsWith("A=4@"))
+        ) {
+            return locationId
+        }
         val coords = when {
             latitude != null && longitude != null -> latitude to longitude
             else -> coordinatesFromHaltId(locationId)
@@ -42,7 +48,8 @@ fun haltIdForJourney(
         if (coords != null) {
             val (lat, lon) = coords
             val addressTypeCode = haltTypeCode(locationId) ?: 2
-            return haltIdForCoordinates(lat, lon, label ?: locationId, typeCode = addressTypeCode)
+            val addressLabel = label?.takeUnless { it.startsWith("A=") } ?: nameFromHaltId(locationId)
+            return haltIdForCoordinates(lat, lon, addressLabel, typeCode = addressTypeCode)
         }
         // Keep a full A=2/A=4 lid from /orte when we cannot rebuild coordinates.
         if (locationId.startsWith("A=2@") || locationId.startsWith("A=4@")) return locationId
@@ -89,6 +96,9 @@ private const val COORD_SCALE = 1_000_000.0
 
 private fun encodeHaltName(name: String): String =
     name.replace('@', ' ').replace(' ', '+')
+
+private fun nameFromHaltId(haltId: String): String? =
+    Regex("""@O=([^@]+)@""").find(haltId)?.groupValues?.getOrNull(1)?.replace('+', ' ')
 
 private val EVA_IN_HALT_ID = Regex("""@L=(\d+)@""")
 private val HALT_TYPE_CODE = Regex("""(?:^|@)A=(\d+)(?:@|$)""")

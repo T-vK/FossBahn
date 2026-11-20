@@ -47,7 +47,7 @@
     <string name="tracking_empty">No active journeys. Track a connection from search results.</string>
     <string name="tracking_no_refresh_token">Live refresh unavailable for this connection (search again to track).</string>
     <string name="swap_stations">Swap stations</string>
-    <string name="error_select_stations">Please pick a station from the suggestions for both origin and destination.</string>
+    <string name="error_select_stations">Please pick a station or address from the suggestions for origin, destination, and any via stops.</string>
     <string name="error_search_failed">Connection search failed. Please try again.</string>
     <string name="error_api_blocked">Deutsche Bahn blocked this request. Try again later or use another network.</string>
     <string name="error_network">Network error. Check your connection and try again.</string>
