@@ -101,6 +101,27 @@ class JourneyRequestBuilderTest {
     }
 
     @Test
+    fun `address via stop keeps coordinate halt id`() {
+        val addressId = haltIdForCoordinates(53.55, 10.0, "Reeperbahn 1, Hamburg", typeCode = 2)
+        val body = JourneyRequestBuilder.build(
+            berlin,
+            munich,
+            JourneySearchOptions(
+                viaStops = listOf(
+                    de.openbahn.model.ViaStop(locationId = addressId),
+                ),
+            ),
+            LocalDateTime.now(),
+        )
+        val encoded = body.toString()
+        assertTrue(encoded.contains("zwischenhalte"), encoded)
+        assertTrue(encoded.contains(addressId), encoded)
+        val viaJson = body["zwischenhalte"]!!.toString()
+        assertTrue(viaJson.contains("A=2@"), viaJson)
+        assertFalse(viaJson.contains("A=1@L="), viaJson)
+    }
+
+    @Test
     fun `via stop uses bahn halt id`() {
         val body = JourneyRequestBuilder.build(
             berlin,
@@ -155,6 +176,12 @@ class JourneyRequestBuilderTest {
         val halt = body["abfahrtsHalt"]!!.toString().trim('"')
         assertTrue(halt.contains("@X="))
         assertTrue(halt.contains("@Y="))
+    }
+
+    @Test
+    fun `haltIdForJourney keeps address lid when called with id only`() {
+        val id = haltIdForCoordinates(53.55, 10.0, "Reeperbahn 1, Hamburg", typeCode = 2)
+        assertEquals(id, haltIdForJourney(id))
     }
 
     @Test

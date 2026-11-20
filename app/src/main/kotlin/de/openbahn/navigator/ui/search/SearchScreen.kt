@@ -219,34 +219,6 @@ fun SearchScreen(
                     }
                 }
             }
-            item(key = "to_field") {
-                SearchLocationField(
-                    value = state.toQuery,
-                    onValueChange = viewModel::setToQuery,
-                    label = stringResource(R.string.to),
-                    onFocusChanged = viewModel::onToFocusChanged,
-                    onUseCurrentLocation = {
-                        dismissKeyboard()
-                        requestLocationThen { viewModel.useCurrentLocationForTo() }
-                    },
-                    onImeDone = dismissKeyboard,
-                    testTag = "search_to",
-                )
-            }
-            item(key = "via_toggle") {
-                TextButton(onClick = {
-                    dismissKeyboard()
-                    viewModel.toggleViaStopsEditor()
-                }) {
-                    Text(
-                        if (state.showViaStopsEditor) {
-                            stringResource(R.string.search_hide_via_stops)
-                        } else {
-                            stringResource(R.string.search_add_via_stop)
-                        },
-                    )
-                }
-            }
             if (state.showViaStopsEditor) {
                 state.viaStops.forEachIndexed { index, via ->
                     item(key = "via_field_$index") {
@@ -288,17 +260,20 @@ fun SearchScreen(
                         )
                     }
                 }
-                item(key = "via_add") {
-                    TextButton(onClick = {
+            }
+            item(key = "to_field") {
+                SearchLocationField(
+                    value = state.toQuery,
+                    onValueChange = viewModel::setToQuery,
+                    label = stringResource(R.string.to),
+                    onFocusChanged = viewModel::onToFocusChanged,
+                    onUseCurrentLocation = {
                         dismissKeyboard()
-                        viewModel.addViaStop()
-                    }) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Add, contentDescription = null)
-                            Text(stringResource(R.string.search_add_another_via))
-                        }
-                    }
-                }
+                        requestLocationThen { viewModel.useCurrentLocationForTo() }
+                    },
+                    onImeDone = dismissKeyboard,
+                    testTag = "search_to",
+                )
             }
             if (state.activeLocationField == ActiveLocationField.TO && state.toSuggestions.isNotEmpty()) {
                 item(key = "to_suggestions") {
@@ -321,6 +296,42 @@ fun SearchScreen(
                         }) {
                             Text(stringResource(R.string.clear_recent_locations))
                         }
+                    }
+                }
+            }
+            if (state.showViaStopsEditor) {
+                item(key = "via_add") {
+                    TextButton(
+                        onClick = {
+                            dismissKeyboard()
+                            viewModel.addViaStop()
+                        },
+                        modifier = Modifier.testTag("search_add_another_via"),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Add, contentDescription = null)
+                            Text(stringResource(R.string.search_add_another_via))
+                        }
+                    }
+                }
+                item(key = "via_toggle") {
+                    TextButton(onClick = {
+                        dismissKeyboard()
+                        viewModel.toggleViaStopsEditor()
+                    }) {
+                        Text(stringResource(R.string.search_hide_via_stops))
+                    }
+                }
+            } else {
+                item(key = "via_toggle") {
+                    TextButton(
+                        onClick = {
+                            dismissKeyboard()
+                            viewModel.toggleViaStopsEditor()
+                        },
+                        modifier = Modifier.testTag("search_add_via_stop"),
+                    ) {
+                        Text(stringResource(R.string.search_add_via_stop))
                     }
                 }
             }
@@ -537,10 +548,20 @@ private fun firstResultListIndex(state: SearchUiState): Int? {
         index++
         if (state.cachedRecent.isNotEmpty()) index++
     }
+    if (state.showViaStopsEditor) {
+        index += state.viaStops.size
+        if (state.activeViaIndex != null && state.viaSuggestions.isNotEmpty()) index++
+    }
     index++ // to_field
     if (state.activeLocationField == ActiveLocationField.TO && state.toSuggestions.isNotEmpty()) {
         index++
         if (state.cachedRecent.isNotEmpty()) index++
+    }
+    if (state.showViaStopsEditor) {
+        index++ // add another via
+        index++ // hide via stops
+    } else {
+        index++ // add via stop
     }
     index++ // when_section
     index++ // search_button
